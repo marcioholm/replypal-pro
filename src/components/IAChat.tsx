@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Sparkles, Send, X, Loader2 } from "lucide-react";
+import { Sparkles, Send, X, Loader2, Bot, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,13 +17,14 @@ export function IAChatButton({ collapsed }: { collapsed: boolean }) {
   return (
     <button
       onClick={() => store.setIAChatOpen(!store.isIAChatOpen)}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent/50 text-sidebar-foreground group relative ${
-        store.isIAChatOpen ? "bg-sidebar-accent/50 text-sidebar-accent-foreground" : ""
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-sidebar-accent/50 text-sidebar-foreground group relative mb-1 ${
+        store.isIAChatOpen ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md" : ""
       }`}
       title="Assistente IA"
     >
-      <Sparkles className="w-5 h-5 flex-shrink-0 text-sidebar-primary group-hover:scale-110 transition-transform" />
-      {!collapsed && <span className="text-sm font-medium">Assistente IA</span>}
+      <Sparkles className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${store.isIAChatOpen ? "text-sidebar-primary-foreground" : "text-sidebar-primary group-hover:scale-110"}`} />
+      {!collapsed && <span className="text-sm font-medium tracking-tight">Assistente IA</span>}
+      {store.isIAChatOpen && !collapsed && <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
     </button>
   );
 }
@@ -68,15 +69,14 @@ export function IAChatPanel() {
       setMessages([
         {
           role: "ia",
-          content: `Olá! Sou a assistente da ${name}. Posso ajudar com informações de clientes, documentos e honorários. Como posso ajudar?`,
+          content: `Olá! Sou a assistente da **${name}**. Estou pronta para ajudar você com informações de clientes, análise de documentos e honorários. Como posso ser útil agora?`,
         },
       ]);
     } catch (err) {
-      console.error("Error fetching tenant name:", err);
       setMessages([
         {
           role: "ia",
-          content: `Olá! Sou a assistente IA. Posso ajudar com informações de clientes, documentos e honorários. Como posso ajudar?`,
+          content: `Olá! Sou sua assistente de IA. Posso ajudar com informações de clientes, documentos e honorários. O que você precisa saber?`,
         },
       ]);
     }
@@ -93,9 +93,7 @@ export function IAChatPanel() {
     try {
       const response = await fetch(import.meta.env.VITE_N8N_IA_WEBHOOK, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mensagem_texto: userMessage,
           numero_whatsapp: "interno",
@@ -105,15 +103,13 @@ export function IAChatPanel() {
         }),
       });
 
-      if (!response.ok) throw new Error("Falha na comunicação");
-
+      if (!response.ok) throw new Error();
       const data = await response.json();
-      setMessages((prev) => [...prev, { role: "ia", content: data.resposta || "Sem resposta." }]);
-    } catch (error) {
-      console.error("Error sending message to IA:", error);
+      setMessages((prev) => [...prev, { role: "ia", content: data.resposta || "Desculpe, não obtive uma resposta clara." }]);
+    } catch {
       setMessages((prev) => [
         ...prev,
-        { role: "ia", content: "Não consegui processar sua solicitação. Tente novamente." },
+        { role: "ia", content: "Ops! Tive um problema ao processar sua mensagem. Poderia tentar novamente em alguns instantes?" },
       ]);
     } finally {
       setIsLoading(false);
@@ -124,43 +120,63 @@ export function IAChatPanel() {
 
   return (
     <div 
-      className="h-screen flex flex-col bg-background border-r shadow-sm animate-in slide-in-from-left duration-300 relative z-40"
+      className="h-screen flex flex-col bg-white border-r shadow-[10px_0_30px_-15px_rgba(0,0,0,0.1)] animate-in slide-in-from-left duration-500 ease-out relative z-40 overflow-hidden"
       style={{ width: "380px" }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-muted/20">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-sidebar-primary" />
-          <h2 className="text-sm font-bold tracking-tight">✦ {companyName}</h2>
+      {/* Premium Header */}
+      <div className="flex items-center justify-between p-5 bg-gradient-to-r from-sidebar-primary to-sidebar-primary/80 text-white shadow-md">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-white/10 rounded-lg backdrop-blur-sm">
+            <Bot className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold leading-tight">✦ {companyName}</h2>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-[10px] font-medium text-white/70 uppercase tracking-widest">Online Agora</span>
+            </div>
+          </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => store.setIAChatOpen(false)} className="h-8 w-8">
-          <X className="w-4 h-4" />
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => store.setIAChatOpen(false)} 
+          className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+        >
+          <X className="w-5 h-5" />
         </Button>
       </div>
 
       {/* Messages Area */}
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
+      <ScrollArea className="flex-1 px-4 py-6 bg-slate-50/50">
+        <div className="space-y-6">
           {messages.map((msg, i) => (
             <div
               key={i}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
             >
               <div
-                className={`max-w-[90%] px-4 py-2 rounded-2xl text-sm ${
+                className={`max-w-[90%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm transition-all ${
                   msg.role === "user"
-                    ? "bg-slate-800 text-white rounded-tr-none shadow-sm"
-                    : "bg-slate-100 text-slate-800 rounded-tl-none border shadow-sm"
+                    ? "bg-sidebar-primary text-white rounded-tr-none"
+                    : "bg-white text-slate-700 rounded-tl-none border border-slate-200"
                 }`}
               >
                 {msg.content}
               </div>
+              <span className="text-[10px] text-slate-400 mt-1 px-1">
+                {msg.role === "user" ? "Você" : companyName}
+              </span>
             </div>
           ))}
           {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-slate-100 px-4 py-2 rounded-2xl rounded-tl-none border shadow-sm">
-                <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+            <div className="flex flex-col items-start">
+              <div className="bg-white px-4 py-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm">
+                <div className="flex gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-sidebar-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1.5 h-1.5 bg-sidebar-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1.5 h-1.5 bg-sidebar-primary/40 rounded-full animate-bounce" />
+                </div>
               </div>
             </div>
           )}
@@ -169,25 +185,33 @@ export function IAChatPanel() {
       </ScrollArea>
 
       {/* Input Area */}
-      <div className="p-4 border-t bg-muted/10">
+      <div className="p-4 bg-white border-t border-slate-100 shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.05)]">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSend();
           }}
-          className="flex gap-2"
+          className="flex items-center gap-2 bg-slate-100/80 p-1.5 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-sidebar-primary/20 transition-all"
         >
           <Input
-            placeholder="Pergunte algo..."
+            placeholder="Digite sua dúvida aqui..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="bg-background focus-visible:ring-sidebar-primary"
+            className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-slate-400"
             disabled={isLoading}
           />
-          <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="bg-sidebar-primary hover:bg-sidebar-primary/90">
-            <Send className="w-4 h-4" />
+          <Button 
+            type="submit" 
+            size="icon" 
+            disabled={isLoading || !input.trim()} 
+            className="bg-sidebar-primary hover:bg-sidebar-primary/90 text-white rounded-lg shadow-lg shadow-sidebar-primary/20 shrink-0 h-9 w-9 transition-transform active:scale-95"
+          >
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>
         </form>
+        <p className="text-[10px] text-center text-slate-400 mt-3 font-medium">
+          Powered by ReplyPal Intelligence
+        </p>
       </div>
     </div>
   );
