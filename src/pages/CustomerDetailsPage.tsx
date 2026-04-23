@@ -60,9 +60,8 @@ export default function CustomerDetailsPage() {
           </Button>
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-2xl font-bold tracking-tight text-foreground uppercase">
-              {customer.name} - DEPLOY TEST
-            </h1>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">{customer.name}</h1>
+
               <Badge variant="outline" className={statusColors[customer.status]}>
                 {customer.status}
               </Badge>
