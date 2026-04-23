@@ -148,6 +148,23 @@ CREATE TABLE IF NOT EXISTS documentos (
 );
 
 
+-- 11. Dados Financeiros (Lançamento Manual)
+CREATE TABLE IF NOT EXISTS dados_financeiros (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cliente_id UUID REFERENCES clientes(id) ON DELETE CASCADE,
+  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  mes INTEGER NOT NULL,
+  ano INTEGER NOT NULL,
+  faturamento NUMERIC(15,2) DEFAULT 0,
+  compras NUMERIC(15,2) DEFAULT 0,
+  vendas NUMERIC(15,2) DEFAULT 0,
+  folha_pagamento NUMERIC(15,2) DEFAULT 0,
+  observacoes TEXT,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(cliente_id, mes, ano)
+);
+
+
 -- Inserir dados iniciais
 INSERT INTO tenants (id, nome, subdomain) VALUES 
   ('11111111-1111-1111-1111-111111111111', 'Sasaki Contabilidade', 'sasaki')

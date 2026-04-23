@@ -290,34 +290,9 @@ export const INITIAL_CUSTOMERS: Customer[] = [
   }
 ];
 
-export const INITIAL_CONVERSATIONS: Conversation[] = [
-  { id: "c1", clientName: "Roberto Almeida", clientPhone: "+5511999001001", customerId: "cus1", lastMessage: "Preciso de ajuda com a nota fiscal", lastMessageTime: minutesAgo(2), status: "novo", tags: ["t1"], slaDeadline: new Date(now.getTime() + 30 * 60000) },
-  { id: "c2", clientName: "Fernanda Lima", clientPhone: "+5511999001002", customerId: "cus2", lastMessage: "Qual o status do meu processo?", lastMessageTime: minutesAgo(5), status: "em_atendimento", assignedTo: "u3", assignedToName: "João Santos", tags: ["t2"], startedAt: minutesAgo(15), slaDeadline: new Date(now.getTime() + 15 * 60000) },
-  { id: "c3", clientName: "Lucas Martins", clientPhone: "+5511999001003", customerId: "cus3", lastMessage: "Obrigado pela informação", lastMessageTime: minutesAgo(30), status: "aguardando_cliente", assignedTo: "u4", assignedToName: "Maria Oliveira", tags: ["t4"], startedAt: minutesAgo(60), slaDeadline: new Date(now.getTime() - 5 * 60000) },
-  { id: "c4", clientName: "Patricia Ramos", clientPhone: "+5511999001004", lastMessage: "Urgente! Preciso resolver hoje", lastMessageTime: minutesAgo(1), status: "novo", tags: ["t3", "t1"], slaDeadline: new Date(now.getTime() + 10 * 60000) },
-  { id: "c5", clientName: "Marcos Pereira", clientPhone: "+5511999001005", lastMessage: "Tudo resolvido, obrigado!", lastMessageTime: minutesAgo(120), status: "resolvido", assignedTo: "u3", assignedToName: "João Santos", tags: ["t5"], startedAt: minutesAgo(180), closingReason: "resolvido" },
-  { id: "c6", clientName: "Camila Dias", clientPhone: "+5511999001006", lastMessage: "Boa tarde, preciso de suporte", lastMessageTime: minutesAgo(8), status: "aguardando_aceite", tags: ["t5"], slaDeadline: new Date(now.getTime() + 25 * 60000) },
-  { id: "c7", clientName: "André Barbosa", clientPhone: "+5511999001007", lastMessage: "Podem me enviar o boleto?", lastMessageTime: minutesAgo(45), status: "em_atendimento", assignedTo: "u5", assignedToName: "Pedro Costa", tags: ["t4"], startedAt: minutesAgo(50), slaDeadline: new Date(now.getTime() + 5 * 60000) },
-  { id: "c8", clientName: "Juliana Torres", clientPhone: "+5511999001008", lastMessage: "Estou aguardando retorno", lastMessageTime: minutesAgo(90), status: "aguardando_cliente", assignedTo: "u3", assignedToName: "João Santos", tags: ["t2"], startedAt: minutesAgo(150), slaDeadline: new Date(now.getTime() - 30 * 60000) },
-];
-
-const INITIAL_MESSAGES: Message[] = [
-  { id: "m1", conversationId: "c1", content: "Olá, boa tarde!", sender: "client", senderName: "Roberto Almeida", timestamp: minutesAgo(10) },
-  { id: "m2", conversationId: "c1", content: "Preciso de ajuda com a nota fiscal", sender: "client", senderName: "Roberto Almeida", timestamp: minutesAgo(2) },
-  { id: "m3", conversationId: "c2", content: "Oi, qual o status do meu processo?", sender: "client", senderName: "Fernanda Lima", timestamp: minutesAgo(20) },
-  { id: "m4", conversationId: "c2", content: "Olá Fernanda! Estou verificando para você.", sender: "agent", senderName: "João Santos", timestamp: minutesAgo(15) },
-  { id: "m5", conversationId: "c2", content: "Qual o status do meu processo?", sender: "client", senderName: "Fernanda Lima", timestamp: minutesAgo(5) },
-  { id: "m6", conversationId: "c4", content: "Urgente! Preciso resolver hoje", sender: "client", senderName: "Patricia Ramos", timestamp: minutesAgo(1) },
-  { id: "m7", conversationId: "c7", content: "Podem me enviar o boleto?", sender: "client", senderName: "André Barbosa", timestamp: minutesAgo(45) },
-  { id: "m8", conversationId: "c7", content: "Claro! Vou gerar e enviar em instantes.", sender: "agent", senderName: "Pedro Costa", timestamp: minutesAgo(40) },
-];
-
-const INITIAL_HISTORY: HistoryEntry[] = [
-  { id: "h1", conversationId: "c2", action: "Conversa assumida", userId: "u3", userName: "João Santos", timestamp: minutesAgo(15) },
-  { id: "h2", conversationId: "c3", action: "Conversa assumida", userId: "u4", userName: "Maria Oliveira", timestamp: minutesAgo(60) },
-  { id: "h3", conversationId: "c3", action: "Status alterado para Aguardando cliente", userId: "u4", userName: "Maria Oliveira", timestamp: minutesAgo(30) },
-  { id: "h4", conversationId: "c5", action: "Conversa resolvida", userId: "u3", userName: "João Santos", details: "Motivo: Resolvido", timestamp: minutesAgo(120) },
-];
+export const INITIAL_CONVERSATIONS: Conversation[] = [];
+const INITIAL_MESSAGES: Message[] = [];
+const INITIAL_HISTORY: HistoryEntry[] = [];
 
 // Store state - singleton for in-memory storage
 let globalConversations = [...INITIAL_CONVERSATIONS];

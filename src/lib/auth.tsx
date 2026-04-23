@@ -65,6 +65,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (error || !foundUser) {
       console.error("Login detail:", error);
+      if (error?.code === "PGRST116") {
+        alert("E-mail ou senha incorretos.");
+      } else {
+        alert("Erro ao conectar com o banco de dados. Verifique o console ou as permissões de RLS no Supabase.");
+      }
       return false;
     }
 

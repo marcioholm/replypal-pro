@@ -12,6 +12,7 @@ import {
   History
 } from "lucide-react";
 import DocumentosHistorico from "./DocumentosHistorico";
+import DadosFinanceiros from "./DadosFinanceiros";
 
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
@@ -192,55 +193,11 @@ export default function ClienteDocumentos({ clienteId, clienteNome }: ClienteDoc
           </DocumentSection>
 
           {/* Seção Financeiro */}
-          <DocumentSection 
-            title="Financeiro" 
-            icon={<Calculator className="w-5 h-5 text-primary" />}
-            description="Gestão de faturamento e compras"
-            filters={filters.financeiro}
-            onFilterChange={(k, v) => handleFilterChange('financeiro', k, v)}
-          >
-            <div className="grid gap-3">
-              <DocumentItem 
-                tipo="faturamento" 
-                label="Faturamento" 
-                category="Financeiro"
-                month={filters.financeiro.month}
-                year={filters.financeiro.year}
-                status={getDocStatus("faturamento", "Financeiro")}
-                clienteId={clienteId}
-                clienteNome={clienteNome}
-                onUploadSuccess={fetchDocuments}
-                webhookUrl={webhookUrl}
-                currentUser={store.currentUser.name}
-              />
-              <DocumentItem 
-                tipo="compras" 
-                label="Compras" 
-                category="Financeiro"
-                month={filters.financeiro.month}
-                year={filters.financeiro.year}
-                status={getDocStatus("compras", "Financeiro")}
-                clienteId={clienteId}
-                clienteNome={clienteNome}
-                onUploadSuccess={fetchDocuments}
-                webhookUrl={webhookUrl}
-                currentUser={store.currentUser.name}
-              />
-              <DocumentItem 
-                tipo="vendas" 
-                label="Vendas" 
-                category="Financeiro"
-                month={filters.financeiro.month}
-                year={filters.financeiro.year}
-                status={getDocStatus("vendas", "Financeiro")}
-                clienteId={clienteId}
-                clienteNome={clienteNome}
-                onUploadSuccess={fetchDocuments}
-                webhookUrl={webhookUrl}
-                currentUser={store.currentUser.name}
-              />
-            </div>
-          </DocumentSection>
+          <DadosFinanceiros 
+            clienteId={clienteId} 
+            clienteNome={clienteNome} 
+            tenantId={store.currentUser.tenantId} 
+          />
 
           {/* Seção Fiscal */}
           <DocumentSection 
