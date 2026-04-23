@@ -67,14 +67,13 @@ export async function fetchChats() {
 }
 
 export async function sendWhatsAppMessage(phone: string, message: string) {
-  let url = localStorage.getItem("evolution_url") || "";
-  const key = localStorage.getItem("evolution_key") || "";
-  const instance = localStorage.getItem("evolution_instance") || "replypal";
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = EVO_CONFIG.getInstance();
   
   if (!url || !key) return { success: false, error: "API não configurada" };
   
-  url = url.trim();
-  if (!url.startsWith("http")) url = "https://" + url;
+  const apiUrl = getApiUrl();
   const phoneNumber = phone.replace(/\D/g, "");
   
   try {
@@ -94,43 +93,41 @@ export async function sendWhatsAppMessage(phone: string, message: string) {
       const data = await res.json();
       return { success: true, data };
     }
-    return { success: false, error: "Erro ao enviar" };
+    const errorData = await res.json().catch(() => ({}));
+    return { success: false, error: errorData.message || "Erro ao enviar" };
   } catch (err) {
     return { success: false, error: String(err) };
   }
 }
 
+
 export async function checkConnection() {
-  const savedUrl = localStorage.getItem("evolution_url");
-  const savedKey = localStorage.getItem("evolution_key");
-  const savedInstance = localStorage.getItem("evolution_instance");
-  
-  // Primeiro verificar localStorage
+  // Primeiro verificar localStorage para performance
   if (localStorage.getItem("wa_connected") === "true") {
     return { connected: true };
   }
   
-  let url = savedUrl || "";
-  const key = savedKey || "";
-  const instance = savedInstance || "SASAKI";
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = EVO_CONFIG.getInstance();
   
   if (!url || !key) return { connected: false };
   
-  url = url.trim();
-  if (!url.startsWith("http")) url = "https://" + url;
+  const apiUrl = getApiUrl();
   
   try {
-    const res = await fetch(`${url}/instance/connectionState/${instance}`, {
+    const res = await fetch(`${apiUrl}/instance/connectionState/${instance}`, {
       headers: { "apikey": key },
     });
     
     if (res.ok) {
       const data = await res.json();
-      if (data.state === "open") {
+      if (data.state === "open" || data.instance?.state === "open") {
         localStorage.setItem("wa_connected", "true");
         return { connected: true, phone: data.phoneNumber };
       }
     }
+    localStorage.removeItem("wa_connected");
     return { connected: false };
   } catch {
     return { connected: false };
