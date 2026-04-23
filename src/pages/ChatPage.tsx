@@ -185,7 +185,7 @@ export default function ChatPage() {
     // 3. Enviar via WhatsApp (Interação real)
     const connStatus = await checkConnection();
     if (connStatus.connected) {
-      const result = await sendWhatsAppMessage(conv.clientPhone, message);
+      const result = await sendWhatsAppMessage(conv.clientPhone, message, store.currentUser.name);
       if (!result.success) {
         toast.error("Erro ao enviar WhatsApp");
       }
@@ -222,14 +222,23 @@ export default function ChatPage() {
     // Enviar via WhatsApp
     const connStatus = await checkConnection();
     if (connStatus.connected) {
-      await sendWhatsAppMessage(conv.clientPhone, content);
+      await sendWhatsAppMessage(conv.clientPhone, content, store.currentUser.name);
     }
   };
 
 
-  const handleAssume = () => {
+  const handleAssume = async () => {
     store.assumeConversation(conv.id, store.currentUser);
     
+    // Avisar o cliente que foi assumido
+    const connStatus = await checkConnection();
+    if (connStatus.connected) {
+      await sendWhatsAppMessage(
+        conv.clientPhone, 
+        `*Sistema:* Olá! Agora você será atendido por *${store.currentUser.name}*. Em que posso ajudar?`
+      );
+    }
+
     const config = getNotificationConfig();
     if (config.enabled && config.notifyAssignedMessages) {
       const notifTitle = "Conversa assumida";
@@ -240,9 +249,21 @@ export default function ChatPage() {
     }
   };
 
-  const handleTransfer = () => {
+  const handleTransfer = async () => {
     if (!transferTo) return;
+    const targetUser = store.users.find(u => u.id === transferTo);
+    
     store.transferConversation(conv.id, store.currentUser, transferTo, transferReason);
+    
+    // Avisar o cliente da transferência
+    const connStatus = await checkConnection();
+    if (connStatus.connected && targetUser) {
+      await sendWhatsAppMessage(
+        conv.clientPhone, 
+        `*Sistema:* Sua conversa foi transferida para *${targetUser.name}*. Ele continuará seu atendimento em instantes.`
+      );
+    }
+
     setTransferOpen(false);
     setTransferTo("");
     setTransferReason("");

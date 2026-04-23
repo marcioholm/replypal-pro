@@ -66,7 +66,7 @@ export async function fetchChats() {
   }
 }
 
-export async function sendWhatsAppMessage(phone: string, message: string) {
+export async function sendWhatsAppMessage(phone: string, message: string, agentName?: string) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
   const instance = EVO_CONFIG.getInstance();
@@ -75,6 +75,11 @@ export async function sendWhatsAppMessage(phone: string, message: string) {
   
   const apiUrl = getApiUrl();
   const phoneNumber = phone.replace(/\D/g, "");
+
+  // Adicionar assinatura se houver nome do agente
+  const messageWithSign = agentName 
+    ? `*Atendente: ${agentName}*\n\n${message}` 
+    : message;
   
   try {
     const res = await fetch(`${apiUrl}/message/sendText/${instance}`, {
@@ -85,7 +90,7 @@ export async function sendWhatsAppMessage(phone: string, message: string) {
       },
       body: JSON.stringify({
         number: phoneNumber,
-        text: message,
+        text: messageWithSign,
       }),
     });
     
