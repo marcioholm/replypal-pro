@@ -28,6 +28,7 @@ export interface User {
   role: UserRole;
   avatar?: string;
   tenantId: string;
+  whatsapp?: string;
 }
 
 export interface Tag {

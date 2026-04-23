@@ -48,7 +48,7 @@ export default function SettingsPage() {
 
 
   const [teamMembers, setTeamMembers] = useState<User[]>([]);
-  const [newMember, setNewMember] = useState({ name: "", email: "", role: "atendente" as UserRole, password: "" });
+  const [newMember, setNewMember] = useState({ name: "", email: "", role: "atendente" as UserRole, password: "", whatsapp: "" });
   const [showAddMember, setShowAddMember] = useState(false);
 
   const [evolutionUrl, setEvolutionUrl] = useState(() => {
@@ -89,7 +89,8 @@ export default function SettingsPage() {
         email: d.email,
         role: d.role,
         tenantId: d.tenant_id,
-        avatar: d.avatar
+        avatar: d.avatar,
+        whatsapp: d.whatsapp
       }));
       setTeamMembers(members);
     }
@@ -98,9 +99,6 @@ export default function SettingsPage() {
   const [notifConfig, setNotifConfig] = useState(getNotificationConfig);
   const [dbStatus, setDbStatus] = useState<"idle" | "checking" | "ready" | "error">("idle");
   const [dbTables, setDbTables] = useState<string[]>([]);
-
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (waStatus === "qrcode" && qrCodeImage) {
@@ -277,6 +275,7 @@ const handleConnect = async () => {
       email: newMember.email,
       role: newMember.role,
       senha: newMember.password,
+      whatsapp: newMember.whatsapp,
       tenant_id: user.tenantId
     }]).select();
 
@@ -286,7 +285,7 @@ const handleConnect = async () => {
     }
 
     fetchTeam();
-    setNewMember({ name: "", email: "", role: "atendente", password: "" });
+    setNewMember({ name: "", email: "", role: "atendente", password: "", whatsapp: "" });
     setShowAddMember(false);
     toast.success(`${newMember.name} adicionado à equipe!`);
   };
@@ -521,6 +520,15 @@ const handleConnect = async () => {
                       />
                     </div>
                     <div className="space-y-1">
+                      <Label className="text-[10px]">WhatsApp (opcional)</Label>
+                      <Input
+                        placeholder="+55 11 9..."
+                        value={newMember.whatsapp}
+                        onChange={(e) => setNewMember((p) => ({ ...p, whatsapp: e.target.value }))}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
                       <Label className="text-[10px]">Função</Label>
                       <Select value={newMember.role} onValueChange={(v) => setNewMember((p) => ({ ...p, role: v as UserRole }))}>
                         <SelectTrigger className="h-8 text-xs">
@@ -566,7 +574,15 @@ const handleConnect = async () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium">{m.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{m.email}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] text-muted-foreground">{m.email}</p>
+                        {m.whatsapp && (
+                          <>
+                            <span className="text-[10px] text-muted-foreground/30">•</span>
+                            <p className="text-[10px] text-muted-foreground">{m.whatsapp}</p>
+                          </>
+                        )}
+                      </div>
                     </div>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">
                       {roleLabels[m.role]}
