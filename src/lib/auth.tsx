@@ -1,0 +1,98 @@
+import { createContext, useContext, ReactNode, useState, useCallback, useEffect } from "react";
+import { User, Tenant, MOCK_USERS, MOCK_TENANTS, setCurrentTenantId } from "./store";
+
+const MOCK_PASSWORDS: Record<string, string> = {
+  "carlos@sasaki.com": "admin123",
+  "ana@empresa.com": "admin123",
+  "joao@empresa.com": "admin123",
+};
+
+interface AuthContextType {
+  user: User | null;
+  tenant: Tenant | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => void;
+}
+
+const AuthContext = createContext<AuthContextType | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem("replypal_user");
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        const foundUser = MOCK_USERS.find((u) => u.id === parsed.id);
+        if (foundUser) {
+          setUser(foundUser);
+          const foundTenant = MOCK_TENANTS.find((t) => t.id === foundUser.tenantId);
+          setTenant(foundTenant || null);
+          setCurrentTenantId(foundUser.tenantId);
+        }
+      } catch {
+        localStorage.removeItem("replypal_user");
+      }
+    }
+    setIsLoading(false);
+  }, []);
+
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    const foundUser = MOCK_USERS.find(
+      (u) => u.email.toLowerCase() === email.toLowerCase()
+    );
+
+    if (!foundUser) {
+      return false;
+    }
+
+    const correctPassword = MOCK_PASSWORDS[foundUser.email];
+    if (password !== correctPassword) {
+      return false;
+    }
+
+    setUser(foundUser);
+    const foundTenant = MOCK_TENANTS.find((t) => t.id === foundUser.tenantId);
+    setTenant(foundTenant || null);
+    setCurrentTenantId(foundUser.tenantId);
+    localStorage.setItem("replypal_user", JSON.stringify(foundUser));
+    return true;
+  }, []);
+
+  const logout = useCallback(() => {
+    setUser(null);
+    setTenant(null);
+    setCurrentTenantId(undefined);
+    localStorage.removeItem("replypal_user");
+  }, []);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        tenant,
+        isAuthenticated: !!user,
+        isLoading,
+        login,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return context;
+}
