@@ -35,36 +35,13 @@ export function IAChatPanel() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { user, tenant } = useAuth();
   const [companyName, setCompanyName] = useState("Assistente IA");
-  const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      if (messages.length === 0) {
-        fetchTenantName();
-      }
-    } else {
-      setMessages([]);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
-
-  const fetchTenantName = async () => {
-    if (!user?.tenantId) return;
-    try {
-      const { data, error } = await supabase
-        .from("tenants")
-        .select("nome")
-        .eq("id", user.tenantId)
-        .single();
-
-      const name = data?.nome || "Empresa";
+    if (isOpen && tenant) {
+      const name = tenant.name || "Empresa";
       setCompanyName(`Assistente ${name}`);
       setMessages([
         {
@@ -72,15 +49,16 @@ export function IAChatPanel() {
           content: `Olá! Sou a assistente da **${name}**. Estou pronta para ajudar você com informações de clientes, análise de documentos e honorários. Como posso ser útil agora?`,
         },
       ]);
-    } catch (err) {
-      setMessages([
-        {
-          role: "ia",
-          content: `Olá! Sou sua assistente de IA. Posso ajudar com informações de clientes, documentos e honorários. O que você precisa saber?`,
-        },
-      ]);
+    } else if (!isOpen) {
+      setMessages([]);
     }
-  };
+  }, [isOpen, tenant]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
