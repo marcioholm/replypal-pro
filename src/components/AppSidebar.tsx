@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
+import { IAChatButton } from "./IAChat";
 import {
   Sidebar,
   SidebarContent,
@@ -119,6 +120,7 @@ export function AppSidebar() {
               <p className="text-sm font-medium text-sidebar-accent-foreground">{tenant.name}</p>
             </div>
           )}
+          <IAChatButton collapsed={collapsed} />
           {!collapsed ? (
             <div className="flex items-center gap-3 px-2 py-2 hover:bg-sidebar-accent/30 rounded-lg transition-colors">
               <div className="w-9 h-9 rounded-lg bg-sidebar-primary/20 flex items-center justify-center text-xs font-bold text-sidebar-primary">

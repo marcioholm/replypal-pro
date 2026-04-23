@@ -324,6 +324,7 @@ let globalMessages = [...INITIAL_MESSAGES];
 let globalNotes: InternalNote[] = [];
 let globalHistory = [...INITIAL_HISTORY];
 let globalCustomers = [...INITIAL_CUSTOMERS];
+let globalIAChatOpen = false;
 let listeners: (() => void)[] = [];
 
 function notify() {
@@ -365,6 +366,11 @@ export function useStoreInternal(tenantId?: string) {
     users: filteredUsers,
     tags: MOCK_TAGS,
     quickReplies: MOCK_QUICK_REPLIES,
+    isIAChatOpen: globalIAChatOpen,
+    setIAChatOpen: (open: boolean) => {
+      globalIAChatOpen = open;
+      notify();
+    },
     currentUser: tenantId ? filteredUsers.find((u) => u.tenantId === tenantId) || filteredUsers[0] : MOCK_USERS[0],
 
     getConversation: (id: string) => globalConversations.find((c) => c.id === id),

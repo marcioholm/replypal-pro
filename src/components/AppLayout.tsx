@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { IAChatPanel } from "@/components/IAChat";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -16,6 +17,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
+        <IAChatPanel />
         <div className="flex-1 flex flex-col min-w-0">
           <header className="h-12 flex items-center justify-between border-b bg-card px-2">
             <div className="flex items-center gap-2">
