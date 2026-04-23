@@ -74,7 +74,7 @@ export function IAChatPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mensagem_texto: userMessage,
-          numero_whatsapp: "interno",
+          numero_whatsapp: user?.whatsapp || user?.id || "interno",
           colaborador: user?.name || "Usuário",
           tenant_id: user?.tenantId,
           origem: "replypal_interno",

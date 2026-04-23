@@ -354,6 +354,10 @@ const handleConnect = async () => {
 
       <Tabs defaultValue="empresa" className="space-y-4">
         <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="perfil" className="flex items-center gap-2 text-xs">
+            <UserIcon className="w-3.5 h-3.5" />
+            Meu Perfil
+          </TabsTrigger>
           <TabsTrigger value="empresa" className="flex items-center gap-2 text-xs">
             <Building2 className="w-3.5 h-3.5" />
             Empresa
@@ -379,6 +383,81 @@ const handleConnect = async () => {
             Recibos
           </TabsTrigger>
         </TabsList>
+
+        {/* Perfil do Usuário */}
+        <TabsContent value="perfil">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Meu Perfil</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex flex-col items-center gap-4 p-4 bg-muted/20 rounded-xl border border-dashed text-center">
+                <div className="relative group mx-auto">
+                  <Avatar className="w-24 h-24 border-2 border-background shadow-xl">
+                    <AvatarImage src={user?.avatar} />
+                    <AvatarFallback className="text-2xl bg-sidebar-primary/10 text-sidebar-primary">
+                      {user?.name.split(" ").map(n => n[0]).join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <label className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                    <Upload className="w-6 h-6 text-white" />
+                    <input type="file" className="hidden" accept="image/*" onChange={handleUpdateAvatar} />
+                  </label>
+                </div>
+                <div>
+                  <h3 className="font-bold">{user?.name}</h3>
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">{user?.role}</p>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-8 pt-4">
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold uppercase text-muted-foreground border-b pb-2">Alterar Senha</h4>
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Nova Senha</Label>
+                      <Input 
+                        id="new-password" 
+                        type="password" 
+                        placeholder="••••••••" 
+                        className="h-9"
+                      />
+                    </div>
+                    <Button size="sm" className="w-full sm:w-auto" onClick={() => {
+                      const pass = (document.getElementById("new-password") as HTMLInputElement).value;
+                      if (!pass) {
+                        toast.error("Digite a nova senha");
+                        return;
+                      }
+                      supabase.from("usuarios").update({ senha: pass }).eq("id", user?.id).then(({ error }) => {
+                        if (error) {
+                          toast.error("Erro ao alterar senha");
+                        } else {
+                          toast.success("Senha alterada com sucesso!");
+                          (document.getElementById("new-password") as HTMLInputElement).value = "";
+                        }
+                      });
+                    }}>Atualizar Senha</Button>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold uppercase text-muted-foreground border-b pb-2">Meus Dados</h4>
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] text-muted-foreground uppercase font-semibold">E-mail de Acesso</span>
+                      <p className="text-sm font-medium">{user?.email}</p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] text-muted-foreground uppercase font-semibold">WhatsApp de Contato</span>
+                      <p className="text-sm font-medium">{user?.whatsapp || "Não cadastrado"}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Empresa / White Label */}
         <TabsContent value="empresa">
