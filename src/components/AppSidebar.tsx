@@ -123,12 +123,18 @@ export function AppSidebar() {
           <IAChatButton collapsed={collapsed} />
           {!collapsed ? (
             <div className="flex items-center gap-3 px-2 py-2 hover:bg-sidebar-accent/30 rounded-lg transition-colors">
-              <div className="w-9 h-9 rounded-lg bg-sidebar-primary/20 flex items-center justify-center text-xs font-bold text-sidebar-primary">
-                {store.currentUser.name.split(" ").map(n => n[0]).join("")}
+              <div className="w-9 h-9 rounded-lg bg-sidebar-primary/20 flex items-center justify-center overflow-hidden">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs font-bold text-sidebar-primary">
+                    {user?.name.split(" ").map((n) => n[0]).join("")}
+                  </span>
+                )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-sidebar-accent-foreground truncate">{store.currentUser.name}</p>
-                <p className="text-[10px] text-sidebar-foreground/60">{store.currentUser.role}</p>
+                <p className="text-sm font-medium text-sidebar-accent-foreground truncate">{user?.name}</p>
+                <p className="text-[10px] text-sidebar-accent-foreground/60 truncate uppercase tracking-wider">{user?.role}</p>
               </div>
               <button
                 onClick={handleLogout}

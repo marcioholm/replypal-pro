@@ -12,7 +12,9 @@ import { toast } from "sonner";
 import ReciboGenerator from "@/components/settings/ReciboGenerator";
 import { getNotificationConfig, setNotificationConfig } from "@/hooks/useNotifications";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth";
 import { Switch } from "@/components/ui/switch";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type WhatsAppStatus = "idle" | "loading" | "qrcode" | "connected";
 
@@ -45,8 +47,8 @@ export default function SettingsPage() {
   });
 
 
-  const [teamMembers, setTeamMembers] = useState<User[]>([...MOCK_USERS]);
-  const [newMember, setNewMember] = useState({ name: "", email: "", role: "atendente" as UserRole });
+  const [teamMembers, setTeamMembers] = useState<User[]>([]);
+  const [newMember, setNewMember] = useState({ name: "", email: "", role: "atendente" as UserRole, password: "" });
   const [showAddMember, setShowAddMember] = useState(false);
 
   const [evolutionUrl, setEvolutionUrl] = useState(() => {
@@ -62,10 +64,36 @@ export default function SettingsPage() {
     return saved || "SASAKI";
   });
 
+  const { user } = useAuth();
   const [waStatus, setWaStatus] = useState<WhatsAppStatus>("idle");
-  const [qrCodeImage, setQrCodeImage] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(60);
   const [waConnection, setWaConnection] = useState<WhatsAppConnection | null>(null);
+  const [qrCodeImage, setQrCodeImage] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(0);
+  const pollingRef = useRef<any>(null);
+  const countdownRef = useRef<any>(null);
+
+  useEffect(() => {
+    fetchTeam();
+  }, [user]);
+
+  const fetchTeam = async () => {
+    if (!user?.tenantId) return;
+    const { data, error } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("tenant_id", user.tenantId);
+    if (data) {
+      const members: User[] = data.map(d => ({
+        id: d.id,
+        name: d.nome,
+        email: d.email,
+        role: d.role,
+        tenantId: d.tenant_id,
+        avatar: d.avatar
+      }));
+      setTeamMembers(members);
+    }
+  };
 
   const [notifConfig, setNotifConfig] = useState(getNotificationConfig);
   const [dbStatus, setDbStatus] = useState<"idle" | "checking" | "ready" | "error">("idle");
@@ -236,26 +264,70 @@ const handleConnect = async () => {
     }
   };
 
-  const handleAddMember = () => {
-    if (!newMember.name || !newMember.email) {
-      toast.error("Preencha nome e email do membro.");
+  const handleAddMember = async () => {
+    if (!newMember.name || !newMember.email || !newMember.password) {
+      toast.error("Preencha nome, email e senha do membro.");
       return;
     }
-    const member: User = {
-      id: `u${Date.now()}`,
-      name: newMember.name,
+    
+    if (!user?.tenantId) return;
+
+    const { data, error } = await supabase.from("usuarios").insert([{
+      nome: newMember.name,
       email: newMember.email,
       role: newMember.role,
-    };
-    setTeamMembers((prev) => [...prev, member]);
-    setNewMember({ name: "", email: "", role: "atendente" });
+      senha: newMember.password,
+      tenant_id: user.tenantId
+    }]).select();
+
+    if (error) {
+      toast.error("Erro ao adicionar membro: " + error.message);
+      return;
+    }
+
+    fetchTeam();
+    setNewMember({ name: "", email: "", role: "atendente", password: "" });
     setShowAddMember(false);
-    toast.success(`${member.name} adicionado à equipe!`);
+    toast.success(`${newMember.name} adicionado à equipe!`);
   };
 
-  const handleRemoveMember = (id: string) => {
-    setTeamMembers((prev) => prev.filter((m) => m.id !== id));
+  const handleRemoveMember = async (id: string) => {
+    if (id === user?.id) {
+      toast.error("Você não pode remover a si mesmo.");
+      return;
+    }
+    const { error } = await supabase.from("usuarios").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao remover membro.");
+      return;
+    }
+    fetchTeam();
     toast.success("Membro removido da equipe.");
+  };
+
+  const handleUpdateAvatar = async (e: React.ChangeEvent<HTMLInputElement>, targetUserId?: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const targetId = targetUserId || user?.id;
+    if (!targetId) return;
+
+    toast.info("Fazendo upload da foto...");
+    
+    // Simplificado: carregar como base64 ou URL fictícia para o campo avatar
+    // Em produção real, faríamos upload para Supabase Storage
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      const { error } = await supabase.from("usuarios").update({ avatar: base64 }).eq("id", targetId);
+      if (error) {
+        toast.error("Erro ao atualizar foto.");
+      } else {
+        toast.success("Foto atualizada!");
+        fetchTeam();
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleConnectEvolution = () => {
@@ -418,7 +490,7 @@ const handleConnect = async () => {
               {showAddMember && (
                 <div className="p-4 rounded-lg border bg-muted/30 space-y-3 animate-fade-in">
                   <p className="text-xs font-medium">Novo membro</p>
-                  <div className="grid sm:grid-cols-3 gap-3">
+                  <div className="grid sm:grid-cols-4 gap-3">
                     <div className="space-y-1">
                       <Label className="text-[10px]">Nome</Label>
                       <Input
@@ -435,6 +507,16 @@ const handleConnect = async () => {
                         placeholder="email@empresa.com"
                         value={newMember.email}
                         onChange={(e) => setNewMember((p) => ({ ...p, email: e.target.value }))}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">Senha</Label>
+                      <Input
+                        type="password"
+                        placeholder="••••••••"
+                        value={newMember.password}
+                        onChange={(e) => setNewMember((p) => ({ ...p, password: e.target.value }))}
                         className="h-8 text-xs"
                       />
                     </div>
@@ -462,8 +544,25 @@ const handleConnect = async () => {
               <div className="space-y-2">
                 {teamMembers.map((m) => (
                   <div key={m.id} className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary">
-                      {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                    <div className="relative group">
+                      <Avatar className="w-8 h-8 flex-shrink-0">
+                        <AvatarImage src={m.avatar} />
+                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-semibold">
+                          {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <label 
+                        className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity"
+                        title="Trocar foto"
+                      >
+                        <Upload className="w-3 h-3 text-white" />
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*"
+                          onChange={(e) => handleUpdateAvatar(e, m.id)} 
+                        />
+                      </label>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium">{m.name}</p>

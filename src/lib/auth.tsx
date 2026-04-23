@@ -1,11 +1,6 @@
 import { createContext, useContext, ReactNode, useState, useCallback, useEffect } from "react";
-import { User, Tenant, MOCK_USERS, MOCK_TENANTS, setCurrentTenantId } from "./store";
-
-const MOCK_PASSWORDS: Record<string, string> = {
-  "carlos@sasaki.com": "admin123",
-  "ana@empresa.com": "admin123",
-  "joao@empresa.com": "admin123",
-};
+import { User, Tenant, setCurrentTenantId } from "./store";
+import { supabase } from "./supabase";
 
 interface AuthContextType {
   user: User | null;
@@ -28,41 +23,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (savedUser) {
       try {
         const parsed = JSON.parse(savedUser);
-        const foundUser = MOCK_USERS.find((u) => u.id === parsed.id);
-        if (foundUser) {
-          setUser(foundUser);
-          const foundTenant = MOCK_TENANTS.find((t) => t.id === foundUser.tenantId);
-          setTenant(foundTenant || null);
-          setCurrentTenantId(foundUser.tenantId);
-        }
+        // Verificar no Supabase se o usuário ainda existe e carregar dados frescos
+        supabase.from("usuarios").select("*").eq("id", parsed.id).single().then(({ data }) => {
+          if (data) {
+            const userData: User = {
+              id: data.id,
+              name: data.nome,
+              email: data.email,
+              role: data.role,
+              tenantId: data.tenant_id,
+              avatar: data.avatar
+            };
+            setUser(userData);
+            supabase.from("tenants").select("*").eq("id", data.tenant_id).single().then(({ data: tData }) => {
+              if (tData) {
+                setTenant({ id: tData.id, name: tData.nome, subdomain: tData.subdomain });
+                setCurrentTenantId(tData.id);
+              }
+            });
+          } else {
+            localStorage.removeItem("replypal_user");
+          }
+          setIsLoading(false);
+        });
       } catch {
         localStorage.removeItem("replypal_user");
+        setIsLoading(false);
       }
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    const { data: foundUser, error } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("email", email.toLowerCase())
+      .eq("senha", password) // Nota: Em produção real, usaríamos hash de senha
+      .single();
 
-    const foundUser = MOCK_USERS.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase()
-    );
-
-    if (!foundUser) {
+    if (error || !foundUser) {
+      console.error("Login detail:", error);
       return false;
     }
 
-    const correctPassword = MOCK_PASSWORDS[foundUser.email];
-    if (password !== correctPassword) {
-      return false;
-    }
+    const userData: User = {
+      id: foundUser.id,
+      name: foundUser.nome,
+      email: foundUser.email,
+      role: foundUser.role,
+      tenantId: foundUser.tenant_id,
+      avatar: foundUser.avatar
+    };
 
-    setUser(foundUser);
-    const foundTenant = MOCK_TENANTS.find((t) => t.id === foundUser.tenantId);
-    setTenant(foundTenant || null);
-    setCurrentTenantId(foundUser.tenantId);
-    localStorage.setItem("replypal_user", JSON.stringify(foundUser));
+    setUser(userData);
+    const { data: foundTenant } = await supabase.from("tenants").select("*").eq("id", foundUser.tenant_id).single();
+    if (foundTenant) {
+      setTenant({ id: foundTenant.id, name: foundTenant.nome, subdomain: foundTenant.subdomain });
+      setCurrentTenantId(foundTenant.id);
+    }
+    
+    localStorage.setItem("replypal_user", JSON.stringify(userData));
     return true;
   }, []);
 

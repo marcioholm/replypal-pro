@@ -324,6 +324,7 @@ let globalMessages = [...INITIAL_MESSAGES];
 let globalNotes: InternalNote[] = [];
 let globalHistory = [...INITIAL_HISTORY];
 let globalCustomers = [...INITIAL_CUSTOMERS];
+let globalUsers = [...MOCK_USERS];
 let globalIAChatOpen = false;
 let listeners: (() => void)[] = [];
 
@@ -363,7 +364,7 @@ export function useStoreInternal(tenantId?: string) {
     notes: globalNotes,
     history: globalHistory,
     customers: globalCustomers,
-    users: filteredUsers,
+    users: globalUsers,
     tags: MOCK_TAGS,
     quickReplies: MOCK_QUICK_REPLIES,
     isIAChatOpen: globalIAChatOpen,
@@ -594,6 +595,14 @@ export function useStoreInternal(tenantId?: string) {
         globalMessages = [...globalMessages, ...newMsgs];
         notify();
       }
+    },
+    setStoreUsers: (users: User[]) => {
+      globalUsers = users;
+      notify();
+    },
+    updateStoreUser: (id: string, updates: Partial<User>) => {
+      globalUsers = globalUsers.map(u => u.id === id ? { ...u, ...updates } : u);
+      notify();
     }
   };
 }
