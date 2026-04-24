@@ -346,6 +346,7 @@ const handleConnect = async () => {
     admin: "Administrador",
     supervisor: "Supervisor",
     atendente: "Atendente",
+    recepcionista: "Recepcionista",
   };
 
   return (
@@ -657,6 +658,7 @@ const handleConnect = async () => {
                           <SelectItem value="admin">Administrador</SelectItem>
                           <SelectItem value="supervisor">Supervisor</SelectItem>
                           <SelectItem value="atendente">Atendente</SelectItem>
+                          <SelectItem value="recepcionista">Recepcionista</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
