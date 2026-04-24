@@ -216,7 +216,7 @@ export async function initializeDatabase() {
     // 3. Garantir Usuários Oficiais
     await supabase.from("usuarios").upsert([
       {
-        id: 'u1',
+        id: 'c1111111-1111-1111-1111-111111111111',
         email: 'carlos@sasaki.com',
         nome: 'Carlos Silva',
         role: 'admin',
@@ -226,7 +226,7 @@ export async function initializeDatabase() {
         senha_salt: 'replypal-pro-salt-v1'
       },
       {
-        id: 'u2',
+        id: 'g2222222-2222-2222-2222-222222222222',
         email: 'gabriel@sasaki.com',
         nome: 'Gabriel Souza',
         role: 'atendente',
@@ -238,7 +238,7 @@ export async function initializeDatabase() {
     ]);
 
     // 4. Garantir Cliente Real Solicitado
-    const clientId = 'c1';
+    const clientId = '33333333-3333-3333-3333-333333333333';
     await supabase.from("clientes").upsert({
       id: clientId,
       razao_social: 'A A MAIA DA SILVA - CONSTRUTORA CIVIL',
@@ -254,7 +254,7 @@ export async function initializeDatabase() {
 
     // 5. Garantir Conversa Inicial
     await supabase.from("conversas").upsert({
-      id: 'conv1',
+      id: '44444444-4444-4444-4444-444444444444',
       client_name: 'Afonso Anhaia Maia da Silva',
       client_phone: '42999896358',
       customer_id: clientId,
