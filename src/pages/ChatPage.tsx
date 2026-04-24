@@ -276,6 +276,11 @@ export default function ChatPage() {
         .eq("id", conv.id);
 
       if (error) throw error;
+      
+      const { data: checkData } = await supabase.from("conversas").select("assigned_to").eq("id", conv.id).single();
+      if (checkData?.assigned_to !== user.id) {
+        throw new Error("Não foi possível persistir a alteração no banco de dados. Verifique sua conexão.");
+      }
 
       store.assumeConversation(conv.id, user);
       toast.success("Você assumiu este atendimento!");

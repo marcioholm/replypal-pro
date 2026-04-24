@@ -158,15 +158,7 @@ export const MOCK_TENANTS: Tenant[] = [
   { id: "tenant2", name: "Empresa Beta", subdomain: "beta" },
 ];
 
-export const MOCK_USERS: User[] = [
-  { id: "11111111-1111-1111-1111-111111111111", name: "Carlos Silva", email: "carlos@sasaki.com", role: "admin", tenantId: "11111111-1111-1111-1111-111111111111" },
-  { id: "22222222-2222-2222-2222-222222222222", name: "Ana Souza", email: "ana@empresa.com", role: "supervisor", tenantId: "11111111-1111-1111-1111-111111111111" },
-  { id: "33333333-3333-3333-3333-333333333333", name: "João Santos", email: "joao@empresa.com", role: "atendente", tenantId: "11111111-1111-1111-1111-111111111111" },
-  { id: "u4", name: "Maria Oliveira", email: "maria@empresa.com", role: "atendente", tenantId: "11111111-1111-1111-1111-111111111111" },
-  { id: "u5", name: "Pedro Costa", email: "pedro@empresa.com", role: "atendente", tenantId: "11111111-1111-1111-1111-111111111111" },
-  { id: "u6", name: "Bruno Lima", email: "bruno@empresa.com", role: "admin", tenantId: "11111111-1111-1111-1111-111111111111" },
-  { id: "u7", name: "Carla Dias", email: "carla@empresa.com", role: "atendente", tenantId: "11111111-1111-1111-1111-111111111111" },
-];
+export const MOCK_USERS: User[] = [];
 
 export const MOCK_TAGS: Tag[] = [
   { id: "t1", name: "Fiscal", color: "hsl(217, 91%, 60%)" },
