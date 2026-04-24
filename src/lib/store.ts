@@ -154,7 +154,7 @@ export interface QuickReply {
 
 // Mock Data
 export const MOCK_TENANTS: Tenant[] = [
-  { id: "11111111-1111-1111-1111-111111111111", name: "Sasaki Contabilidade", subdomain: "sasaki" },
+  { id: "11111111-1111-1111-1111-111111111111", name: "ReplyPal Pro", subdomain: "replypal" },
   { id: "tenant2", name: "Empresa Beta", subdomain: "beta" },
 ];
 

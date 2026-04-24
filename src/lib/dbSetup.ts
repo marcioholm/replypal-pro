@@ -167,13 +167,13 @@ CREATE TABLE IF NOT EXISTS dados_financeiros (
 
 -- Inserir dados iniciais
 INSERT INTO tenants (id, nome, subdomain) VALUES 
-  ('11111111-1111-1111-1111-111111111111', 'Sasaki Contabilidade', 'sasaki')
+  ('11111111-1111-1111-1111-111111111111', 'ReplyPal Pro', 'replypal')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO usuarios (id, email, nome, role, tenant_id) VALUES 
-  ('u1', 'carlos@sasaki.com', 'Carlos Silva', 'admin', '11111111-1111-1111-1111-111111111111'),
-  ('u2', 'ana@sasaki.com', 'Ana Souza', 'supervisor', '11111111-1111-1111-1111-111111111111'),
-  ('u3', 'joao@sasaki.com', 'João Santos', 'atendente', '11111111-1111-1111-1111-111111111111')
+  ('u1', 'carlos@replypal.com', 'Carlos Silva', 'admin', '11111111-1111-1111-1111-111111111111'),
+  ('u2', 'ana@replypal.com', 'Ana Souza', 'supervisor', '11111111-1111-1111-1111-111111111111'),
+  ('u3', 'joao@replypal.com', 'João Santos', 'atendente', '11111111-1111-1111-1111-111111111111')
 ON CONFLICT (id) DO NOTHING;
 `;
 

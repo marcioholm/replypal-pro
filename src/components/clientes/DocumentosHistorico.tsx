@@ -337,7 +337,7 @@ export default function DocumentosHistorico({ clienteId, clienteNome }: Document
         </div>
 
         <div className="print-footer">
-          Sasaki Soluções Contábeis - Sistema ReplyPal Pro - Gerado eletronicamente em {format(new Date(), "dd/MM/yyyy")}
+          ReplyPal Soluções Contábeis - Sistema ReplyPal Pro - Gerado eletronicamente em {format(new Date(), "dd/MM/yyyy")}
         </div>
       </div>
 

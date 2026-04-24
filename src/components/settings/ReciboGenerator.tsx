@@ -10,7 +10,7 @@ import { FileText, Upload, Download, Plus, Trash2, Printer, X } from "lucide-rea
 import { toast } from "sonner";
 import { getSavedCompany, DEFAULT_COMPANY } from "@/lib/company";
 
-const CONTADOR_KEY = "sasaki_contador";
+const CONTADOR_KEY = "replypal_contador";
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",

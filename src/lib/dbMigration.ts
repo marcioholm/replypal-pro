@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 
 export async function createTables() {
   const sql = `
--- Tabelas ReplyPal Sasaki
+-- Tabelas ReplyPal ReplyPal
 
 -- 1. Usuarios
 CREATE TABLE IF NOT EXISTS usuarios (

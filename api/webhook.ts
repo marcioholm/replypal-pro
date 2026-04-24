@@ -57,7 +57,7 @@ export default async function handler(req: any, res: any) {
                    payload.message?.imageMessage?.caption || 
                    "Mensagem não suportada ou sem texto";
 
-      const tenantId = "11111111-1111-1111-1111-111111111111"; // Sasaki Tenant
+      const tenantId = "11111111-1111-1111-1111-111111111111"; // ReplyPal Tenant
 
       // Find/Create conversation
       let { data: conversation, error: convError } = await supabase

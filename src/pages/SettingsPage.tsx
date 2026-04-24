@@ -35,7 +35,7 @@ interface CompanyData {
 
 export default function SettingsPage() {
   const [company, setCompany] = useState<CompanyData>(() => {
-    const saved = localStorage.getItem("sasaki_company");
+    const saved = localStorage.getItem("replypal_company");
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -249,7 +249,7 @@ const handleConnect = async () => {
   };
 
   const handleSaveCompany = () => {
-    localStorage.setItem("sasaki_company", JSON.stringify(company));
+    localStorage.setItem("replypal_company", JSON.stringify(company));
     toast.success("Dados da empresa salvos com sucesso!");
   };
 
@@ -1157,11 +1157,11 @@ CREATE TABLE IF NOT EXISTS recibo_contador (
 
 -- Dados Iniciais
 INSERT INTO tenants (id, nome, subdomain) VALUES 
-  ('11111111-1111-1111-1111-111111111111', 'Sasaki Contabilidade', 'sasaki')
+  ('11111111-1111-1111-1111-111111111111', 'ReplyPal Pro', 'replypal')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO usuarios (id, email, nome, role, tenant_id) VALUES 
-  ('11111111-1111-1111-1111-111111111111', 'carlos@sasaki.com', 'Carlos Silva', 'admin', '11111111-1111-1111-1111-111111111111')
+  ('11111111-1111-1111-1111-111111111111', 'carlos@replypal.com', 'Carlos Silva', 'admin', '11111111-1111-1111-1111-111111111111')
 ON CONFLICT (id) DO NOTHING;
 `;
                           navigator.clipboard.writeText(sql);

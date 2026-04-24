@@ -7,7 +7,7 @@ export interface CompanyData {
   logoUrl: string;
 }
 
-const COMPANY_KEY = "sasaki_company";
+const COMPANY_KEY = "replypal_company";
 
 export function getSavedCompany(): CompanyData | null {
   const saved = localStorage.getItem(COMPANY_KEY);

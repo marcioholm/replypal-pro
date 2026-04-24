@@ -17,7 +17,7 @@ const DEFAULT_CONFIG: NotificationConfig = {
   enabled: true,
 };
 
-const CONFIG_KEY = "sasaki_notifications_config";
+const CONFIG_KEY = "replypal_notifications_config";
 
 function getNotificationConfig(): NotificationConfig {
   const saved = localStorage.getItem(CONFIG_KEY);
