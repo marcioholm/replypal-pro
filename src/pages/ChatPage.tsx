@@ -242,7 +242,6 @@ export default function ChatPage() {
         conversation_id: conv.id,
         content: content,
         sender: "agent",
-        sender: "agent",
         sender_name: user.name,
         timestamp: new Date().toISOString()
       });

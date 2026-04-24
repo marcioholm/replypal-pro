@@ -183,8 +183,6 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
     name: "contacts",
   });
 
-  const { user } = useAuth();
-
   const onSubmit = async (values: CustomerFormValues) => {
     try {
       if (initialData) {
