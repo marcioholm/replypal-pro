@@ -15,7 +15,14 @@ async function generateSalt(): Promise<string> {
 
 async function hashPassword(password: string, salt: string): Promise<string> {
   const encoder = new TextEncoder();
-  const saltBytes = Uint8Array.from(atob(salt), c => c.charCodeAt(0));
+  let saltBytes: Uint8Array;
+  
+  try {
+    // Tenta decodificar como base64, se falhar usa como string pura
+    saltBytes = Uint8Array.from(atob(salt), c => c.charCodeAt(0));
+  } catch {
+    saltBytes = encoder.encode(salt);
+  }
   
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -40,8 +47,13 @@ async function hashPassword(password: string, salt: string): Promise<string> {
 }
 
 async function verifyPassword(password: string, salt: string, storedHash: string): Promise<boolean> {
-  const computedHash = await hashPassword(password, salt);
-  return computedHash === storedHash;
+  try {
+    const computedHash = await hashPassword(password, salt);
+    return computedHash === storedHash;
+  } catch (e) {
+    console.error("Hash verification error:", e);
+    return false;
+  }
 }
 
 function bufferToHex(buffer: ArrayBuffer): string {
@@ -106,66 +118,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
-    // SECURITY: PBKDF2-SHA256 password hashing
-    // O banco precisa ter: senha_hash (string) e senha_salt (string)
-    
-    const { data: foundUser, error } = await supabase
-      .from("usuarios")
-      .select("*")
-      .eq("email", email.toLowerCase())
-      .single();
+    try {
+      const { data: foundUser, error } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("email", email.toLowerCase())
+        .single();
 
-    if (error || !foundUser) {
-      console.error("Login detail:", error);
-      if (error?.code === "PGRST116") {
-        alert("E-mail ou senha incorretos.");
-      } else {
-        alert("Erro ao conectar com o banco de dados. Verifique o console ou as permissões de RLS no Supabase.");
+      if (error || !foundUser) {
+        console.error("Login detail:", error);
+        if (error?.code === "PGRST116") {
+          alert("E-mail ou senha incorretos.");
+        } else {
+          alert("Erro ao conectar com o banco de dados. Verifique a conexão.");
+        }
+        return false;
       }
+
+      // Verificar senha com hash seguro
+      const salt = foundUser.senha_salt;
+      const storedHash = foundUser.senha_hash;
+      
+      let isValidPassword = false;
+      
+      try {
+        if (salt && storedHash) {
+          isValidPassword = await verifyPassword(password, salt, storedHash);
+        }
+      } catch (hashError) {
+        console.warn("Secure hash check failed, trying legacy fallback:", hashError);
+      }
+      
+      // Fallback: se o hash falhou ou deu erro, tenta senha pura (coluna 'senha')
+      if (!isValidPassword && foundUser.senha === password) {
+        isValidPassword = true;
+        console.log("Authenticated via legacy fallback");
+      }
+      
+      if (!isValidPassword) {
+        console.error("Login rejection: Invalid credentials for", email);
+        alert("E-mail ou senha incorretos.");
+        return false;
+      }
+
+      const userData: User = {
+        id: foundUser.id,
+        name: foundUser.nome,
+        email: foundUser.email,
+        role: foundUser.role,
+        tenantId: foundUser.tenant_id,
+        avatar: foundUser.avatar
+      };
+
+      setUser(userData);
+      const { data: foundTenant } = await supabase.from("tenants").select("*").eq("id", foundUser.tenant_id).single();
+      if (foundTenant) {
+        setTenant({ id: foundTenant.id, name: foundTenant.nome, subdomain: foundTenant.subdomain });
+        setCurrentTenantId(foundTenant.id);
+      }
+      
+      localStorage.setItem("replypal_user", JSON.stringify(userData));
+      return true;
+    } catch (err) {
+      console.error("Critical login error:", err);
+      alert("Ocorreu um erro inesperado no login. Tente novamente.");
       return false;
     }
-
-    // Verificar senha com hash seguro (se existir salt no banco)
-    const salt = foundUser.senha_salt;
-    const storedHash = foundUser.senha_hash;
-    
-    // Verifica hash primeiro (preferencial)
-    let isValidPassword = false;
-    if (salt && storedHash) {
-      isValidPassword = await verifyPassword(password, salt, storedHash);
-    }
-    
-    // Fallback: aceitar senha simples ou hash existente
-    if (!isValidPassword && foundUser.senha === password) {
-      isValidPassword = true;
-      console.log("Using legacy password");
-    }
-    
-    if (!isValidPassword) {
-      console.error("Password verification failed for:", email);
-      console.log("salt:", salt, "hash:", storedHash ? "set" : "null", "senha:", foundUser.senha ? "set" : "null");
-      alert("E-mail ou senha incorretos.");
-      return false;
-    }
-
-    const userData: User = {
-      id: foundUser.id,
-      name: foundUser.nome,
-      email: foundUser.email,
-      role: foundUser.role,
-      tenantId: foundUser.tenant_id,
-      avatar: foundUser.avatar
-    };
-
-    setUser(userData);
-    const { data: foundTenant } = await supabase.from("tenants").select("*").eq("id", foundUser.tenant_id).single();
-    if (foundTenant) {
-      setTenant({ id: foundTenant.id, name: foundTenant.nome, subdomain: foundTenant.subdomain });
-      setCurrentTenantId(foundTenant.id);
-    }
-    
-    localStorage.setItem("replypal_user", JSON.stringify(userData));
-    return true;
   }, []);
 
   const logout = useCallback(() => {
