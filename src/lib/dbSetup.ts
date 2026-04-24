@@ -197,34 +197,75 @@ ON CONFLICT (id) DO NOTHING;
 
 export async function initializeDatabase() {
   try {
-    // Tentar adicionar coluna senha se não existir (bypass silencioso)
-    await supabase.rpc('execute_sql', { sql: 'ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS senha TEXT;' }).catch(() => {});
-
-    const { data: tenants, error: tenantsError } = await supabase
-      .from("tenants")
-      .select("id")
-      .limit(1);
+    // 1. Verificar se as tabelas existem (tentando ler tenants)
+    const { error: checkError } = await supabase.from("tenants").select("id").limit(1);
     
-    if (tenantsError && tenantsError.message.includes("does not exist")) {
-      console.log("Tables do not exist. Please run the SQL below in Supabase SQL Editor:");
-      console.log(CREATE_TABLES_SQL);
+    if (checkError && checkError.message.includes("does not exist")) {
+      console.warn("Tabelas não encontradas no Supabase. Execute o SQL de criação no dashboard.");
       return { success: false, needsSetup: true, sql: CREATE_TABLES_SQL };
     }
 
-    // Se as tabelas existem, vamos forçar os INSERTS dos usuários e cliente
-    const sqlChunks = CREATE_TABLES_SQL.split(';');
-    for(const chunk of sqlChunks) {
-      const trimmed = chunk.trim();
-      if (trimmed && trimmed.startsWith('INSERT')) {
-        // Nota: Executar inserts via RPC ou manualmente se necessário
+    // 2. Garantir Tenant Principal
+    const tenantId = '11111111-1111-1111-1111-111111111111';
+    await supabase.from("tenants").upsert({
+      id: tenantId,
+      nome: 'ReplyPal Pro',
+      subdomain: 'replypal'
+    });
+
+    // 3. Garantir Usuários Oficiais
+    await supabase.from("usuarios").upsert([
+      {
+        id: 'u1',
+        email: 'carlos@sasaki.com',
+        nome: 'Carlos Silva',
+        role: 'admin',
+        tenant_id: tenantId,
+        senha: 'admin123',
+        senha_hash: 'Emeuc3DADa5TJ3Gr9aBDuVXgXK+Vk/CNwz5ZTSwmh5w=',
+        senha_salt: 'replypal-pro-salt-v1'
+      },
+      {
+        id: 'u2',
+        email: 'gabriel@sasaki.com',
+        nome: 'Gabriel Souza',
+        role: 'atendente',
+        tenant_id: tenantId,
+        senha: 'sasaki123',
+        senha_hash: 'X/g5Lu2iN+xFGW9AfqNOi+8F5+tYdYWw1L5dfIoiiw4=',
+        senha_salt: 'replypal-pro-salt-v1'
       }
-    }
-    
+    ]);
+
+    // 4. Garantir Cliente Real Solicitado
+    const clientId = 'c1';
+    await supabase.from("clientes").upsert({
+      id: clientId,
+      razao_social: 'A A MAIA DA SILVA - CONSTRUTORA CIVIL',
+      nome_fantasia: 'A A MAIA DA SILVA',
+      cnpj: '56.745.517/0001-64',
+      responsavel: 'Afonso Anhaia Maia da Silva',
+      whatsapp: '42999896358',
+      cidade: 'Santana do Itararé',
+      estado: 'PR',
+      status: 'Ativo',
+      tenant_id: tenantId
+    });
+
+    // 5. Garantir Conversa Inicial
+    await supabase.from("conversas").upsert({
+      id: 'conv1',
+      client_name: 'Afonso Anhaia Maia da Silva',
+      client_phone: '42999896358',
+      customer_id: clientId,
+      status: 'novo',
+      tenant_id: tenantId
+    });
+
     return { success: true, needsSetup: false };
   } catch (err) {
-    console.log("Database not initialized. Please run SQL in Supabase:");
-    console.log(CREATE_TABLES_SQL);
-    return { success: false, needsSetup: true, sql: CREATE_TABLES_SQL };
+    console.error("Erro crítico na inicialização do banco:", err);
+    return { success: false, error: err };
   }
 }
 
