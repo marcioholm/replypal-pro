@@ -27,7 +27,6 @@ export default function ChatPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const store = useStore();
-  if (!store.currentUser) return null;
   const [messageInput, setMessageInput] = useState("");
   const [noteInput, setNoteInput] = useState("");
   const [showPanel, setShowPanel] = useState<"customer" | "notes" | "tags" | "history" | null>("customer");
@@ -135,6 +134,8 @@ export default function ChatPage() {
     
     return () => clearInterval(pollInterval);
   }, [id, !!conv]);
+
+  if (!store.currentUser) return null;
 
 
   useEffect(() => {

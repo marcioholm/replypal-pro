@@ -20,8 +20,9 @@ const columnColors: Record<ConversationStatus, string> = {
 export default function PipelinePage() {
   const store = useStore();
   const navigate = useNavigate();
-  if (!store.currentUser) return null;
   const [draggedId, setDraggedId] = useState<string | null>(null);
+
+  if (!store.currentUser) return null;
 
   const getColumnConversations = (status: ConversationStatus) =>
     store.conversations

@@ -13,7 +13,6 @@ type Filter = "todas" | "minhas" | "pendentes";
 export default function InboxPage() {
   const store = useStore();
   const navigate = useNavigate();
-  if (!store.currentUser) return null;
   const [filter, setFilter] = useState<Filter>("minhas");
   const [search, setSearch] = useState("");
   const [waConnected, setWaConnected] = useState(false);
@@ -43,7 +42,7 @@ export default function InboxPage() {
           .eq("tenant_id", tenantId);
 
         if (filter === "minhas") {
-          query = query.eq("assigned_to", store.currentUser.id);
+          query = query.eq("assigned_to", store.currentUser?.id);
         } else if (filter === "pendentes") {
           query = query.or(`assigned_to.is.null,status.eq.novo`);
         } else if (filter === "todas") {
@@ -51,7 +50,7 @@ export default function InboxPage() {
         }
 
         // Restrição para atendente: só vê 'minhas'
-        if (store.currentUser.role === "atendente" && filter !== "minhas") {
+        if (store.currentUser?.role === "atendente" && filter !== "minhas") {
           // Não faz nada ou limpa a lista, mas a UI já bloqueia as abas
         } else {
           const { data: dbConvs } = await query.order("last_message_time", { ascending: false });
@@ -149,14 +148,16 @@ export default function InboxPage() {
 
   useNewMessagePolling(
     allConversations,
-    store.currentUser.id,
-    store.currentUser.role || "atendente"
+    store.currentUser?.id || "",
+    store.currentUser?.role || "atendente"
   );
+
+  if (!store.currentUser) return null;
 
   const isAtendente = store.currentUser?.role === "atendente";
   const filtered = allConversations
     .filter((c) => {
-      if (filter === "minhas") return c.assignedTo === store.currentUser.id;
+      if (filter === "minhas") return c.assignedTo === store.currentUser?.id;
       if (filter === "pendentes") return !c.assignedTo || c.status === "novo";
       return true; // "todas"
     })
