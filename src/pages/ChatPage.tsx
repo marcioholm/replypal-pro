@@ -192,6 +192,7 @@ export default function ChatPage() {
     const message = qr ? qr.content : messageInput.trim();
     
     // 1. Salvar localmente (UI imediata)
+    toast.info(`Enviando como: ${user.name}`);
     store.sendMessage(conv.id, message, user);
     setMessageInput("");
     
@@ -201,8 +202,7 @@ export default function ChatPage() {
         conversation_id: conv.id,
         content: message,
         sender: "agent",
-        sender: "agent",
-        sender_name: user.name,
+        sender_name: user?.name || "Atendente",
         timestamp: new Date().toISOString()
       });
       
