@@ -183,11 +183,13 @@ export default function ChatPage() {
   }
 
 
+  const isAdmin = user.role === "admin";
   const isAssigned = conv.assignedTo === user.id;
+  const canRespond = isAssigned || isAdmin;
   const slaStatus = store.getSLAStatus(conv);
 
   const handleSend = async () => {
-    if (!messageInput.trim() || !isAssigned) return;
+    if (!messageInput.trim() || !canRespond) return;
     const qr = store.quickReplies.find((q) => messageInput.trim() === q.shortcut);
     const message = qr ? qr.content : messageInput.trim();
     
@@ -478,7 +480,7 @@ export default function ChatPage() {
 
         {/* Input */}
         <div className="p-4 border-t bg-card/80 backdrop-blur-sm">
-          {!isAssigned && conv.status !== "resolvido" ? (
+          {!canRespond && conv.status !== "resolvido" ? (
             <div className="text-center py-4 bg-muted/30 rounded-xl border border-dashed border-muted-foreground/20">
               <p className="text-xs text-muted-foreground mb-3">Você precisa assumir a conversa para responder</p>
               <Button size="sm" className="gap-1.5 shadow-sm" onClick={handleAssume}>
@@ -494,7 +496,19 @@ export default function ChatPage() {
               </div>
             </div>
           ) : (
-            <div className="flex gap-2 items-end">
+            <div className="space-y-4">
+              {isAdmin && !isAssigned && conv.status !== "resolvido" && (
+                <div className="flex items-center justify-between px-3 py-1.5 bg-primary/5 rounded-lg border border-primary/20 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    <span className="text-[10px] font-medium text-primary">Intervenção de Administrador: Você pode responder sem assumir.</span>
+                  </div>
+                  <Button variant="ghost" size="xs" onClick={handleAssume} className="h-6 text-[9px] hover:bg-primary/10">
+                    Assumir responsabilidade
+                  </Button>
+                </div>
+              )}
+              <div className="flex gap-2 items-end">
               <Popover open={showQuickReplies} onOpenChange={setShowQuickReplies}>
                 <PopoverTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-10 w-10 p-0 shrink-0 hover:bg-muted">
