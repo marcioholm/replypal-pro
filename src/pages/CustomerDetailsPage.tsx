@@ -8,11 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CustomerForm } from "@/components/CustomerForm";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+import { useEffect, useCallback } from "react";
 import { 
   ArrowLeft, Edit, Building, BookOpen, Users, Headphones, 
   DollarSign, FileText, History, MessageSquare, Mail, 
   Phone, Globe, MapPin, Calendar, ShieldCheck, Star,
-  Cake, Handshake
+  Cake, Handshake, Loader2
 } from "lucide-react";
 import ClienteDocumentos from "@/components/clientes/ClienteDocumentos";
 
@@ -21,14 +24,80 @@ export default function CustomerDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const store = useStore();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    const fetchCustomer = async () => {
+      const tenantId = user?.tenantId;
+      if (!tenantId || !id) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("clientes")
+          .select("*")
+          .eq("id", id)
+          .eq("tenant_id", tenantId)
+          .single();
+
+        if (data) {
+          store.addDbCustomer({
+            id: data.id,
+            name: data.nome_fantasia,
+            razaoSocial: data.razao_social || "",
+            cnpj: data.cnpj || "",
+            responsibleName: data.responsavel || "",
+            whatsapp: data.whatsapp || "",
+            phone: data.telefone || "",
+            email: data.email || "",
+            city: data.cidade || "",
+            state: data.estado || "",
+            regime: data.regime_tributario as any,
+            naturezaJuridica: data.natureza_juridica || "",
+            cnae: data.cnae || "",
+            hasEmployees: !!data.has_employees,
+            employeeCount: data.employee_count || 0,
+            status: data.status as any,
+            priority: (data.prioridade || data.priority || "Média") as any,
+            serviceLevel: (data.service_level || "Padrão") as any,
+            preferredChannel: (data.preferred_channel || "WhatsApp") as any,
+            plan: data.plan || "",
+            monthlyValue: data.monthly_value || 0,
+            origin: data.origin || "Direto",
+            tenantId: data.tenant_id,
+            contacts: [],
+            tags: [],
+            documents: [],
+            observations: data.observations || "",
+            financialStatus: data.financial_status || "Atenção",
+            createdAt: new Date(data.created_at)
+          });
+        } else {
+          setNotFound(true);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar detalhes do cliente:", err);
+        setNotFound(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCustomer();
+  }, [id, user?.tenantId]);
 
   const customer = store.getCustomer(id);
   const conversationHistory = store.conversations.filter(c => c.customerId === id);
   const actionHistory = store.getHistory(undefined, id);
 
-  if (!customer) {
+  if (loading && !customer) {
+    return <div className="h-screen w-screen flex items-center justify-center bg-background"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  }
+
+  if (notFound || !customer) {
     return (
       <div className="flex flex-col items-center justify-center h-[80vh] gap-4">
         <p className="text-muted-foreground text-lg">Cliente não encontrado</p>
