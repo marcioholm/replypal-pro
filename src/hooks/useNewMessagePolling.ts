@@ -22,7 +22,7 @@ export function useNewMessagePolling(
       if (lastTime > prevTime && prevTime > 0) {
         const shouldNotify =
           config.notifyTarget === "all" ||
-          (config.notifyTarget === "manager" && (currentUserRole === "admin" || currentUserRole === "supervisor")) ||
+          (config.notifyTarget === "manager" && (currentUserRole === "admin" || currentUserRole === "supervisor" || currentUserRole === "recepcionista")) ||
           (config.notifyTarget === "responsible" && conv.assignedTo === currentUserId);
 
         if (shouldNotify && "Notification" in window && Notification.permission === "granted") {
