@@ -9,6 +9,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -100,6 +101,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("replypal_user");
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    if (!user?.id) return;
+    const { data } = await supabase.from("usuarios").select("*").eq("id", user.id).single();
+    if (data) {
+      const userData: User = {
+        id: data.id,
+        name: data.nome,
+        email: data.email,
+        role: data.role,
+        tenantId: data.tenant_id,
+        avatar: data.avatar,
+        whatsapp: data.whatsapp
+      };
+      setUser(userData);
+      localStorage.setItem("replypal_user", JSON.stringify(userData));
+    }
+  }, [user?.id]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -109,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         logout,
+        refreshUser,
       }}
     >
       {children}

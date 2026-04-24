@@ -64,7 +64,7 @@ export default function SettingsPage() {
     return saved || "SASAKI";
   });
 
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [waStatus, setWaStatus] = useState<WhatsAppStatus>("idle");
   const [waConnection, setWaConnection] = useState<WhatsAppConnection | null>(null);
   const [qrCodeImage, setQrCodeImage] = useState<string | null>(null);
@@ -461,7 +461,10 @@ const handleConnect = async () => {
                           if (!newName) return toast.error("Nome não pode ser vazio");
                           supabase.from("usuarios").update({ nome: newName }).eq("id", user?.id).then(({ error }) => {
                             if (error) toast.error("Erro ao atualizar nome");
-                            else toast.success("Nome atualizado!");
+                            else {
+                               toast.success("Nome atualizado!");
+                               refreshUser();
+                            }
                           });
                         }}>Salvar</Button>
                       </div>
