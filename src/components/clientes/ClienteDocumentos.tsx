@@ -352,21 +352,25 @@ function DocumentItem({ tipo, label, category, month, year, status, clienteId, c
         throw new Error("A URL de envio de documentos (Webhook) não foi configurada no sistema.");
       }
 
-      const response = await fetch(webhookUrl, {
+      // Usar a nossa API interna como Proxy para ignorar bloqueios de CORS do n8n
+      const response = await fetch("/api/proxy-webhook", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
           "Accept": "application/json"
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+           targetUrl: webhookUrl,
+           ...payload
+        })
       }).catch(err => {
-        console.error("Erro de conexão (CORS ou Network):", err);
-        throw new Error(`Conexão recusada. Verifique se o n8n permite requisições da URL atual (CORS) ou se o link do Webhook está correto: ${webhookUrl}`);
+        console.error("Erro ao falar com a API Proxy:", err);
+        throw new Error(`O sistema não conseguiu acessar o servidor de envio interno. Verifique o console para detalhes.`);
       });
 
       if (!response.ok) {
-          const errorText = await response.text().catch(() => "Erro oculto do servidor");
-          throw new Error(`O servidor n8n retornou um erro (${response.status}): ${errorText}`);
+          const errorJson = await response.json().catch(() => ({}));
+          throw new Error(`O servidor n8n recusou a conexão via Proxy (${response.status}): ${errorJson.error || errorJson.message || "Erro desconhecido"}`);
       }
 
       toast.success(`${label} enviado com sucesso!`);

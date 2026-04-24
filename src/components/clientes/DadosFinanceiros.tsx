@@ -121,10 +121,12 @@ export default function DadosFinanceiros({ clienteId, clienteNome, tenantId }: D
       const webhookUrl = import.meta.env.VITE_N8N_FINANCEIRO_WEBHOOK;
       if (!webhookUrl) throw new Error("Webhook de exportação não configurado.");
 
-      const response = await fetch(webhookUrl, {
+      // Usar Proxy interno para evitar CORS
+      const response = await fetch("/api/proxy-webhook", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          targetUrl: webhookUrl,
           cliente_id: clienteId,
           cliente_nome: clienteNome,
           mes,
@@ -133,7 +135,10 @@ export default function DadosFinanceiros({ clienteId, clienteNome, tenantId }: D
         })
       });
 
-      if (!response.ok) throw new Error("Erro ao exportar para o n8n.");
+      if (!response.ok) {
+        const errorJson = await response.json().catch(() => ({}));
+        throw new Error(errorJson.error || errorJson.message || "Erro ao exportar para o n8n.");
+      }
       
       const data = await response.json();
       toast.success("Exportado para Google Sheets com sucesso!");
