@@ -239,15 +239,16 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
             email: values.email,
             cidade: values.city,
             estado: values.state,
-            regime: values.regime,
+            regime_tributario: values.regime,
             natureza_juridica: values.naturezaJuridica,
             cnae: values.cnae,
             status: values.status,
             prioridade: values.priority,
-            nivel_atendimento: values.serviceLevel,
-            plano: values.plan,
-            valor_mensal: values.monthlyValue,
-            origem: values.origin
+            service_level: values.serviceLevel,
+            plan: values.plan,
+            monthly_value: values.monthlyValue,
+            financial_status: values.financialStatus,
+            observations: values.observations
           }])
           .select()
           .single();
@@ -267,20 +268,22 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
           email: data.email,
           city: data.cidade,
           state: data.estado,
-          regime: data.regime,
+          regime: data.regime_tributario,
           naturezaJuridica: data.natureza_juridica,
           cnae: data.cnae,
           status: data.status,
-          priority: data.priority,
-          serviceLevel: data.nivel_atendimento,
-          plan: data.plano,
-          monthlyValue: data.valor_mensal,
-          origin: data.origem,
+          priority: data.prioridade || data.priority,
+          serviceLevel: data.service_level,
+          plan: data.plan,
+          monthlyValue: data.monthly_value,
+          origin: data.origin || "Direto",
           contacts: values.contacts,
           tags: values.tags,
-          observations: values.observations,
-          hasEmployees: values.hasEmployees,
-          employeeCount: values.employeeCount
+          observations: data.observations,
+          financialStatus: data.financial_status,
+          hasEmployees: !!data.has_employees,
+          employeeCount: data.employee_count || 0,
+          createdAt: new Date(data.created_at)
         };
 
         store.addCustomer(newCustomer);

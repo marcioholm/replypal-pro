@@ -477,6 +477,20 @@ export function useStoreInternal(tenantId?: string) {
     setUsers: (users: User[]) => {
       globalUsers = users;
       notify();
+    },
+    addDbCustomer: (customer: Customer) => {
+      const existingIdx = globalCustomers.findIndex(c => c.id === customer.id);
+      if (existingIdx === -1) {
+        globalCustomers = [customer, ...globalCustomers];
+        notify();
+      } else {
+        const existing = globalCustomers[existingIdx];
+        // Atualizar se houve mudança ou se campos críticos estão vazios
+        if (existing.name !== customer.name || existing.status !== customer.status || existing.cnpj !== customer.cnpj) {
+          globalCustomers = globalCustomers.map(c => c.id === customer.id ? { ...c, ...customer } : c);
+          notify();
+        }
+      }
     }
   };
 }

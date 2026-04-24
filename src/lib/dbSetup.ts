@@ -249,6 +249,10 @@ export async function initializeDatabase() {
       cidade: 'Santana do Itararé',
       estado: 'PR',
       status: 'Ativo',
+      prioridade: 'Alta',
+      service_level: 'Estratégico',
+      plan: 'Black',
+      monthly_value: 1500,
       tenant_id: tenantId
     });
 

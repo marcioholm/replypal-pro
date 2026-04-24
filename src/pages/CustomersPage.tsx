@@ -50,19 +50,30 @@ export default function CustomersPage() {
               name: c.nome_fantasia,
               razaoSocial: c.razao_social || "",
               cnpj: c.cnpj || "",
-              responsible: c.responsavel || "",
+              responsibleName: c.responsavel || "",
               whatsapp: c.whatsapp || "",
               phone: c.telefone || "",
               email: c.email || "",
               city: c.cidade || "",
               state: c.estado || "",
               regime: c.regime_tributario as any,
+              naturezaJuridica: c.natureza_juridica || "",
+              cnae: c.cnae || "",
+              hasEmployees: !!c.has_employees,
+              employeeCount: c.employee_count || 0,
               status: c.status as any,
               priority: (c.prioridade || "Média") as any,
               serviceLevel: (c.service_level || "Padrão") as any,
+              preferredChannel: (c.preferred_channel || "WhatsApp") as any,
               plan: c.plan || "",
+              monthlyValue: c.monthly_value || 0,
               origin: c.origin || "Direto",
-              tenantId: c.tenant_id
+              tenantId: c.tenant_id,
+              contacts: [],
+              tags: [],
+              documents: [],
+              observations: c.observations || "",
+              createdAt: new Date(c.created_at)
             });
           });
         }
