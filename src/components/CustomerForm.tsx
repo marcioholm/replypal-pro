@@ -14,6 +14,8 @@ import { Progress } from "@/components/ui/progress";
 import { Plus, Trash2, Building, BookOpen, Users, Headphones, DollarSign, FileText, Badge, Upload, Download, Table, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useRef } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth";
 
 const sampleData = [
   ["Razão Social", "Nome Fantasia", "CNPJ", "Responsável", "WhatsApp", "Telefone", "E-mail", "Cidade", "Estado", "Regime", "Natureza Jurídica", "CNAE", "Status", "Prioridade", "Nível", "Plano", "Valor Mensal", "Origem"],
@@ -154,24 +156,112 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
     name: "contacts",
   });
 
-  const onSubmit = (values: CustomerFormValues) => {
+  const { user } = useAuth();
+
+  const onSubmit = async (values: CustomerFormValues) => {
     try {
       if (initialData) {
+        // Atualização
+        const { error } = await supabase
+          .from("clientes")
+          .update({
+            razao_social: values.razaoSocial,
+            nome_fantasia: values.name,
+            cnpj: values.cnpj,
+            responsavel: values.responsibleName,
+            whatsapp: values.whatsapp,
+            telefone: values.phone,
+            email: values.email,
+            cidade: values.city,
+            estado: values.state,
+            regime: values.regime,
+            natureza_juridica: values.naturezaJuridica,
+            cnae: values.cnae,
+            status: values.status,
+            prioridade: values.priority,
+            nivel_atendimento: values.serviceLevel,
+            plano: values.plan,
+            valor_mensal: values.monthlyValue,
+            origem: values.origin
+          })
+          .eq("id", initialData.id);
+
+        if (error) throw error;
+        
         store.updateCustomer(initialData.id, values);
         toast.success("Cliente atualizado com sucesso!");
         if (onSuccess) onSuccess({ ...initialData, ...values });
       } else {
+        // Novo Cadastro
         const existing = store.getCustomerByCnpj(values.cnpj);
         if (existing) {
           form.setError("cnpj", { message: "CNPJ já cadastrado" });
           return;
         }
-        const newCustomer = store.addCustomer(values);
+
+        const { data, error } = await supabase
+          .from("clientes")
+          .insert([{
+            tenant_id: user?.tenantId,
+            razao_social: values.razaoSocial,
+            nome_fantasia: values.name,
+            cnpj: values.cnpj,
+            responsavel: values.responsibleName,
+            whatsapp: values.whatsapp,
+            telefone: values.phone,
+            email: values.email,
+            cidade: values.city,
+            estado: values.state,
+            regime: values.regime,
+            natureza_juridica: values.naturezaJuridica,
+            cnae: values.cnae,
+            status: values.status,
+            prioridade: values.priority,
+            nivel_atendimento: values.serviceLevel,
+            plano: values.plan,
+            valor_mensal: values.monthlyValue,
+            origem: values.origin
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Converter do formato do banco para o formato do Store
+        const newCustomer: Customer = {
+          id: data.id,
+          tenantId: data.tenant_id,
+          razaoSocial: data.razao_social,
+          name: data.nome_fantasia,
+          cnpj: data.cnpj,
+          responsibleName: data.responsavel,
+          whatsapp: data.whatsapp,
+          phone: data.telefone,
+          email: data.email,
+          city: data.cidade,
+          state: data.estado,
+          regime: data.regime,
+          naturezaJuridica: data.natureza_juridica,
+          cnae: data.cnae,
+          status: data.status,
+          priority: data.priority,
+          serviceLevel: data.nivel_atendimento,
+          plan: data.plano,
+          monthlyValue: data.valor_mensal,
+          origin: data.origem,
+          contacts: values.contacts,
+          tags: values.tags,
+          observations: values.observations,
+          hasEmployees: values.hasEmployees,
+          employeeCount: values.employeeCount
+        };
+
+        store.addCustomer(newCustomer);
         toast.success("Cliente cadastrado com sucesso!");
         if (onSuccess) onSuccess(newCustomer);
       }
-    } catch (error) {
-      toast.error("Erro ao salvar cliente");
+    } catch (error: any) {
+      toast.error("Erro ao salvar cliente: " + (error.message || "Erro desconhecido"));
       console.error(error);
     }
   };
