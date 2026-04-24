@@ -290,6 +290,7 @@ export default function ChatPage() {
 
   const handleTransfer = async () => {
     if (!transferTo) return;
+    if (!transferReason.trim()) return toast.error("O motivo da transferência é obrigatório");
     const targetUser = store.users.find(u => u.id === transferTo);
     if (!targetUser) return toast.error("Usuário destino não encontrado");
     
@@ -383,10 +384,10 @@ export default function ChatPage() {
                           </Select>
                         </div>
                         <div>
-                          <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Motivo (opcional)</label>
+                          <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Motivo</label>
                           <Input placeholder="Ex: Fim do expediente" value={transferReason} onChange={(e) => setTransferReason(e.target.value)} className="h-10" />
                         </div>
-                        <Button onClick={handleTransfer} className="w-full h-10" disabled={!transferTo}>Confirmar transferência</Button>
+                        <Button onClick={handleTransfer} className="w-full h-10" disabled={!transferTo || !transferReason.trim()}>Confirmar transferência</Button>
                       </div>
                     </DialogContent>
                   </Dialog>
