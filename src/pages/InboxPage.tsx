@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Search, UserCheck, Users, Inbox as InboxIcon, Mail, RefreshCw } from "lucide-react";
 import { checkConnection } from "@/lib/evolution";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth";
 
 type Filter = "todas" | "minhas" | "pendentes";
 

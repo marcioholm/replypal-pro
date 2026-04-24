@@ -5,7 +5,8 @@ import { supabase } from "@/lib/supabase";
 import type { Conversation, ConversationStatus } from "@/lib/store";
 import { TagBadge } from "@/components/TagBadge";
 import { SLABadge } from "@/components/SLABadge";
-import { Kanban, GripVertical, Clock, User } from "lucide-react";
+import { Kanban, GripVertical, Clock, User as UserIcon } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 const COLUMNS: ConversationStatus[] = ["novo", "aguardando_aceite", "em_atendimento", "aguardando_cliente", "resolvido"];
 
@@ -20,13 +21,12 @@ const columnColors: Record<ConversationStatus, string> = {
 export default function PipelinePage() {
   const store = useStore();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [draggedId, setDraggedId] = useState<string | null>(null);
-
-  if (!store.currentUser) return null;
 
   const getColumnConversations = (status: ConversationStatus) =>
     store.conversations
-      .filter((c) => !c.tenantId || c.tenantId === store.currentUser.tenantId)
+      .filter((c) => !c.tenantId || (user && c.tenantId === user.tenantId))
       .filter((c) => c.status === status)
       .sort((a, b) => b.lastMessageTime.getTime() - a.lastMessageTime.getTime());
 
@@ -62,7 +62,9 @@ export default function PipelinePage() {
     fetchData();
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-  }, [store.currentUser?.tenantId]);
+  }, [user?.tenantId]);
+
+  if (!user) return null;
 
   const handleDragStart = (e: React.DragEvent, convId: string) => {
     setDraggedId(convId);
