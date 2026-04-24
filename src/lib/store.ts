@@ -189,7 +189,6 @@ const now = new Date();
 const minutesAgo = (m: number) => new Date(now.getTime() - m * 60000);
 
 export const INITIAL_CUSTOMERS: Customer[] = [];
-
 export const INITIAL_CONVERSATIONS: Conversation[] = [];
 const INITIAL_MESSAGES: Message[] = [];
 const INITIAL_HISTORY: HistoryEntry[] = [];
@@ -293,6 +292,9 @@ export function useStoreInternal(tenantId?: string) {
           ? { ...c, assignedTo: toUser.id, assignedToName: toUser.name }
           : c
       );
+      
+      // Também precisamos atualizar as mensagens vinculadas se houver alguma lógica de filtragem, 
+      // mas as mensagens são buscadas por conversationId, então devem permanecer.
       globalHistory = [
         ...globalHistory,
         {

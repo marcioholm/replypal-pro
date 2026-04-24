@@ -279,12 +279,6 @@ export default function ChatPage() {
 
       store.assumeConversation(conv.id, user);
       toast.success("Você assumiu este atendimento!");
-    } catch (e: any) {
-      console.error("Error assuming conversation:", e);
-      toast.error("Erro ao assumir atendimento: " + (e.message || "Erro desconhecido"));
-      return;
-    }
-
     }
   };
 
@@ -310,12 +304,6 @@ export default function ChatPage() {
       setTransferOpen(false);
       setTransferTo("");
       setTransferReason("");
-    } catch (e: any) {
-      console.error("Error transferring conversation:", e);
-      toast.error("Erro ao transferir: " + (e.message || "Erro desconhecido"));
-      return;
-    }
-
     }
   };
 
