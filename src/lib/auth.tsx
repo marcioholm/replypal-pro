@@ -129,18 +129,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const salt = foundUser.senha_salt;
     const storedHash = foundUser.senha_hash;
     
+    // Verifica hash primeiro (preferencial)
+    let isValidPassword = false;
     if (salt && storedHash) {
-      // Modo seguro: usar hash PBKDF2
-      const isValid = await verifyPassword(password, salt, storedHash);
-      if (!isValid) {
-        console.error("Password verification failed for:", email);
-        alert("E-mail ou senha incorretos.");
-        return false;
-      }
-    } else if (foundUser.senha !== password) {
-      // Fallback: verificação simples (apenas para migração)
-      // Em produção, remover após migrar todas as senhas para hash
-      console.warn("Using insecure password check - migrate to hash");
+      isValidPassword = await verifyPassword(password, salt, storedHash);
+    }
+    
+    // Fallback: aceitar senha simples ou hash existente
+    if (!isValidPassword && foundUser.senha === password) {
+      isValidPassword = true;
+      console.log("Using legacy password");
+    }
+    
+    if (!isValidPassword) {
+      console.error("Password verification failed for:", email);
+      console.log("salt:", salt, "hash:", storedHash ? "set" : "null", "senha:", foundUser.senha ? "set" : "null");
       alert("E-mail ou senha incorretos.");
       return false;
     }
