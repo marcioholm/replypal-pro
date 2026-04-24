@@ -144,22 +144,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         if (salt && storedHash) {
           isValidPassword = await verifyPassword(password, salt, storedHash);
-          if (isValidPassword) {
-            console.log("%c Authenticated via Secure Hash! ", "background: #22c55e; color: #fff; font-weight: bold;");
-          }
         }
       } catch (hashError) {
-        console.warn("Secure hash check failed, trying legacy fallback:", hashError);
+        console.warn("Secure hash check failed, trying legacy fallback.");
       }
       
-      // Fallback: se o hash falhou ou deu erro, tenta senha pura (coluna 'senha')
+      // Fallback
       if (!isValidPassword && foundUser.senha === password) {
         isValidPassword = true;
-        console.log("Authenticated via legacy fallback");
       }
       
       if (!isValidPassword) {
-        console.error("Login rejection: Invalid credentials for", email);
         alert("E-mail ou senha incorretos.");
         return false;
       }

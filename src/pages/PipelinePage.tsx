@@ -57,7 +57,8 @@ export default function PipelinePage() {
             assignedTo: c.assigned_to,
             startedAt: c.started_at ? new Date(c.started_at) : undefined,
             slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
-            tenantId: c.tenant_id
+            tenantId: c.tenant_id,
+            tags: c.tags || []
           });
         });
       }
@@ -157,7 +158,7 @@ export default function PipelinePage() {
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-2 mb-3 pl-7">{conv.lastMessage}</p>
                         <div className="flex items-center gap-2 flex-wrap pl-2">
-                          {conv.tags.slice(0, 2).map((t) => <TagBadge key={t} tagId={t} />)}
+                          {(conv.tags || []).slice(0, 2).map((t) => <TagBadge key={t} tagId={t} />)}
                           {status !== "resolvido" && <SLABadge slaStatus={sla} />}
                           {conv.startedAt && (
                             <span className="text-[10px] text-muted-foreground ml-auto flex items-center gap-1">

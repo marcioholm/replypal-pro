@@ -93,20 +93,15 @@ export default function InboxPage() {
                 assignedTo: c.assigned_to,
                 startedAt: c.started_at ? new Date(c.started_at) : undefined,
                 slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
-                tenantId: c.tenant_id
+                tenantId: c.tenant_id,
+                tags: c.tags || []
               });
             });
           }
         }
 
-        // 2. Fetch latest messages from WhatsApp Bridge
-        const r = await fetch(`/api/webhook?tenantId=${tenantId}`);
-        if (r.ok) {
-          const d = await r.json();
-          if (d.success && d.messages) {
-            setWaMessages(d.messages);
-          }
-        }
+        // 2. Refresh store with DB conversations
+        // The messages are handled via real-time DB triggers or n8n
       } catch (err) {
       }
     };
@@ -136,12 +131,12 @@ export default function InboxPage() {
             lastMessageTime: new Date(c.last_message_time),
             status: c.status as any,
             assignedTo: c.assigned_to,
-            tenantId: c.tenant_id
+            tenantId: c.tenant_id,
+            tags: c.tags || []
           });
         });
       }
 
-      await fetch(`/api/webhook?tenantId=${tenantId}`);
       const status = await checkConnection();
       setWaConnected(status.connected);
     } catch {}
