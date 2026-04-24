@@ -1,7 +1,7 @@
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useStore, Customer, Contact, RegimeTributario, StatusCliente, Prioridade, NivelAtendimento, CanalPreferencial, StatusFinanceiro, TipoContato } from "@/lib/store";
+import { useStore, User, Customer, Contact, RegimeTributario, StatusCliente, Prioridade, NivelAtendimento, CanalPreferencial, StatusFinanceiro, TipoContato } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Progress } from "@/components/ui/progress";
 import { Plus, Trash2, Building, BookOpen, Users, Headphones, DollarSign, FileText, Badge, Upload, Download, Table, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
@@ -113,7 +113,34 @@ interface CustomerFormProps {
 
 export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
   const store = useStore();
+  const { user } = useAuth();
   
+  useEffect(() => {
+    if (!user?.tenantId) return;
+    
+    const fetchUsers = async () => {
+      const { data, error } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("tenant_id", user.tenantId);
+      
+      if (data) {
+        const team: User[] = data.map(d => ({
+          id: d.id,
+          name: d.nome,
+          email: d.email,
+          role: d.role,
+          tenantId: d.tenant_id,
+          avatar: d.avatar,
+          whatsapp: d.whatsapp
+        }));
+        store.setUsers(team);
+      }
+    };
+    
+    fetchUsers();
+  }, [user?.tenantId]);
+
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
     defaultValues: initialData ? {
