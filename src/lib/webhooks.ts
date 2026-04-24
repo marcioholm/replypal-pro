@@ -15,20 +15,27 @@ async function sendWebhook(url: string, payload: any) {
   }
 
   try {
-    const response = await fetch(url, {
+    // Usar Proxy interno para evitar CORS em todos os webhooks do sistema
+    const response = await fetch("/api/proxy-webhook", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        targetUrl: url,
         ...payload,
         source: "replypal-pro",
         timestamp: new Date().toISOString(),
       }),
     });
+    
+    if (!response.ok) {
+      console.error(`Webhook Proxy Error (${response.status})`);
+    }
+    
     return response.ok;
   } catch (error) {
-    console.error("Error sending webhook:", error);
+    console.error("Error sending webhook via proxy:", error);
     return false;
   }
 }
