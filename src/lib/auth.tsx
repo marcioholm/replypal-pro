@@ -27,7 +27,7 @@ async function hashPassword(password: string, salt: string): Promise<string> {
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
     encoder.encode(password),
-    "PBKDF2",
+    { name: "PBKDF2" },
     false,
     ["deriveBits"]
   );
@@ -144,6 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         if (salt && storedHash) {
           isValidPassword = await verifyPassword(password, salt, storedHash);
+          if (isValidPassword) {
+            console.log("%c Authenticated via Secure Hash! ", "background: #22c55e; color: #fff; font-weight: bold;");
+          }
         }
       } catch (hashError) {
         console.warn("Secure hash check failed, trying legacy fallback:", hashError);
