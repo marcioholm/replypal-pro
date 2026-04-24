@@ -549,6 +549,7 @@ export default function ChatPage() {
                 <Send className="w-4 h-4" />
               </Button>
             </div>
+           </div>
           )}
         </div>
       </div>
