@@ -13,11 +13,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+type ObligationType = "federal" | "estadual" | "municipal" | "outro";
+
 interface Obligation {
   id: string;
   name: string;
   deadline: Date;
-  type: "federal" | "estadual" | "municipal" | "outro";
+  type: ObligationType;
   description: string;
 }
 
@@ -157,7 +159,7 @@ export default function CalendarPage() {
                   <Label>Tipo</Label>
                   <Select 
                     value={newObligation.type}
-                    onValueChange={(v: any) => setNewObligation({...newObligation, type: v})}
+                    onValueChange={(v) => setNewObligation({...newObligation, type: v as ObligationType})}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useStore, formatTime, formatDuration, MOCK_TAGS } from "@/lib/store";
+import { useStore, formatTime, formatDuration, MOCK_TAGS, UserRole } from "@/lib/store";
 import type { ConversationStatus, ClosingReason } from "@/lib/store";
 import { getNotificationConfig, setNotificationConfig } from "@/hooks/useNotifications";
 import { sendWhatsAppMessage, checkConnection } from "@/lib/evolution";
@@ -108,44 +108,44 @@ export default function ChatPage() {
             timestamp: new Date(m.timestamp)
           })));
         }
-      } catch (e) {
-        console.error("Error loading chat data:", e);
-      } finally {
-        setLoading(false);
-      }
-    };
+} catch (e) {
+      console.error("Error loading chat data:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    // Initial load
-    loadRealData();
+  // Initial load
+  loadRealData();
 
-    // Fetch team members for transfer list
-    const fetchTeam = async () => {
-      if (!user?.tenantId) return;
-      const { data } = await supabase
-        .from("usuarios")
-        .select("*")
-        .eq("tenant_id", user.tenantId);
-      
-      if (data) {
-        store.setGlobalUsers(data.map(d => ({
-          id: d.id,
-          name: d.nome,
-          email: d.email,
-          role: d.role as any,
-          tenantId: d.tenant_id,
-          avatar: d.avatar,
-          whatsapp: d.whatsapp
-        })));
-      }
-    };
-
-    fetchTeam();
-
-    // Polling every 3 seconds for new messages
-    const pollInterval = setInterval(loadRealData, 3000);
+  // Fetch team members for transfer list
+  const fetchTeam = async () => {
+    if (!user?.tenantId) return;
+    const { data } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("tenant_id", user.tenantId);
     
-    return () => clearInterval(pollInterval);
-  }, [id, !!conv]);
+    if (data) {
+      store.setGlobalUsers(data.map(d => ({
+        id: d.id,
+        name: d.nome,
+        email: d.email,
+        role: d.role as UserRole,
+        tenantId: d.tenant_id,
+        avatar: d.avatar,
+        whatsapp: d.whatsapp
+      })));
+    }
+  };
+
+  fetchTeam();
+
+  // Polling every 3 seconds for new messages
+  const pollInterval = setInterval(loadRealData, 3000);
+  
+  return () => clearInterval(pollInterval);
+}, [id, !!conv]);
 
   if (!user) return null;
 
@@ -219,7 +219,8 @@ export default function ChatPage() {
         })
         .eq("id", conv.id);
     } catch (e) {
-      console.error("Error saving message to Supabase:", e);
+      const error = e as Error;
+      console.error("Error saving message to Supabase:", error);
     }
     
     // 3. Enviar via WhatsApp (Interação real)
@@ -258,7 +259,8 @@ export default function ChatPage() {
         })
         .eq("id", conv.id);
     } catch (e) {
-      console.error("Error saving quick reply to Supabase:", e);
+      const error = e as Error;
+      console.error("Error saving quick reply to Supabase:", error);
     }
     
     // Enviar via WhatsApp
@@ -305,9 +307,10 @@ export default function ChatPage() {
       store.assumeConversation(conv.id, user);
       webhooks.triggerTransferOwner(conv, user, user.name, "Assumiu conversa");
       toast.success(isAdmin ? "Você assumiu o controle (Modo Admin)!" : "Você assumiu este atendimento!");
-    } catch (e: any) {
-      console.error("Erro completo ao assumir:", e);
-      toast.error("Erro ao assumir: " + (e.message || "Erro desconhecido"));
+    } catch (e: unknown) {
+      const error = e as Error;
+      console.error("Erro completo ao assumir:", error);
+      toast.error("Erro ao assumir: " + (error.message || "Erro desconhecido"));
     }
   };
 
@@ -334,8 +337,9 @@ export default function ChatPage() {
       setTransferOpen(false);
       setTransferTo("");
       setTransferReason("");
-    } catch (e: any) {
-      toast.error("Erro ao transferir: " + (e.message || "Erro desconhecido"));
+    } catch (e: unknown) {
+      const error = e as Error;
+      toast.error("Erro ao transferir: " + (error.message || "Erro desconhecido"));
     }
   };
 

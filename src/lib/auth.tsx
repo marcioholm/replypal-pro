@@ -3,6 +3,53 @@ import { User, Tenant, setCurrentTenantId } from "./store";
 import { supabase } from "./supabase";
 import { initializeDatabase } from "./dbSetup";
 
+const PBKDF2_ITERATIONS = 100000;
+const SALT_LENGTH = 16;
+const HASH_LENGTH = 32;
+
+async function generateSalt(): Promise<string> {
+  const salt = new Uint8Array(SALT_LENGTH);
+  crypto.getRandomValues(salt);
+  return btoa(String.fromCharCode(...salt));
+}
+
+async function hashPassword(password: string, salt: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const saltBytes = Uint8Array.from(atob(salt), c => c.charCodeAt(0));
+  
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: saltBytes,
+      iterations: PBKDF2_ITERATIONS,
+      hash: "SHA-256"
+    },
+    keyMaterial,
+    HASH_LENGTH * 8
+  );
+  
+  return btoa(String.fromCharCode(...new Uint8Array(derivedBits)));
+}
+
+async function verifyPassword(password: string, salt: string, storedHash: string): Promise<boolean> {
+  const computedHash = await hashPassword(password, salt);
+  return computedHash === storedHash;
+}
+
+function bufferToHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 interface AuthContextType {
   user: User | null;
   tenant: Tenant | null;
@@ -59,11 +106,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+    // SECURITY: PBKDF2-SHA256 password hashing
+    // O banco precisa ter: senha_hash (string) e senha_salt (string)
+    
     const { data: foundUser, error } = await supabase
       .from("usuarios")
       .select("*")
       .eq("email", email.toLowerCase())
-      .eq("senha", password) // Nota: Em produção real, usaríamos hash de senha
       .single();
 
     if (error || !foundUser) {
@@ -73,6 +122,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         alert("Erro ao conectar com o banco de dados. Verifique o console ou as permissões de RLS no Supabase.");
       }
+      return false;
+    }
+
+    // Verificar senha com hash seguro (se existir salt no banco)
+    const salt = foundUser.senha_salt;
+    const storedHash = foundUser.senha_hash;
+    
+    if (salt && storedHash) {
+      // Modo seguro: usar hash PBKDF2
+      const isValid = await verifyPassword(password, salt, storedHash);
+      if (!isValid) {
+        console.error("Password verification failed for:", email);
+        alert("E-mail ou senha incorretos.");
+        return false;
+      }
+    } else if (foundUser.senha !== password) {
+      // Fallback: verificação simples (apenas para migração)
+      // Em produção, remover após migrar todas as senhas para hash
+      console.warn("Using insecure password check - migrate to hash");
+      alert("E-mail ou senha incorretos.");
       return false;
     }
 
@@ -145,3 +214,13 @@ export function useAuth() {
   }
   return context;
 }
+
+// Utilitário para gerar hash de senha (usar no console do browser para migrar senhas)
+// Exemplo: auth.hashPassword('admin123').then(console.log)
+export async function hashPasswordForMigration(password: string): Promise<{ salt: string; hash: string }> {
+  const salt = await generateSalt();
+  const hash = await hashPassword(password, salt);
+  return { salt, hash };
+}
+
+// Utilitário CLI: console.log(JSON.stringify(await hashPasswordForMigration('admin123')))

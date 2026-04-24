@@ -76,10 +76,9 @@ export default function DadosFinanceiros({ clienteId, clienteNome, tenantId }: D
           observacoes: ""
         });
       }
-    } catch (err) {
-      console.error("Erro ao buscar dados financeiros:", err);
-    } finally {
-      setLoading(false);
+} catch (err) {
+      const error = err as Error;
+      console.error("Erro ao buscar dados financeiros:", error);
     }
   };
 
@@ -103,8 +102,9 @@ export default function DadosFinanceiros({ clienteId, clienteNome, tenantId }: D
       if (error) throw error;
       if (!silent) toast.success("Dados financeiros salvos com sucesso!");
       return true;
-    } catch (err: any) {
-      toast.error("Erro ao salvar: " + err.message);
+    } catch (err) {
+      const error = err as Error;
+      toast.error("Erro ao salvar: " + error.message);
       return false;
     }
   };
@@ -140,8 +140,9 @@ export default function DadosFinanceiros({ clienteId, clienteNome, tenantId }: D
       if (data.sheetsUrl || data.url) {
         window.open(data.sheetsUrl || data.url, "_blank");
       }
-    } catch (err: any) {
-      toast.error("Erro na exportação: " + err.message);
+    } catch (err) {
+      const error = err as Error;
+      toast.error("Erro na exportação: " + error.message);
     } finally {
       setExporting(false);
     }

@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import type { Conversation, ConversationStatus } from "@/lib/store";
 import { TagBadge } from "@/components/TagBadge";
 import { SLABadge } from "@/components/SLABadge";
-import { Kanban, GripVertical, Clock, User as UserIcon } from "lucide-react";
+import { Kanban, GripVertical, Clock, User } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 const COLUMNS: ConversationStatus[] = ["novo", "aguardando_aceite", "em_atendimento", "aguardando_cliente", "resolvido"];

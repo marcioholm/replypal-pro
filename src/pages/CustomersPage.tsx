@@ -13,7 +13,8 @@ import {
   Users, UserPlus, Search, Filter, 
   Building, BookOpen, Clock, AlertCircle,
   TrendingUp, ArrowRight, MoreHorizontal,
-  ChevronRight, Calendar, Briefcase, FilterX
+  ChevronRight, Calendar, Briefcase, FilterX,
+  MapPin
 } from "lucide-react";
 
 export default function CustomersPage() {
@@ -215,7 +216,7 @@ export default function CustomersPage() {
             </div>
           </div>
         </CardHeader>
-<CardContent className="p-0">
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -251,7 +252,7 @@ export default function CustomersPage() {
                       <TableCell>
                         <div className="space-y-1">
                           <p className="text-xs font-mono text-foreground font-medium">{c.cnpj}</p>
-                          <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1"><MapPinIcon className="w-3 h-3" /> {c.city} - {c.state}</p>
+                          <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.city} - {c.state}</p>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -281,19 +282,11 @@ export default function CustomersPage() {
                     </TableRow>
                   ))
                 )}
-              </TableBody>
+</TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function MapPinIcon(props: any) {
-  return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
-    </svg>
   );
 }

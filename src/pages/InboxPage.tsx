@@ -2,12 +2,27 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore, formatRelativeTime } from "@/lib/store";
 import { useNewMessagePolling } from "@/hooks/useNewMessagePolling";
+import { useRealtimeChat } from "@/hooks/useRealtimeChat";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, UserCheck, Users, Inbox as InboxIcon, Mail, RefreshCw } from "lucide-react";
 import { checkConnection } from "@/lib/evolution";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
+
+interface WaMessage {
+  id?: string;
+  conversation_id?: string;
+  from_num?: string;
+  content?: string;
+  message?: string;
+  timestamp?: string;
+  created_at?: string;
+  conversas?: {
+    client_phone?: string;
+    client_name?: string;
+  };
+}
 
 type Filter = "todas" | "minhas" | "pendentes";
 
@@ -26,7 +41,7 @@ export default function InboxPage() {
   const [filter, setFilter] = useState<Filter>("minhas");
   const [search, setSearch] = useState("");
   const [waConnected, setWaConnected] = useState(false);
-  const [waMessages, setWaMessages] = useState<any[]>([]);
+  const [waMessages, setWaMessages] = useState<WaMessage[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Check WhatsApp connection on mount
@@ -138,7 +153,7 @@ export default function InboxPage() {
   const allConversations = [...store.conversations];
   
   // Add messages from waMessages if they don't already exist in store.conversations
-  waMessages.forEach((m: any) => {
+  waMessages.forEach((m) => {
     const phone = m.conversas?.client_phone || m.from_num;
     const exists = allConversations.find(c => c.clientPhone === phone);
     
@@ -162,6 +177,19 @@ export default function InboxPage() {
   );
 
   if (!user) return null;
+
+  // Realtime subscription
+  const { subscribe: subscribeRealtime, unsubscribe: unsubscribeRealtime } = useRealtimeChat({
+    tenantId: user?.tenantId,
+    userId: user?.id,
+    enabled: true,
+  });
+
+  // Subscribe to realtime on mount
+  useEffect(() => {
+    subscribeRealtime();
+    return () => unsubscribeRealtime();
+  }, [subscribeRealtime, unsubscribeRealtime]);
 
   const isAtendente = user?.role === "atendente";
   const filtered = allConversations

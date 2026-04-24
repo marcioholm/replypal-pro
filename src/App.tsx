@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,6 +18,19 @@ import NotFound from "@/pages/NotFound";
 import LoginPage from "@/pages/LoginPage";
 
 const queryClient = new QueryClient();
+
+type UserRole = "admin" | "supervisor" | "atendente" | "recepcionista";
+
+const rolePermissions: Record<string, UserRole[]> = {
+  "/settings": ["admin"],
+  "/customers": ["admin", "supervisor", "atendente", "recepcionista"],
+};
+
+function hasPermission(path: string, userRole: UserRole): boolean {
+  const requiredRoles = rolePermissions[path];
+  if (!requiredRoles) return true;
+  return requiredRoles.includes(userRole as UserRole);
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -41,7 +54,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const location = useLocation();
+  const currentRole = (user?.role || "atendente") as UserRole;
+
+  if (!hasPermission(location.pathname, currentRole)) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <Routes>

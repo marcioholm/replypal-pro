@@ -1,0 +1,120 @@
+import { useEffect, useCallback, useRef } from "react";
+import { supabase } from "../lib/supabase";
+import { useStore } from "../lib/store";
+
+interface UseRealtimeOptions {
+  tenantId?: string;
+  userId?: string;
+  enabled?: boolean;
+}
+
+export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtimeOptions) {
+  const store = useStore();
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  const subscribeToConversas = useCallback(() => {
+    if (!enabled || !tenantId) return;
+
+    // Já está conectado?
+    if (channelRef.current) {
+      return channelRef.current;
+    }
+
+    const channel = supabase
+      .channel(`chat:${tenantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "conversas",
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        (payload) => {
+          const { eventType, new: newRecord, old: oldRecord } = payload;
+
+          if (eventType === "INSERT" && newRecord) {
+            store.addDbConversation({
+              id: newRecord.id,
+              clientName: newRecord.client_name,
+              clientPhone: newRecord.client_phone,
+              customerId: newRecord.customer_id,
+              lastMessage: newRecord.last_message,
+              lastMessageTime: new Date(newRecord.last_message_time),
+              status: newRecord.status,
+              assignedTo: newRecord.assigned_to,
+              startedAt: newRecord.started_at ? new Date(newRecord.started_at) : undefined,
+              slaDeadline: newRecord.sla_deadline ? new Date(newRecord.sla_deadline) : undefined,
+              tenantId: newRecord.tenant_id,
+            });
+          } else if (eventType === "UPDATE" && newRecord) {
+            store.addDbConversation({
+              id: newRecord.id,
+              clientName: newRecord.client_name,
+              clientPhone: newRecord.client_phone,
+              customerId: newRecord.customer_id,
+              lastMessage: newRecord.last_message,
+              lastMessageTime: new Date(newRecord.last_message_time),
+              status: newRecord.status,
+              assignedTo: newRecord.assigned_to,
+              startedAt: newRecord.started_at ? new Date(newRecord.started_at) : undefined,
+              slaDeadline: newRecord.sla_deadline ? new Date(newRecord.sla_deadline) : undefined,
+              tenantId: newRecord.tenant_id,
+            });
+          } else if (eventType === "DELETE" && oldRecord) {
+            // Remover conversa
+            console.log("Conversation deleted:", oldRecord.id);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "mensagens",
+        },
+        (payload) => {
+          const { new: newRecord } = payload;
+          if (newRecord) {
+            store.addDbMessages([
+              {
+                id: newRecord.id,
+                conversationId: newRecord.conversation_id,
+                content: newRecord.content,
+                sender: newRecord.sender as "client" | "agent",
+                senderName: newRecord.sender_name || "",
+                timestamp: new Date(newRecord.timestamp),
+              },
+            ]);
+          }
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+    return channel;
+  }, [tenantId, enabled, store]);
+
+  const unsubscribe = useCallback(() => {
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+  }, []);
+
+  // Cleanup ao desmontar
+  useEffect(() => {
+    return () => {
+      unsubscribe();
+    };
+  }, [unsubscribe]);
+
+  return {
+    subscribe: subscribeToConversas,
+    unsubscribe,
+    isConnected: !!channelRef.current,
+  };
+}
+
+export default useRealtimeChat;

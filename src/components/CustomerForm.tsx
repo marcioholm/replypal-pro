@@ -288,8 +288,9 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
         toast.success("Cliente cadastrado com sucesso!");
         if (onSuccess) onSuccess(newCustomer);
       }
-    } catch (error: any) {
-      toast.error("Erro ao salvar cliente: " + (error.message || "Erro desconhecido"));
+    } catch (error) {
+      const err = error as Error;
+      toast.error("Erro ao salvar cliente: " + (err.message || "Erro desconhecido"));
       console.error(error);
     }
   };
@@ -355,16 +356,16 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
           email: row.email || row.e-mail || "",
           city: row.cidade || "",
           state: row.estado || row.uf || "",
-          regime: (row.regime || "Simples Nacional") as any,
+          regime: (row.regime || "Simples Nacional") as RegimeTributario,
           naturezaJuridica: row.naturezajuridica || row["natureza jurídica"] || "",
           cnae: row.cnae || "",
-          status: (row.status || "Ativo") as any,
-          priority: (row.prioridade || "Média") as any,
-          serviceLevel: (row.nivel || row.nível || "Padrão") as any,
+          status: (row.status || "Ativo") as StatusCliente,
+          priority: (row.prioridade || "Média") as Prioridade,
+          serviceLevel: (row.nivel || row.nível || "Padrão") as NivelAtendimento,
           plan: row.plano || "",
           monthlyValue: parseFloat(row.valormensal || row["valor mensal"] || "0") || 0,
           origin: row.origem || "",
-          financialStatus: "Adimplente" as any,
+          financialStatus: "Adimplente" as StatusFinanceiro,
           contacts: [],
           tags: [],
           observations: "",

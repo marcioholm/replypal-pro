@@ -246,8 +246,33 @@ export default function ClienteDocumentos({ clienteId, clienteNome }: ClienteDoc
   );
 }
 
+import { LucideIcon } from "lucide-react";
+
+interface DocumentSectionProps {
+  title: string;
+  icon: React.ReactNode;
+  description: string;
+  children: React.ReactNode;
+  filters?: { month: string; year: string };
+  onFilterChange?: (key: string, value: string) => void;
+}
+
+interface DocumentItemProps {
+  tipo: string;
+  label: string;
+  category: string;
+  month: number;
+  year: number;
+  status: string;
+  clienteId: string;
+  clienteNome: string;
+  onUploadSuccess?: () => void;
+  webhookUrl?: string;
+  currentUser?: string;
+}
+
 // Helper components
-function DocumentSection({ title, icon, description, children, filters, onFilterChange }: any) {
+function DocumentSection({ title, icon, description, children, filters, onFilterChange }: DocumentSectionProps) {
   return (
     <Card className="border-none shadow-none bg-muted/40 overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between pb-3 bg-muted/20">
@@ -291,7 +316,7 @@ function DocumentSection({ title, icon, description, children, filters, onFilter
   );
 }
 
-function DocumentItem({ tipo, label, category, month, year, status, clienteId, clienteNome, onUploadSuccess, webhookUrl, currentUser }: any) {
+function DocumentItem({ tipo, label, category, month, year, status, clienteId, clienteNome, onUploadSuccess, webhookUrl, currentUser }: DocumentItemProps) {
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -336,8 +361,6 @@ function DocumentItem({ tipo, label, category, month, year, status, clienteId, c
         throw new Error("A URL de envio de documentos (Webhook) não foi configurada no sistema.");
       }
 
-      console.log("Tentando envio para:", webhookUrl);
-
       const response = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -355,7 +378,7 @@ function DocumentItem({ tipo, label, category, month, year, status, clienteId, c
       toast.success(`${label} enviado com sucesso!`);
       setSelectedFile(null);
       if (onUploadSuccess) onUploadSuccess();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Upload error detail:", error);
       toast.error(`Falha no envio: ${error.message}`);
     } finally {

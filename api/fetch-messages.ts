@@ -1,13 +1,20 @@
+import type { NextApiRequest, NextApiResponse } from "next";
 
 // Use environment variables with fallbacks
 const EVOLUTION_URL = process.env.EVOLUTION_URL || "https://evolutionapi.vps8204.panel.icontainer.cloud";
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || "F4EJNZXRtwncyMb4CD2DBCfkk8fimETc";
 const INSTANCE_NAME = process.env.INSTANCE_NAME || "SASAKI";
 
-let cachedMessages: any[] = [];
+interface EvolutionMessage {
+  key?: { id: string; remoteJid: string; fromMe: boolean };
+  pushName?: string;
+  message?: { conversation?: string; extendedTextMessage?: { text: string } };
+  timestamp?: number;
+}
 
-export default async function handler(req: any, res: any) {
+const cachedMessages: EvolutionMessage[] = [];
 
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, apikey");
@@ -35,7 +42,8 @@ export default async function handler(req: any, res: any) {
 
     const data = await response.json();
     const messages = data.messages || [];
-    cachedMessages = messages.slice(0, 50);
+    cachedMessages.length = 0;
+    cachedMessages.push(...messages.slice(0, 50));
 
     return res.json({ success: true, messages: cachedMessages, count: cachedMessages.length });
   } catch (error) {

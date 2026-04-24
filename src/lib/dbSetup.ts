@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS usuarios (
   role TEXT DEFAULT 'atendente',
   tenant_id UUID,
   avatar TEXT,
+  senha TEXT, -- Legado: texto plano (remover após migração)
+  senha_hash TEXT, -- PBKDF2-SHA256 hash
+  senha_salt TEXT, -- Salt para hash
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -166,17 +169,20 @@ CREATE TABLE IF NOT EXISTS dados_financeiros (
 
 
 -- Inserir dados iniciais
+-- IMPORTANTE: Execute a migração de senhas primeiro!
+-- See: https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto
+
 INSERT INTO tenants (id, nome, subdomain) VALUES 
   ('11111111-1111-1111-1111-111111111111', 'ReplyPal Pro', 'replypal')
 ON CONFLICT (id) DO UPDATE SET nome = excluded.nome;
 
--- Garantir que a coluna senha exista se não estiver no Schema
--- ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS senha TEXT;
-
-INSERT INTO usuarios (id, email, nome, role, tenant_id, senha) VALUES 
-  ('u1', 'carlos@sasaki.com', 'Carlos Silva', 'admin', '11111111-1111-1111-1111-111111111111', 'admin123'),
-  ('u2', 'gabriel@sasaki.com', 'Gabriel Souza', 'atendente', '11111111-1111-1111-1111-111111111111', 'sasaki123')
-ON CONFLICT (id) DO UPDATE SET email = excluded.email, role = excluded.role, senha = excluded.senha;
+-- Usuários com senhas hasheadas (PBKDF2-SHA256)
+-- Hash gerado com PBKDF2-SHA256, 100000 iterações
+-- Salt: 'replypal-pro-salt-v1'
+INSERT INTO usuarios (id, email, nome, role, tenant_id, senha_hash, senha_salt) VALUES 
+  ('u1', 'carlos@sasaki.com', 'Carlos Silva', 'admin', '11111111-1111-1111-1111-111111111111', 'Emeuc3DADa5TJ3Gr9aBDuVXgXK+Vk/CNwz5ZTSwmh5w=', 'replypal-pro-salt-v1'),
+  ('u2', 'gabriel@sasaki.com', 'Gabriel Souza', 'atendente', '11111111-1111-1111-1111-111111111111', 'X/g5Lu2iN+xFGW9AfqNOi+8F5+tYdYWw1L5dfIoiiw4=', 'replypal-pro-salt-v1')
+ON CONFLICT (id) DO UPDATE SET senha_hash = excluded.senha_hash, senha_salt = excluded.senha_salt;
 
 -- Cliente Real solicitado
 INSERT INTO clientes (id, razao_social, nome_fantasia, cnpj, responsavel, whatsapp, cidade, estado, status, tenant_id) VALUES

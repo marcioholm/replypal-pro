@@ -13,12 +13,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 export async function testConnection() {
   if (!supabaseUrl || !supabaseAnonKey) {
     console.warn("Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env");
-    return { success: false, error: " Variáveis de ambiente não configuradas" };
+    return { success: false, error: "Variáveis de ambiente não configuradas" };
   }
   try {
     const { data, error } = await supabase.from("pg_database").select("datname").limit(1);
     if (error) throw error;
-    console.log("Supabase connected:", data);
     return { success: true, data };
   } catch (err) {
     console.error("Supabase connection error:", err);

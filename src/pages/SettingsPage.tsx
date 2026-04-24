@@ -69,8 +69,8 @@ export default function SettingsPage() {
   const [waConnection, setWaConnection] = useState<WhatsAppConnection | null>(null);
   const [qrCodeImage, setQrCodeImage] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
-  const pollingRef = useRef<any>(null);
-  const countdownRef = useRef<any>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     fetchTeam();
@@ -1008,9 +1008,10 @@ const handleConnect = async () => {
                       setDbTables(["tenants", "usuarios", "clientes", "conversas", "mensagens", "tags", "historico", "company_settings", "recibo_contador"]);
                       setDbStatus("ready");
                       toast.success("Banco conectado!");
-                    } catch (err: any) {
+                    } catch (err) {
+                      const error = err as Error;
                       setDbStatus("error");
-                      console.error(err);
+                      console.error(error);
                     }
                   }}
                   disabled={dbStatus === "checking"}
