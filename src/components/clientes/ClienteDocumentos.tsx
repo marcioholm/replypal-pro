@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { 
   FileText, Upload, CheckCircle2, AlertCircle, Loader2, 
   ExternalLink, Calendar, Paperclip, Building2, UserCircle, Calculator, FileCheck,
-  History
+  History, X
 } from "lucide-react";
 import DocumentosHistorico from "./DocumentosHistorico";
 import DadosFinanceiros from "./DadosFinanceiros";
