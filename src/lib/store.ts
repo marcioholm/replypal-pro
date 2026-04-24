@@ -159,12 +159,6 @@ export const MOCK_TAGS: Tag[] = [];
 export const MOCK_QUICK_REPLIES: QuickReply[] = [];
 export const INITIAL_CUSTOMERS: Customer[] = [];
 export const INITIAL_CONVERSATIONS: Conversation[] = [];
-
-const now = new Date();
-const minutesAgo = (m: number) => new Date(now.getTime() - m * 60000);
-
-export const INITIAL_CUSTOMERS: Customer[] = [];
-export const INITIAL_CONVERSATIONS: Conversation[] = [];
 const INITIAL_MESSAGES: Message[] = [];
 const INITIAL_HISTORY: HistoryEntry[] = [];
 
