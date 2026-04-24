@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Users, QrCode, Upload, Trash2, Plus, Smartphone, Loader2, CheckCircle2, XCircle, FileText, Bell, BellOff, Users2, MessageCircle, Database, RefreshCw, AlertCircle, CheckCircle } from "lucide-react";
+import { Building2, Users, User, Edit, QrCode, Upload, Trash2, Plus, Smartphone, Loader2, CheckCircle2, XCircle, FileText, Bell, BellOff, Users2, MessageCircle, Database, RefreshCw, AlertCircle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import ReciboGenerator from "@/components/settings/ReciboGenerator";
 import { getNotificationConfig, setNotificationConfig } from "@/hooks/useNotifications";
@@ -355,7 +355,7 @@ const handleConnect = async () => {
       <Tabs defaultValue="empresa" className="space-y-4">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="perfil" className="flex items-center gap-2 text-xs">
-            <UserIcon className="w-3.5 h-3.5" />
+            <User className="w-3.5 h-3.5" />
             Meu Perfil
           </TabsTrigger>
           <TabsTrigger value="empresa" className="flex items-center gap-2 text-xs">
@@ -396,7 +396,7 @@ const handleConnect = async () => {
                   <Avatar className="w-24 h-24 border-2 border-background shadow-xl">
                     <AvatarImage src={user?.avatar} />
                     <AvatarFallback className="text-2xl bg-sidebar-primary/10 text-sidebar-primary">
-                      {user?.name.split(" ").map(n => n[0]).join("")}
+                      {user?.name ? user.name.split(" ").map(n => n[0]).join("") : "??"}
                     </AvatarFallback>
                   </Avatar>
                   <label className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
@@ -443,14 +443,54 @@ const handleConnect = async () => {
 
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold uppercase text-muted-foreground border-b pb-2">Meus Dados</h4>
-                  <div className="space-y-3">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] text-muted-foreground uppercase font-semibold">E-mail de Acesso</span>
-                      <p className="text-sm font-medium">{user?.email}</p>
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs flex items-center gap-2">
+                        Seu Nome
+                        <Edit className="w-3 h-3 text-muted-foreground opacity-50" />
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          defaultValue={user?.name}
+                          id="profile-name"
+                          className="h-9 text-sm"
+                        />
+                        <Button size="sm" variant="outline" onClick={() => {
+                          const newName = (document.getElementById("profile-name") as HTMLInputElement).value;
+                          if (!newName) return toast.error("Nome não pode ser vazio");
+                          supabase.from("usuarios").update({ nome: newName }).eq("id", user?.id).then(({ error }) => {
+                            if (error) toast.error("Erro ao atualizar nome");
+                            else toast.success("Nome atualizado!");
+                          });
+                        }}>Salvar</Button>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-1">
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs flex items-center gap-2">
+                        E-mail de Acesso
+                        <Edit className="w-3 h-3 text-muted-foreground opacity-50" />
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          defaultValue={user?.email}
+                          id="profile-email"
+                          className="h-9 text-sm"
+                        />
+                        <Button size="sm" variant="outline" onClick={() => {
+                          const newEmail = (document.getElementById("profile-email") as HTMLInputElement).value;
+                          if (!newEmail) return toast.error("E-mail não pode ser vazio");
+                          supabase.from("usuarios").update({ email: newEmail }).eq("id", user?.id).then(({ error }) => {
+                            if (error) toast.error("Erro ao atualizar e-mail. Verifique se já não está em uso.");
+                            else toast.success("E-mail atualizado! Use o novo e-mail no próximo login.");
+                          });
+                        }}>Salvar</Button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5 pt-2">
                       <span className="text-[10px] text-muted-foreground uppercase font-semibold">WhatsApp de Contato</span>
-                      <p className="text-sm font-medium">{user?.whatsapp || "Não cadastrado"}</p>
+                      <p className="text-sm font-medium p-2 bg-muted/30 rounded border border-dashed text-muted-foreground">{user?.whatsapp || "Não cadastrado"}</p>
                     </div>
                   </div>
                 </div>

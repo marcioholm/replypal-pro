@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore, formatRelativeTime, formatDuration, STATUS_CONFIG } from "@/lib/store";
+import { supabase } from "@/lib/supabase";
 import type { Conversation, ConversationStatus } from "@/lib/store";
 import { TagBadge } from "@/components/TagBadge";
 import { SLABadge } from "@/components/SLABadge";
@@ -19,10 +20,48 @@ const columnColors: Record<ConversationStatus, string> = {
 export default function PipelinePage() {
   const store = useStore();
   const navigate = useNavigate();
+  if (!store.currentUser) return null;
   const [draggedId, setDraggedId] = useState<string | null>(null);
 
   const getColumnConversations = (status: ConversationStatus) =>
-    store.conversations.filter((c) => c.status === status).sort((a, b) => b.lastMessageTime.getTime() - a.lastMessageTime.getTime());
+    store.conversations
+      .filter((c) => !c.tenantId || c.tenantId === store.currentUser.tenantId)
+      .filter((c) => c.status === status)
+      .sort((a, b) => b.lastMessageTime.getTime() - a.lastMessageTime.getTime());
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const tenantId = store.currentUser?.tenantId;
+      if (!tenantId) return;
+
+      const { data } = await supabase
+        .from("conversas")
+        .select("*")
+        .eq("tenant_id", tenantId);
+      
+      if (data) {
+        data.forEach(c => {
+          store.addDbConversation({
+            id: c.id,
+            clientName: c.client_name,
+            clientPhone: c.client_phone,
+            customerId: c.customer_id,
+            lastMessage: c.last_message,
+            lastMessageTime: new Date(c.last_message_time),
+            status: c.status as any,
+            assignedTo: c.assigned_to,
+            startedAt: c.started_at ? new Date(c.started_at) : undefined,
+            slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
+            tenantId: c.tenant_id
+          });
+        });
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
+  }, [store.currentUser?.tenantId]);
 
   const handleDragStart = (e: React.DragEvent, convId: string) => {
     setDraggedId(convId);
@@ -85,6 +124,7 @@ export default function PipelinePage() {
                 <div className="flex-1 overflow-auto p-3 space-y-3 scrollbar-thin">
                   {convs.map((conv) => {
                     const sla = store.getSLAStatus(conv);
+                    const assignedUser = store.users.find(u => u.id === conv.assignedTo);
                     return (
                       <div
                         key={conv.id}
@@ -100,10 +140,10 @@ export default function PipelinePage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold truncate">{conv.clientName}</p>
-                            {conv.assignedToName && (
+                            {assignedUser && (
                               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                                 <User className="w-3 h-3" />
-                                {conv.assignedToName}
+                                {assignedUser.name}
                               </p>
                             )}
                           </div>

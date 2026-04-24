@@ -27,6 +27,7 @@ export default function ChatPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const store = useStore();
+  if (!store.currentUser) return null;
   const [messageInput, setMessageInput] = useState("");
   const [noteInput, setNoteInput] = useState("");
   const [showPanel, setShowPanel] = useState<"customer" | "notes" | "tags" | "history" | null>("customer");
@@ -105,6 +106,29 @@ export default function ChatPage() {
 
     // Initial load
     loadRealData();
+
+    // Fetch team members for transfer list
+    const fetchTeam = async () => {
+      if (!store.currentUser?.tenantId) return;
+      const { data } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("tenant_id", store.currentUser.tenantId);
+      
+      if (data) {
+        store.setGlobalUsers(data.map(d => ({
+          id: d.id,
+          name: d.nome,
+          email: d.email,
+          role: d.role as any,
+          tenantId: d.tenant_id,
+          avatar: d.avatar,
+          whatsapp: d.whatsapp
+        })));
+      }
+    };
+
+    fetchTeam();
 
     // Polling every 3 seconds for new messages
     const pollInterval = setInterval(loadRealData, 3000);
@@ -228,8 +252,25 @@ export default function ChatPage() {
 
 
   const handleAssume = async () => {
-    store.assumeConversation(conv.id, store.currentUser);
-    
+    try {
+      const { error } = await supabase
+        .from("conversas")
+        .update({ 
+          assigned_to: store.currentUser.id,
+          status: "em_atendimento"
+        })
+        .eq("id", conv.id);
+
+      if (error) throw error;
+
+      store.assumeConversation(conv.id, store.currentUser);
+      toast.success("Você assumiu este atendimento!");
+    } catch (e: any) {
+      console.error("Error assuming conversation:", e);
+      toast.error("Erro ao assumir atendimento: " + (e.message || "Erro desconhecido"));
+      return;
+    }
+
     // Avisar o cliente que foi assumido
     const connStatus = await checkConnection();
     if (connStatus.connected) {
@@ -238,35 +279,43 @@ export default function ChatPage() {
         `*Sistema:* Olá! Agora você será atendido por *${store.currentUser.name}*. Em que posso ajudar?`
       );
     }
-
-    const config = getNotificationConfig();
-    if (config.enabled && config.notifyAssignedMessages) {
-      const notifTitle = "Conversa assumida";
-      const notifBody = `${store.currentUser.name} assumiu a conversa de ${conv.clientName}`;
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification(notifTitle, { body: notifBody, icon: "/favicon.ico" });
-      }
-    }
   };
 
   const handleTransfer = async () => {
     if (!transferTo) return;
     const targetUser = store.users.find(u => u.id === transferTo);
+    if (!targetUser) return toast.error("Usuário destino não encontrado");
     
-    store.transferConversation(conv.id, store.currentUser, transferTo, transferReason);
-    
+    try {
+      const { error } = await supabase
+        .from("conversas")
+        .update({ 
+          assigned_to: transferTo,
+          status: conv.status === "novo" ? "em_atendimento" : conv.status
+        })
+        .eq("id", conv.id);
+
+      if (error) throw error;
+
+      store.transferConversation(conv.id, store.currentUser, transferTo, transferReason);
+      toast.success(`Conversa transferida para ${targetUser.name}`);
+      setTransferOpen(false);
+      setTransferTo("");
+      setTransferReason("");
+    } catch (e: any) {
+      console.error("Error transferring conversation:", e);
+      toast.error("Erro ao transferir: " + (e.message || "Erro desconhecido"));
+      return;
+    }
+
     // Avisar o cliente da transferência
     const connStatus = await checkConnection();
-    if (connStatus.connected && targetUser) {
+    if (connStatus.connected) {
       await sendWhatsAppMessage(
         conv.clientPhone, 
         `*Sistema:* Sua conversa foi transferida para *${targetUser.name}*. Ele continuará seu atendimento em instantes.`
       );
     }
-
-    setTransferOpen(false);
-    setTransferTo("");
-    setTransferReason("");
   };
 
   const handleClose = () => {
@@ -309,37 +358,39 @@ export default function ChatPage() {
             )}
             {isAssigned && conv.status !== "resolvido" && (
               <>
-                <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                      <ArrowRightLeft className="w-3.5 h-3.5" />
-                      Transferir
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="text-lg font-semibold">Transferir conversa</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 pt-2">
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Atendente destino</label>
-                        <Select value={transferTo} onValueChange={setTransferTo}>
-                          <SelectTrigger className="h-10"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                          <SelectContent>
-                            {store.users.filter((u) => u.id !== store.currentUser.id).map((u) => (
-                              <SelectItem key={u.id} value={u.id}>{u.name} ({u.role})</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                {['admin', 'supervisor', 'recepcionista'].includes(store.currentUser.role) && (
+                  <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                        <ArrowRightLeft className="w-3.5 h-3.5" />
+                        Transferir
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="text-lg font-semibold">Transferir conversa</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 pt-2">
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Atendente destino</label>
+                          <Select value={transferTo} onValueChange={setTransferTo}>
+                            <SelectTrigger className="h-10"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                            <SelectContent>
+                              {store.users.filter((u) => u.id !== store.currentUser.id).map((u) => (
+                                <SelectItem key={u.id} value={u.id}>{u.name} ({u.role})</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Motivo (opcional)</label>
+                          <Input placeholder="Ex: Fim do expediente" value={transferReason} onChange={(e) => setTransferReason(e.target.value)} className="h-10" />
+                        </div>
+                        <Button onClick={handleTransfer} className="w-full h-10" disabled={!transferTo}>Confirmar transferência</Button>
                       </div>
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Motivo (opcional)</label>
-                        <Input placeholder="Ex: Fim do expediente" value={transferReason} onChange={(e) => setTransferReason(e.target.value)} className="h-10" />
-                      </div>
-                      <Button onClick={handleTransfer} className="w-full h-10" disabled={!transferTo}>Confirmar transferência</Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                    </DialogContent>
+                  </Dialog>
+                )}
 
                 <Dialog open={closeOpen} onOpenChange={setCloseOpen}>
                   <DialogTrigger asChild>

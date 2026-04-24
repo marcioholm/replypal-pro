@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 
 // Types
-export type UserRole = "admin" | "supervisor" | "atendente";
+export type UserRole = "admin" | "supervisor" | "atendente" | "recepcionista";
 export type ConversationStatus = "novo" | "aguardando_aceite" | "em_atendimento" | "aguardando_cliente" | "resolvido";
 export type SLAStatus = "dentro_do_prazo" | "em_risco" | "estourado";
 export type ClosingReason = "resolvido" | "aguardando_cliente" | "transferido" | "sem_resposta" | "outro";
@@ -281,7 +281,7 @@ export function useStoreInternal(tenantId?: string) {
     },
 
     transferConversation: (conversationId: string, fromUser: User, toUserId: string, reason?: string) => {
-      const toUser = MOCK_USERS.find((u) => u.id === toUserId);
+      const toUser = globalUsers.find((u) => u.id === toUserId);
       if (!toUser) return;
       globalConversations = globalConversations.map((c) =>
         c.id === conversationId
@@ -460,9 +460,17 @@ export function useStoreInternal(tenantId?: string) {
 
     // New: Functions to add DB loaded data to store
     addDbConversation: (conv: Conversation) => {
-      if (!globalConversations.find(c => c.id === conv.id)) {
+      const existingIdx = globalConversations.findIndex(c => c.id === conv.id);
+      if (existingIdx === -1) {
         globalConversations = [conv, ...globalConversations];
         notify();
+      } else {
+        // Only update if something changed to avoid unnecessary re-renders
+        const existing = globalConversations[existingIdx];
+        if (existing.assignedTo !== conv.assignedTo || existing.status !== conv.status || existing.lastMessage !== conv.lastMessage) {
+          globalConversations = globalConversations.map(c => c.id === conv.id ? { ...c, ...conv } : c);
+          notify();
+        }
       }
     },
     addDbMessages: (msgs: Message[]) => {
@@ -472,7 +480,7 @@ export function useStoreInternal(tenantId?: string) {
         notify();
       }
     },
-    setStoreUsers: (users: User[]) => {
+    setGlobalUsers: (users: User[]) => {
       globalUsers = users;
       notify();
     },

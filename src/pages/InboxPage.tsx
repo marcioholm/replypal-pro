@@ -6,13 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, UserCheck, Users, Inbox as InboxIcon, Mail, RefreshCw } from "lucide-react";
 import { checkConnection } from "@/lib/evolution";
+import { supabase } from "@/lib/supabase";
 
-type Filter = "todas" | "minhas" | "sem_responsavel";
+type Filter = "todas" | "minhas" | "pendentes";
 
 export default function InboxPage() {
   const store = useStore();
   const navigate = useNavigate();
-  const [filter, setFilter] = useState<Filter>("todas");
+  if (!store.currentUser) return null;
+  const [filter, setFilter] = useState<Filter>("minhas");
   const [search, setSearch] = useState("");
   const [waConnected, setWaConnected] = useState(false);
   const [waMessages, setWaMessages] = useState<any[]>([]);
@@ -27,36 +29,96 @@ export default function InboxPage() {
     check();
   }, []);
 
-  // Fetch messages from API periodically
+  // Fetch conversations and messages from Supabase/API periodically
   useEffect(() => {
-    const fetchWA = async () => {
+    const fetchData = async () => {
+      const tenantId = store.currentUser?.tenantId;
+      if (!tenantId) return;
+
       try {
-        const r = await fetch("/api/webhook");
+        // 1. Fetch conversations from Supabase with server-side filtering
+        let query = supabase
+          .from("conversas")
+          .select("*")
+          .eq("tenant_id", tenantId);
+
+        if (filter === "minhas") {
+          query = query.eq("assigned_to", store.currentUser.id);
+        } else if (filter === "pendentes") {
+          query = query.or(`assigned_to.is.null,status.eq.novo`);
+        } else if (filter === "todas") {
+          // Já filtrado por tenant_id
+        }
+
+        // Restrição para atendente: só vê 'minhas'
+        if (store.currentUser.role === "atendente" && filter !== "minhas") {
+          // Não faz nada ou limpa a lista, mas a UI já bloqueia as abas
+        } else {
+          const { data: dbConvs } = await query.order("last_message_time", { ascending: false });
+
+          if (dbConvs) {
+            dbConvs.forEach(c => {
+              store.addDbConversation({
+                id: c.id,
+                clientName: c.client_name,
+                clientPhone: c.client_phone,
+                customerId: c.customer_id,
+                lastMessage: c.last_message,
+                lastMessageTime: new Date(c.last_message_time),
+                status: c.status as any,
+                assignedTo: c.assigned_to,
+                startedAt: c.started_at ? new Date(c.started_at) : undefined,
+                slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
+                tenantId: c.tenant_id
+              });
+            });
+          }
+        }
+
+        // 2. Fetch latest messages from WhatsApp Bridge
+        const r = await fetch(`/api/webhook?tenantId=${tenantId}`);
         if (r.ok) {
           const d = await r.json();
-          // Filter out duplicates and update state
           if (d.success && d.messages) {
             setWaMessages(d.messages);
           }
         }
       } catch (err) {
-        console.error("Error polling messages:", err);
+        console.error("Error polling data:", err);
       }
     };
     
-    fetchWA();
-    const interval = setInterval(fetchWA, 10000); // Poll every 10 seconds
+    fetchData();
+    const interval = setInterval(fetchData, 5000); // Poll every 5 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [store.currentUser?.tenantId, filter]);
 
   const handleManualRefresh = async () => {
+    const tenantId = store.currentUser?.tenantId;
+    if (!tenantId) return;
     setLoading(true);
     try {
-      const r = await fetch("/api/webhook");
-      if (r.ok) {
-        const d = await r.json();
-        if (d.success) setWaMessages(d.messages || []);
+      const { data: dbConvs } = await supabase
+        .from("conversas")
+        .select("*")
+        .eq("tenant_id", tenantId);
+      
+      if (dbConvs) {
+        dbConvs.forEach(c => {
+          store.addDbConversation({
+            id: c.id,
+            clientName: c.client_name,
+            clientPhone: c.client_phone,
+            lastMessage: c.last_message,
+            lastMessageTime: new Date(c.last_message_time),
+            status: c.status as any,
+            assignedTo: c.assigned_to,
+            tenantId: c.tenant_id
+          });
+        });
       }
+
+      await fetch(`/api/webhook?tenantId=${tenantId}`);
       const status = await checkConnection();
       setWaConnected(status.connected);
     } catch {}
@@ -91,11 +153,12 @@ export default function InboxPage() {
     store.currentUser.role || "atendente"
   );
 
+  const isAtendente = store.currentUser?.role === "atendente";
   const filtered = allConversations
     .filter((c) => {
       if (filter === "minhas") return c.assignedTo === store.currentUser.id;
-      if (filter === "sem_responsavel") return !c.assignedTo;
-      return true;
+      if (filter === "pendentes") return !c.assignedTo || c.status === "novo";
+      return true; // "todas"
     })
     .filter((c) => {
       if (!search) return true;
@@ -107,10 +170,10 @@ export default function InboxPage() {
     })
     .sort((a, b) => b.lastMessageTime.getTime() - a.lastMessageTime.getTime());
 
-  const filterButtons: { key: Filter; label: string; count: number; icon: typeof InboxIcon }[] = [
-    { key: "todas", label: "Todas", count: allConversations.length, icon: InboxIcon },
-    { key: "minhas", label: "Minhas", count: allConversations.filter(c => c.assignedTo === store.currentUser.id).length, icon: UserCheck },
-    { key: "sem_responsavel", label: "Pendentes", count: allConversations.filter(c => !c.assignedTo).length, icon: Users },
+  const filterButtons: { key: Filter; label: string; count: number; icon: typeof InboxIcon; visible: boolean }[] = [
+    { key: "todas", label: "Todas", count: allConversations.length, icon: InboxIcon, visible: ['admin', 'supervisor', 'recepcionista'].includes(store.currentUser.role) },
+    { key: "minhas", label: "Minhas", count: allConversations.filter(c => c.assignedTo === store.currentUser.id).length, icon: UserCheck, visible: true },
+    { key: "pendentes", label: "Pendentes", count: allConversations.filter(c => !c.assignedTo || c.status === 'novo').length, icon: Users, visible: ['admin', 'supervisor', 'recepcionista'].includes(store.currentUser.role) },
   ];
 
   return (
@@ -149,21 +212,23 @@ export default function InboxPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Buscar por nome, mensagem ou telefone..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10 text-sm" />
         </div>
-        <div className="flex gap-2 p-1 bg-muted/50 rounded-lg">
-          {filterButtons.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
-                filter === f.key ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-              }`}
-            >
-              <f.icon className="w-3.5 h-3.5" />
-              {f.label}
-              <span className="ml-1 px-1.5 py-0.5 bg-muted/80 rounded-full text-[10px]">{f.count}</span>
-            </button>
-          ))}
-        </div>
+        {['admin', 'supervisor', 'recepcionista'].includes(store.currentUser.role) && (
+          <div className="flex gap-2 p-1 bg-muted/50 rounded-lg">
+            {filterButtons.filter(f => f.visible).map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+                  filter === f.key ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                }`}
+              >
+                <f.icon className="w-3.5 h-3.5" />
+                {f.label}
+                <span className="ml-1 px-1.5 py-0.5 bg-muted/80 rounded-full text-[10px]">{f.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {filtered.length === 0 ? (

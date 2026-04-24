@@ -30,7 +30,7 @@ export default async function handler(req: any, res: any) {
         .from("mensagens")
         .select(`*, conversas(client_name, client_phone)`)
         .order("timestamp", { ascending: false })
-        .limit(20);
+        .limit(30);
         
       if (error) throw error;
       return res.json({ success: true, messages: data || [] });

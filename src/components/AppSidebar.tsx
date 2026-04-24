@@ -128,7 +128,7 @@ export function AppSidebar() {
                   <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-xs font-bold text-sidebar-primary">
-                    {user?.name.split(" ").map((n) => n[0]).join("")}
+                    {(user?.name || "").split(" ").map((n: string) => n[0]).join("")}
                   </span>
                 )}
               </div>
