@@ -277,7 +277,7 @@ export default function ChatPage() {
 
       if (error) throw error;
 
-      store.assumeConversation(conv.id, store.currentUser);
+      store.assumeConversation(conv.id, user);
       toast.success("Você assumiu este atendimento!");
     } catch (e: any) {
       console.error("Error assuming conversation:", e);
@@ -285,13 +285,6 @@ export default function ChatPage() {
       return;
     }
 
-    // Avisar o cliente que foi assumido
-    const connStatus = await checkConnection();
-    if (connStatus.connected) {
-      await sendWhatsAppMessage(
-        conv.clientPhone, 
-        `*Sistema:* Olá! Agora você será atendido por *${user.name}*. Em que posso ajudar?`
-      );
     }
   };
 
@@ -322,13 +315,6 @@ export default function ChatPage() {
       return;
     }
 
-    // Avisar o cliente da transferência
-    const connStatus = await checkConnection();
-    if (connStatus.connected) {
-      await sendWhatsAppMessage(
-        conv.clientPhone, 
-        `*Sistema:* Sua conversa foi transferida para *${targetUser.name}*. Ele continuará seu atendimento em instantes.`
-      );
     }
   };
 
