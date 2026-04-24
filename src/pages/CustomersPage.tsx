@@ -9,23 +9,72 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CustomerForm } from "@/components/CustomerForm";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+import { useEffect, useCallback } from "react";
 import { 
   Users, UserPlus, Search, Filter, 
   Building, BookOpen, Clock, AlertCircle,
   TrendingUp, ArrowRight, MoreHorizontal,
   ChevronRight, Calendar, Briefcase, FilterX,
-  MapPin
+  MapPin, Loader2
 } from "lucide-react";
 
 export default function CustomersPage() {
   const store = useStore();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [regimeFilter, setRegimeFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [originFilter, setOriginFilter] = useState<string>("all");
   const [isNewDialogOpen, setIsNewDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      const tenantId = user?.tenantId;
+      if (!tenantId) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("clientes")
+          .select("*")
+          .eq("tenant_id", tenantId);
+
+        if (data) {
+          data.forEach(c => {
+            store.addDbCustomer({
+              id: c.id,
+              name: c.nome_fantasia,
+              razaoSocial: c.razao_social || "",
+              cnpj: c.cnpj || "",
+              responsible: c.responsavel || "",
+              whatsapp: c.whatsapp || "",
+              phone: c.telefone || "",
+              email: c.email || "",
+              city: c.cidade || "",
+              state: c.estado || "",
+              regime: c.regime_tributario as any,
+              status: c.status as any,
+              priority: (c.prioridade || "Média") as any,
+              serviceLevel: (c.service_level || "Padrão") as any,
+              plan: c.plan || "",
+              origin: c.origin || "Direto",
+              tenantId: c.tenant_id
+            });
+          });
+        }
+      } catch (err) {
+        console.error("Erro ao carregar clientes:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCustomers();
+  }, [user?.tenantId]);
 
   // Extract unique origins for the filter
   const origins = Array.from(new Set(store.customers.map(c => c.origin))).filter(Boolean);
