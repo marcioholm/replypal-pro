@@ -354,21 +354,27 @@ function DocumentItem({ tipo, label, category, month, year, status, clienteId, c
 
       const response = await fetch(webhookUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
         body: JSON.stringify(payload)
+      }).catch(err => {
+        console.error("Erro de conexão (CORS ou Network):", err);
+        throw new Error(`Conexão recusada. Verifique se o n8n permite requisições da URL atual (CORS) ou se o link do Webhook está correto: ${webhookUrl}`);
       });
 
       if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Servidor recusou o envio (${response.status}): ${errorText}`);
+          const errorText = await response.text().catch(() => "Erro oculto do servidor");
+          throw new Error(`O servidor n8n retornou um erro (${response.status}): ${errorText}`);
       }
 
       toast.success(`${label} enviado com sucesso!`);
       setSelectedFile(null);
       if (onUploadSuccess) onUploadSuccess();
     } catch (error) {
-      console.error("Upload error:", error);
-      toast.error(`Falha no envio: ${error instanceof Error ? error.message : "Erro desconhecido"}`);
+      console.error("Detalhes do erro de upload:", error);
+      toast.error(error instanceof Error ? error.message : "Erro desconhecido no envio");
     } finally {
       setUploading(false);
     }
