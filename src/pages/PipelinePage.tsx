@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useStore, formatRelativeTime, formatDuration, STATUS_CONFIG } from "@/lib/store";
+import { useStore, formatRelativeTime, formatDuration, STATUS_CONFIG, ensureDate } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 import type { Conversation, ConversationStatus } from "@/lib/store";
 import { TagBadge } from "@/components/TagBadge";
@@ -25,10 +25,14 @@ export default function PipelinePage() {
   const [draggedId, setDraggedId] = useState<string | null>(null);
 
   const getColumnConversations = (status: ConversationStatus) =>
-    store.conversations
+    (store.conversations || [])
       .filter((c) => !c.tenantId || (user && c.tenantId === user.tenantId))
       .filter((c) => c.status === status)
-      .sort((a, b) => b.lastMessageTime.getTime() - a.lastMessageTime.getTime());
+      .sort((a, b) => {
+        const timeA = ensureDate(a.lastMessageTime)?.getTime() || 0;
+        const timeB = ensureDate(b.lastMessageTime)?.getTime() || 0;
+        return timeB - timeA;
+      });
 
   useEffect(() => {
     const fetchData = async () => {

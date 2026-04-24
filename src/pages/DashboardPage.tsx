@@ -12,15 +12,16 @@ import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, BarChart, Bar, Cell
 
 export default function DashboardPage() {
   const store = useStore();
-  const convs = store.conversations;
-  const customers = store.customers;
+  const convs = store.conversations || [];
+  const customers = store.customers || [];
 
   const open = convs.filter((c) => c.status !== "resolvido");
   const unassigned = convs.filter((c) => !c.assignedTo && c.status !== "resolvido");
   const resolvedToday = convs.filter((c) => {
     if (c.status !== "resolvido") return false;
     const today = new Date();
-    return c.lastMessageTime.toDateString() === today.toDateString();
+    const lastTime = ensureDate(c.lastMessageTime);
+    return lastTime && lastTime.toDateString() === today.toDateString();
   });
   const atRisk = convs.filter((c) => {
     const sla = store.getSLAStatus(c);
