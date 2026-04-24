@@ -92,8 +92,8 @@ export default function InboxPage() {
           }
         }
       } catch (err) {
-        console.error("Error polling data:", err);
       }
+    };
     
     fetchData();
     const interval = setInterval(fetchData, 5000); // Poll every 5 seconds
