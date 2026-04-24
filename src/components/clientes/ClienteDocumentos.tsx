@@ -333,22 +333,30 @@ function DocumentItem({ tipo, label, category, month, year, status, clienteId, c
       };
 
       if (!webhookUrl) {
-        throw new Error("Webhook URL (VITE_N8N_WEBHOOK_DOCUMENTOS) not configured.");
+        throw new Error("A URL de envio de documentos (Webhook) não foi configurada no sistema.");
       }
+
+      console.log("Tentando envio para:", webhookUrl);
 
       const response = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
+      }).catch(err => {
+        console.error("Erro de rede (Fetch):", err);
+        throw new Error("Não foi possível conectar ao servidor de upload. Verifique se o endereço do Webhook está correto e usa HTTPS.");
       });
 
-      if (!response.ok) throw new Error("Erro no servidor de upload.");
+      if (!response.ok) {
+          const errorText = await response.text().catch(() => "Erro desconhecido");
+          throw new Error(`Servidor recusou o envio (${response.status}): ${errorText}`);
+      }
 
       toast.success(`${label} enviado com sucesso!`);
       setSelectedFile(null);
       if (onUploadSuccess) onUploadSuccess();
     } catch (error: any) {
-      console.error("Upload error:", error);
+      console.error("Upload error detail:", error);
       toast.error(`Falha no envio: ${error.message}`);
     } finally {
       setUploading(false);
