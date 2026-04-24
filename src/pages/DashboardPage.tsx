@@ -1,4 +1,4 @@
-import { useStore, MOCK_USERS, formatDuration, ensureDate } from "@/lib/store";
+import { useStore, formatDuration, ensureDate } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -76,7 +76,7 @@ export default function DashboardPage() {
       }, 0) / resolved.length)
     : 0;
 
-  const perUser = MOCK_USERS.map((u) => {
+  const perUser = store.users.map((u) => {
     const userConvs = convs.filter((c) => c.assignedTo === u.id);
     const active = userConvs.filter((c) => c.status !== "resolvido").length;
     const resolvedCount = userConvs.filter((c) => c.status === "resolvido").length;
@@ -104,15 +104,18 @@ export default function DashboardPage() {
     { label: "Resolvidos", count: convs.filter((c) => c.status === "resolvido").length, color: "hsl(152 56% 38%)" },
   ];
 
-  const activityData = [
-    { day: "Seg", conversations: 12, resolved: 8 },
-    { day: "Ter", conversations: 19, resolved: 15 },
-    { day: "Qua", conversations: 14, resolved: 11 },
-    { day: "Qui", conversations: 22, resolved: 18 },
-    { day: "Sex", conversations: 17, resolved: 14 },
-    { day: "Sáb", conversations: 6, resolved: 5 },
-    { day: "Dom", conversations: 3, resolved: 2 },
-  ];
+  // Dynamically compute activity data from last 7 days
+  const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  const activityData = days.map((day, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const dayConvs = convs.filter(c => ensureDate(c.lastMessageTime)?.toDateString() === d.toDateString());
+    return {
+      day,
+      conversations: dayConvs.length,
+      resolved: dayConvs.filter(c => c.status === "resolvido").length
+    };
+  });
 
   const chartConfig = {
     conversations: { label: "Conversas", color: "hsl(215 60% 50%)" },

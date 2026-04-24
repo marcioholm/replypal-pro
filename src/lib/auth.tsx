@@ -1,6 +1,7 @@
 import { createContext, useContext, ReactNode, useState, useCallback, useEffect } from "react";
 import { User, Tenant, setCurrentTenantId } from "./store";
 import { supabase } from "./supabase";
+import { initializeDatabase } from "./dbSetup";
 
 interface AuthContextType {
   user: User | null;
@@ -20,6 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    initializeDatabase();
     const savedUser = localStorage.getItem("replypal_user");
     if (savedUser) {
       try {

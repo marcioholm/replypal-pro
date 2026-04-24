@@ -4,6 +4,7 @@ import { useStore, formatTime, formatDuration, MOCK_TAGS } from "@/lib/store";
 import type { ConversationStatus, ClosingReason } from "@/lib/store";
 import { getNotificationConfig, setNotificationConfig } from "@/hooks/useNotifications";
 import { sendWhatsAppMessage, checkConnection } from "@/lib/evolution";
+import { webhooks } from "@/lib/webhooks";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SLABadge } from "@/components/SLABadge";
@@ -225,7 +226,9 @@ export default function ChatPage() {
     const connStatus = await checkConnection();
     if (connStatus.connected) {
       const result = await sendWhatsAppMessage(conv.clientPhone, message, user.name);
-      if (!result.success) {
+      if (result.success) {
+        webhooks.triggerMessageSent(message, conv, user);
+      } else {
         toast.error("Erro ao enviar WhatsApp");
       }
     }
@@ -300,6 +303,7 @@ export default function ChatPage() {
       }
 
       store.assumeConversation(conv.id, user);
+      webhooks.triggerTransferOwner(conv, user, user.name, "Assumiu conversa");
       toast.success(isAdmin ? "Você assumiu o controle (Modo Admin)!" : "Você assumiu este atendimento!");
     } catch (e: any) {
       console.error("Erro completo ao assumir:", e);
@@ -325,6 +329,7 @@ export default function ChatPage() {
       if (error) throw error;
 
       store.transferConversation(conv.id, user, transferTo, transferReason);
+      webhooks.triggerTransferOwner(conv, user, targetUser.name, transferReason);
       toast.success(`Conversa transferida para ${targetUser.name}`);
       setTransferOpen(false);
       setTransferTo("");
@@ -334,8 +339,20 @@ export default function ChatPage() {
     }
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
+    const { error } = await supabase
+      .from("conversas")
+      .update({ status: "resolvido" })
+      .eq("id", conv.id);
+    
+    if (error) {
+      toast.error("Erro ao fechar no banco: " + error.message);
+      return;
+    }
+
     store.updateStatus(conv.id, "resolvido", user, closingReason);
+    webhooks.triggerServiceFinished(conv, user, closingReason);
+    webhooks.triggerStageChange(conv, conv.status, "resolvido", user);
     setCloseOpen(false);
   };
 

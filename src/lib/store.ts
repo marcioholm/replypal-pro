@@ -152,30 +152,13 @@ export interface QuickReply {
   content: string;
 }
 
-// Mock Data
-export const MOCK_TENANTS: Tenant[] = [
-  { id: "11111111-1111-1111-1111-111111111111", name: "ReplyPal Pro", subdomain: "replypal" },
-  { id: "tenant2", name: "Empresa Beta", subdomain: "beta" },
-];
-
+// Production-ready initial state (Empty)
+export const MOCK_TENANTS: Tenant[] = [];
 export const MOCK_USERS: User[] = [];
-
-export const MOCK_TAGS: Tag[] = [
-  { id: "t1", name: "Fiscal", color: "hsl(217, 91%, 60%)" },
-  { id: "t2", name: "RH", color: "hsl(262, 83%, 58%)" },
-  { id: "t3", name: "Urgente", color: "hsl(0, 72%, 51%)" },
-  { id: "t4", name: "Financeiro", color: "hsl(38, 92%, 50%)" },
-  { id: "t5", name: "Suporte", color: "hsl(160, 84%, 39%)" },
-  { id: "t6", name: "Premium", color: "hsl(47, 95%, 50%)" },
-  { id: "t7", name: "Inadimplente", color: "hsl(0, 0%, 20%)" },
-];
-
-export const MOCK_QUICK_REPLIES: QuickReply[] = [
-  { id: "qr1", shortcut: "/fiscal", content: "Para questões fiscais, por favor envie seu CNPJ e o período de referência." },
-  { id: "qr2", shortcut: "/documento", content: "Por favor, envie o documento solicitado em formato PDF." },
-  { id: "qr3", shortcut: "/aguarde", content: "Estamos analisando sua solicitação. Retornaremos em breve." },
-  { id: "qr4", shortcut: "/horario", content: "Nosso horário de atendimento é de segunda a sexta, das 8h às 18h." },
-];
+export const MOCK_TAGS: Tag[] = [];
+export const MOCK_QUICK_REPLIES: QuickReply[] = [];
+export const INITIAL_CUSTOMERS: Customer[] = [];
+export const INITIAL_CONVERSATIONS: Conversation[] = [];
 
 const now = new Date();
 const minutesAgo = (m: number) => new Date(now.getTime() - m * 60000);
@@ -194,6 +177,8 @@ let globalCustomers = [...INITIAL_CUSTOMERS];
 let globalUsers = [...MOCK_USERS];
 let globalCurrentUser: User | null = null;
 let globalIAChatOpen = false;
+let globalTags: Tag[] = [];
+let globalQuickReplies: QuickReply[] = [];
 let listeners: (() => void)[] = [];
 
 function notify() {
@@ -233,8 +218,8 @@ export function useStoreInternal(tenantId?: string) {
     history: globalHistory,
     customers: globalCustomers,
     users: globalUsers,
-    tags: MOCK_TAGS,
-    quickReplies: MOCK_QUICK_REPLIES,
+    tags: globalTags,
+    quickReplies: globalQuickReplies,
     isIAChatOpen: globalIAChatOpen,
     setIAChatOpen: (open: boolean) => {
       globalIAChatOpen = open;
@@ -485,6 +470,18 @@ export function useStoreInternal(tenantId?: string) {
     },
     updateStoreUser: (id: string, updates: Partial<User>) => {
       globalUsers = globalUsers.map(u => u.id === id ? { ...u, ...updates } : u);
+      notify();
+    },
+    setGlobalTags: (tags: Tag[]) => {
+      globalTags = tags;
+      notify();
+    },
+    setGlobalQuickReplies: (qrs: QuickReply[]) => {
+      globalQuickReplies = qrs;
+      notify();
+    },
+    setUsers: (users: User[]) => {
+      globalUsers = users;
       notify();
     }
   };

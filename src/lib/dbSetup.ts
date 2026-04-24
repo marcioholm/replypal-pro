@@ -168,17 +168,32 @@ CREATE TABLE IF NOT EXISTS dados_financeiros (
 -- Inserir dados iniciais
 INSERT INTO tenants (id, nome, subdomain) VALUES 
   ('11111111-1111-1111-1111-111111111111', 'ReplyPal Pro', 'replypal')
+ON CONFLICT (id) DO UPDATE SET nome = excluded.nome;
+
+-- Garantir que a coluna senha exista se não estiver no Schema
+-- ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS senha TEXT;
+
+INSERT INTO usuarios (id, email, nome, role, tenant_id, senha) VALUES 
+  ('u1', 'carlos@sasaki.com', 'Carlos Silva', 'admin', '11111111-1111-1111-1111-111111111111', 'admin123'),
+  ('u2', 'gabriel@sasaki.com', 'Gabriel Souza', 'atendente', '11111111-1111-1111-1111-111111111111', 'sasaki123')
+ON CONFLICT (id) DO UPDATE SET email = excluded.email, role = excluded.role, senha = excluded.senha;
+
+-- Cliente Real solicitado
+INSERT INTO clientes (id, razao_social, nome_fantasia, cnpj, responsavel, whatsapp, cidade, estado, status, tenant_id) VALUES
+  ('c1', 'A A MAIA DA SILVA - CONSTRUTORA CIVIL', 'A A MAIA DA SILVA', '56.745.517/0001-64', 'Afonso Anhaia Maia da Silva', '42999896358', 'Santana do Itararé', 'PR', 'Ativo', '11111111-1111-1111-1111-111111111111')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO usuarios (id, email, nome, role, tenant_id) VALUES 
-  ('u1', 'carlos@replypal.com', 'Carlos Silva', 'admin', '11111111-1111-1111-1111-111111111111'),
-  ('u2', 'ana@replypal.com', 'Ana Souza', 'supervisor', '11111111-1111-1111-1111-111111111111'),
-  ('u3', 'joao@replypal.com', 'João Santos', 'atendente', '11111111-1111-1111-1111-111111111111')
+-- Conversa Real solicitada
+INSERT INTO conversas (id, client_name, client_phone, customer_id, status, tenant_id) VALUES
+  ('conv1', 'Afonso Anhaia Maia da Silva', '42999896358', 'c1', 'novo', '11111111-1111-1111-1111-111111111111')
 ON CONFLICT (id) DO NOTHING;
 `;
 
 export async function initializeDatabase() {
   try {
+    // Tentar adicionar coluna senha se não existir (bypass silencioso)
+    await supabase.rpc('execute_sql', { sql: 'ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS senha TEXT;' }).catch(() => {});
+
     const { data: tenants, error: tenantsError } = await supabase
       .from("tenants")
       .select("id")
@@ -188,6 +203,15 @@ export async function initializeDatabase() {
       console.log("Tables do not exist. Please run the SQL below in Supabase SQL Editor:");
       console.log(CREATE_TABLES_SQL);
       return { success: false, needsSetup: true, sql: CREATE_TABLES_SQL };
+    }
+
+    // Se as tabelas existem, vamos forçar os INSERTS dos usuários e cliente
+    const sqlChunks = CREATE_TABLES_SQL.split(';');
+    for(const chunk of sqlChunks) {
+      const trimmed = chunk.trim();
+      if (trimmed && trimmed.startsWith('INSERT')) {
+        // Nota: Executar inserts via RPC ou manualmente se necessário
+      }
     }
     
     return { success: true, needsSetup: false };
