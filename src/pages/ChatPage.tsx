@@ -277,14 +277,27 @@ export default function ChatPage() {
 
       if (error) throw error;
       
-      const { data: checkData } = await supabase.from("conversas").select("assigned_to").eq("id", conv.id).single();
+      // Pequeno delay para garantir que o banco processou
+      await new Promise(r => setTimeout(r, 500));
+
+      const { data: checkData, error: checkError } = await supabase
+        .from("conversas")
+        .select("assigned_to, status")
+        .eq("id", conv.id)
+        .single();
+      
+      if (checkError) {
+        console.error("Erro na verificação:", checkError);
+      }
+
       if (checkData?.assigned_to !== user.id) {
-        throw new Error("Não foi possível persistir a alteração no banco de dados. Verifique sua conexão.");
+        throw new Error(`Persistência falhou. O banco ainda registra: ${checkData?.assigned_to || 'Ninguém'}.`);
       }
 
       store.assumeConversation(conv.id, user);
       toast.success("Você assumiu este atendimento!");
     } catch (e: any) {
+      console.error("Erro completo ao assumir:", e);
       toast.error("Erro ao assumir: " + (e.message || "Erro desconhecido"));
     }
   };
