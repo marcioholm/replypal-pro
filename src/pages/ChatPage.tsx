@@ -21,12 +21,23 @@ import {
   FileText, Download, Printer, Copy, Loader2
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth";
 
 
 export default function ChatPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const store = useStore();
+  const { user } = useAuth();
+  
+  // Sincronizar usuário da Auth com a Store
+  useEffect(() => {
+    if (user) {
+      store.setCurrentUser(user);
+    }
+  }, [user]);
+
+  if (!user) return null;
   const [messageInput, setMessageInput] = useState("");
   const [noteInput, setNoteInput] = useState("");
   const [showPanel, setShowPanel] = useState<"customer" | "notes" | "tags" | "history" | null>("customer");
@@ -108,11 +119,11 @@ export default function ChatPage() {
 
     // Fetch team members for transfer list
     const fetchTeam = async () => {
-      if (!store.currentUser?.tenantId) return;
+      if (!user?.tenantId) return;
       const { data } = await supabase
         .from("usuarios")
         .select("*")
-        .eq("tenant_id", store.currentUser.tenantId);
+        .eq("tenant_id", user.tenantId);
       
       if (data) {
         store.setGlobalUsers(data.map(d => ({
@@ -135,7 +146,7 @@ export default function ChatPage() {
     return () => clearInterval(pollInterval);
   }, [id, !!conv]);
 
-  if (!store.currentUser) return null;
+  if (!user) return null;
 
 
   useEffect(() => {
@@ -172,7 +183,7 @@ export default function ChatPage() {
   }
 
 
-  const isAssigned = conv.assignedTo === store.currentUser.id;
+  const isAssigned = conv.assignedTo === user.id;
   const slaStatus = store.getSLAStatus(conv);
 
   const handleSend = async () => {
@@ -181,7 +192,7 @@ export default function ChatPage() {
     const message = qr ? qr.content : messageInput.trim();
     
     // 1. Salvar localmente (UI imediata)
-    store.sendMessage(conv.id, message, store.currentUser);
+    store.sendMessage(conv.id, message, user);
     setMessageInput("");
     
     // 2. Salvar no Supabase (Persistência)
@@ -190,7 +201,8 @@ export default function ChatPage() {
         conversation_id: conv.id,
         content: message,
         sender: "agent",
-        sender_name: store.currentUser.name,
+        sender: "agent",
+        sender_name: user.name,
         timestamp: new Date().toISOString()
       });
       
@@ -210,7 +222,7 @@ export default function ChatPage() {
     // 3. Enviar via WhatsApp (Interação real)
     const connStatus = await checkConnection();
     if (connStatus.connected) {
-      const result = await sendWhatsAppMessage(conv.clientPhone, message, store.currentUser.name);
+      const result = await sendWhatsAppMessage(conv.clientPhone, message, user.name);
       if (!result.success) {
         toast.error("Erro ao enviar WhatsApp");
       }
@@ -219,7 +231,7 @@ export default function ChatPage() {
 
   const handleQuickReply = async (content: string) => {
     // Salvar localmente
-    store.sendMessage(conv.id, content, store.currentUser);
+    store.sendMessage(conv.id, content, user);
     setShowQuickReplies(false);
     
     // Salvar no Supabase
@@ -228,7 +240,8 @@ export default function ChatPage() {
         conversation_id: conv.id,
         content: content,
         sender: "agent",
-        sender_name: store.currentUser.name,
+        sender: "agent",
+        sender_name: user.name,
         timestamp: new Date().toISOString()
       });
       
@@ -247,7 +260,7 @@ export default function ChatPage() {
     // Enviar via WhatsApp
     const connStatus = await checkConnection();
     if (connStatus.connected) {
-      await sendWhatsAppMessage(conv.clientPhone, content, store.currentUser.name);
+      await sendWhatsAppMessage(conv.clientPhone, content, user.name);
     }
   };
 
@@ -257,7 +270,7 @@ export default function ChatPage() {
       const { error } = await supabase
         .from("conversas")
         .update({ 
-          assigned_to: store.currentUser.id,
+          assigned_to: user.id,
           status: "em_atendimento"
         })
         .eq("id", conv.id);
@@ -277,7 +290,7 @@ export default function ChatPage() {
     if (connStatus.connected) {
       await sendWhatsAppMessage(
         conv.clientPhone, 
-        `*Sistema:* Olá! Agora você será atendido por *${store.currentUser.name}*. Em que posso ajudar?`
+        `*Sistema:* Olá! Agora você será atendido por *${user.name}*. Em que posso ajudar?`
       );
     }
   };
@@ -298,7 +311,7 @@ export default function ChatPage() {
 
       if (error) throw error;
 
-      store.transferConversation(conv.id, store.currentUser, transferTo, transferReason);
+      store.transferConversation(conv.id, user, transferTo, transferReason);
       toast.success(`Conversa transferida para ${targetUser.name}`);
       setTransferOpen(false);
       setTransferTo("");
@@ -320,13 +333,13 @@ export default function ChatPage() {
   };
 
   const handleClose = () => {
-    store.updateStatus(conv.id, "resolvido", store.currentUser, closingReason);
+    store.updateStatus(conv.id, "resolvido", user, closingReason);
     setCloseOpen(false);
   };
 
   const handleAddNote = () => {
     if (!noteInput.trim()) return;
-    store.addNote(conv.id, noteInput.trim(), store.currentUser);
+    store.addNote(conv.id, noteInput.trim(), user);
     setNoteInput("");
   };
 
@@ -359,7 +372,7 @@ export default function ChatPage() {
             )}
             {isAssigned && conv.status !== "resolvido" && (
               <>
-                {['admin', 'supervisor', 'recepcionista'].includes(store.currentUser.role) && (
+                {['admin', 'supervisor', 'recepcionista'].includes(user.role) && (
                   <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm" className="h-8 gap-1.5">
@@ -377,7 +390,7 @@ export default function ChatPage() {
                           <Select value={transferTo} onValueChange={setTransferTo}>
                             <SelectTrigger className="h-10"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                             <SelectContent>
-                              {store.users.filter((u) => u.id !== store.currentUser.id).map((u) => (
+                              {store.users.filter((u) => u.id !== user.id).map((u) => (
                                 <SelectItem key={u.id} value={u.id}>{u.name} ({u.role})</SelectItem>
                               ))}
                             </SelectContent>

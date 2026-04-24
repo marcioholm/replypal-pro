@@ -201,6 +201,7 @@ let globalNotes: InternalNote[] = [];
 let globalHistory = [...INITIAL_HISTORY];
 let globalCustomers = [...INITIAL_CUSTOMERS];
 let globalUsers = [...MOCK_USERS];
+let globalCurrentUser: User | null = null;
 let globalIAChatOpen = false;
 let listeners: (() => void)[] = [];
 
@@ -248,7 +249,11 @@ export function useStoreInternal(tenantId?: string) {
       globalIAChatOpen = open;
       notify();
     },
-    currentUser: tenantId ? filteredUsers.find((u) => u.tenantId === tenantId) || filteredUsers[0] : MOCK_USERS[0],
+    currentUser: globalCurrentUser,
+    setCurrentUser: (user: User | null) => {
+      globalCurrentUser = user;
+      notify();
+    },
 
     getConversation: (id: string) => globalConversations.find((c) => c.id === id),
     getCustomer: (id?: string) => globalCustomers.find((c) => c.id === id),

@@ -13,6 +13,15 @@ type Filter = "todas" | "minhas" | "pendentes";
 export default function InboxPage() {
   const store = useStore();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  // Sincronizar usuário da Auth com a Store
+  useEffect(() => {
+    if (user) {
+      store.setCurrentUser(user);
+    }
+  }, [user]);
+
   const [filter, setFilter] = useState<Filter>("minhas");
   const [search, setSearch] = useState("");
   const [waConnected, setWaConnected] = useState(false);
@@ -31,7 +40,7 @@ export default function InboxPage() {
   // Fetch conversations and messages from Supabase/API periodically
   useEffect(() => {
     const fetchData = async () => {
-      const tenantId = store.currentUser?.tenantId;
+      const tenantId = user?.tenantId;
       if (!tenantId) return;
 
       try {
@@ -42,7 +51,7 @@ export default function InboxPage() {
           .eq("tenant_id", tenantId);
 
         if (filter === "minhas") {
-          query = query.eq("assigned_to", store.currentUser?.id);
+          query = query.eq("assigned_to", user?.id);
         } else if (filter === "pendentes") {
           query = query.or(`assigned_to.is.null,status.eq.novo`);
         } else if (filter === "todas") {
@@ -50,7 +59,7 @@ export default function InboxPage() {
         }
 
         // Restrição para atendente: só vê 'minhas'
-        if (store.currentUser?.role === "atendente" && filter !== "minhas") {
+        if (user?.role === "atendente" && filter !== "minhas") {
           // Não faz nada ou limpa a lista, mas a UI já bloqueia as abas
         } else {
           const { data: dbConvs } = await query.order("last_message_time", { ascending: false });
@@ -85,15 +94,14 @@ export default function InboxPage() {
       } catch (err) {
         console.error("Error polling data:", err);
       }
-    };
     
     fetchData();
     const interval = setInterval(fetchData, 5000); // Poll every 5 seconds
     return () => clearInterval(interval);
-  }, [store.currentUser?.tenantId, filter]);
+  }, [user?.tenantId, filter]);
 
   const handleManualRefresh = async () => {
-    const tenantId = store.currentUser?.tenantId;
+    const tenantId = user?.tenantId;
     if (!tenantId) return;
     setLoading(true);
     try {
@@ -148,16 +156,16 @@ export default function InboxPage() {
 
   useNewMessagePolling(
     allConversations,
-    store.currentUser?.id || "",
-    store.currentUser?.role || "atendente"
+    user?.id || "",
+    user?.role || "atendente"
   );
 
-  if (!store.currentUser) return null;
+  if (!user) return null;
 
-  const isAtendente = store.currentUser?.role === "atendente";
+  const isAtendente = user?.role === "atendente";
   const filtered = allConversations
     .filter((c) => {
-      if (filter === "minhas") return c.assignedTo === store.currentUser?.id;
+      if (filter === "minhas") return c.assignedTo === user?.id;
       if (filter === "pendentes") return !c.assignedTo || c.status === "novo";
       return true; // "todas"
     })
@@ -172,9 +180,9 @@ export default function InboxPage() {
     .sort((a, b) => b.lastMessageTime.getTime() - a.lastMessageTime.getTime());
 
   const filterButtons: { key: Filter; label: string; count: number; icon: typeof InboxIcon; visible: boolean }[] = [
-    { key: "todas", label: "Todas", count: allConversations.length, icon: InboxIcon, visible: ['admin', 'supervisor', 'recepcionista'].includes(store.currentUser.role) },
-    { key: "minhas", label: "Minhas", count: allConversations.filter(c => c.assignedTo === store.currentUser.id).length, icon: UserCheck, visible: true },
-    { key: "pendentes", label: "Pendentes", count: allConversations.filter(c => !c.assignedTo || c.status === 'novo').length, icon: Users, visible: ['admin', 'supervisor', 'recepcionista'].includes(store.currentUser.role) },
+    { key: "todas", label: "Todas", count: allConversations.length, icon: InboxIcon, visible: ['admin', 'supervisor', 'recepcionista'].includes(user.role) },
+    { key: "minhas", label: "Minhas", count: allConversations.filter(c => c.assignedTo === user.id).length, icon: UserCheck, visible: true },
+    { key: "pendentes", label: "Pendentes", count: allConversations.filter(c => !c.assignedTo || c.status === 'novo').length, icon: Users, visible: ['admin', 'supervisor', 'recepcionista'].includes(user.role) },
   ];
 
   return (
@@ -213,7 +221,7 @@ export default function InboxPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Buscar por nome, mensagem ou telefone..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10 text-sm" />
         </div>
-        {['admin', 'supervisor', 'recepcionista'].includes(store.currentUser.role) && (
+        {['admin', 'supervisor', 'recepcionista'].includes(user.role) && (
           <div className="flex gap-2 p-1 bg-muted/50 rounded-lg">
             {filterButtons.filter(f => f.visible).map((f) => (
               <button
