@@ -76,9 +76,11 @@ export default function DadosFinanceiros({ clienteId, clienteNome, tenantId }: D
           observacoes: ""
         });
       }
-} catch (err) {
+    } catch (err) {
       const error = err as Error;
       console.error("Erro ao buscar dados financeiros:", error);
+    } finally {
+      setLoading(false);
     }
   };
 

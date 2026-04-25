@@ -94,6 +94,33 @@ INSERT INTO usuarios (id, email, nome, role, tenant_id, senha_hash, senha_salt)
 SELECT 'g2222222-2222-2222-2222-222222222222', 'gabriel@sasaki.com', 'Gabriel Souza', 'atendente', '11111111-1111-1111-1111-111111111111', 'PBKDF2$salt$sasaki123', 'replypal-pro-salt-v1'
 WHERE NOT EXISTS (SELECT 1 FROM usuarios WHERE email = 'gabriel@sasaki.com');
 
+-- TABELA DE DADOS FINANCEIROS
+CREATE TABLE IF NOT EXISTS public.dados_financeiros (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    cliente_id UUID NOT NULL REFERENCES public.clientes(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+    mes INTEGER NOT NULL,
+    ano INTEGER NOT NULL,
+    faturamento DECIMAL(15, 2) DEFAULT 0,
+    compras DECIMAL(15, 2) DEFAULT 0,
+    vendas DECIMAL(15, 2) DEFAULT 0,
+    folha_pagamento DECIMAL(15, 2) DEFAULT 0,
+    observacoes TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    UNIQUE(cliente_id, mes, ano)
+);
+
+-- Ativar RLS para dados financeiros
+ALTER TABLE public.dados_financeiros ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Participantes do tenant vêem dados financeiros" ON public.dados_financeiros
+    FOR ALL USING (tenant_id = auth.uid_tenant_id());
+
+-- Gatilho para updated_at em dados financeiros
+CREATE TRIGGER set_updated_at_dados_financeiros
+    BEFORE UPDATE ON public.dados_financeiros
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
 -- 6. Desabilitar RLS para evitar bloqueios
 ALTER TABLE usuarios DISABLE ROW LEVEL SECURITY;
 ALTER TABLE clientes DISABLE ROW LEVEL SECURITY;
