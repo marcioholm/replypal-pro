@@ -1,4 +1,4 @@
-import { MessageSquare, LayoutDashboard, Columns3, Settings, Zap, Users, TrendingUp, PieChart, Building2, Calendar, LogOut } from "lucide-react";
+import { MessageSquare, LayoutDashboard, Columns3, Settings, Zap, Users, TrendingUp, PieChart, Building2, Calendar, LogOut, GraduationCap } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useStore } from "@/lib/store";
@@ -20,6 +20,7 @@ const navItems = [
   { title: "Caixa de Entrada", url: "/", icon: MessageSquare, badge: "inbox" },
   { title: "Pipeline", url: "/pipeline", icon: Columns3, badge: "pipeline" },
   { title: "Clientes", url: "/customers", icon: Users, badge: "customers" },
+  { title: "Treinamento da IA", url: "/training", icon: GraduationCap, badge: "training" },
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, badge: "dashboard" },
   { title: "Calendário Fiscal", url: "/calendar", icon: Calendar, badge: "calendar" },
   { title: "Configurações", url: "/settings", icon: Settings, badge: "settings" },

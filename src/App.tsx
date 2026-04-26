@@ -14,6 +14,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import CustomersPage from "@/pages/CustomersPage";
 import CustomerDetailsPage from "@/pages/CustomerDetailsPage";
 import CalendarPage from "@/pages/CalendarPage";
+import TrainingPage from "@/pages/TrainingPage";
 import NotFound from "@/pages/NotFound";
 import LoginPage from "@/pages/LoginPage";
 
@@ -24,6 +25,7 @@ type UserRole = "admin" | "supervisor" | "atendente" | "recepcionista";
 const rolePermissions: Record<string, UserRole[]> = {
   "/settings": ["admin"],
   "/customers": ["admin", "supervisor", "atendente", "recepcionista"],
+  "/training": ["admin", "supervisor"],
 };
 
 function hasPermission(path: string, userRole: UserRole): boolean {
@@ -83,6 +85,7 @@ function AppRoutes() {
                 <Route path="/calendar" element={<CalendarPage />} />
                 <Route path="/customers" element={<CustomersPage />} />
                 <Route path="/customers/:id" element={<CustomerDetailsPage />} />
+                <Route path="/training" element={<TrainingPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

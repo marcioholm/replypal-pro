@@ -121,7 +121,59 @@ CREATE TRIGGER set_updated_at_dados_financeiros
     BEFORE UPDATE ON public.dados_financeiros
     FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
--- 6. Desabilitar RLS para evitar bloqueios
+-- 6. TABELA DE CONHECIMENTO DA IA
+CREATE TABLE IF NOT EXISTS public.conhecimento_ia (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+    titulo TEXT NOT NULL,
+    categoria TEXT NOT NULL, -- Trabalhista, Fiscal, etc
+    subcategoria TEXT,
+    conteudo TEXT NOT NULL,
+    palavras_chave TEXT[],
+    cliente_id UUID REFERENCES public.clientes(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'ativo', -- ativo, inativo
+    origem TEXT NOT NULL DEFAULT 'manual', -- manual, conversa, importado
+    nivel_confianca TEXT NOT NULL DEFAULT 'alta', -- alta, media, revisar
+    data_validade TIMESTAMP WITH TIME ZONE,
+    is_deleted BOOLEAN DEFAULT false,
+    criado_por UUID REFERENCES public.usuarios(id),
+    atualizado_por UUID REFERENCES public.usuarios(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 7. TABELA DE HISTÓRICO DE VERSÕES (CONHECIMENTO)
+CREATE TABLE IF NOT EXISTS public.conhecimento_ia_historico (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    conhecimento_id UUID NOT NULL REFERENCES public.conhecimento_ia(id) ON DELETE CASCADE,
+    snapshot JSONB NOT NULL,
+    alterado_por UUID REFERENCES public.usuarios(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- Ativar RLS
+ALTER TABLE public.conhecimento_ia ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.conhecimento_ia_historico ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Participantes do tenant vêem conhecimentos" ON public.conhecimento_ia
+    FOR ALL USING (tenant_id = auth.uid_tenant_id());
+
+CREATE POLICY "Participantes do tenant vêem histórico conhecimento" ON public.conhecimento_ia_historico
+    FOR SELECT USING (EXISTS (
+        SELECT 1 FROM public.conhecimento_ia k 
+        WHERE k.id = conhecimento_id AND k.tenant_id = auth.uid_tenant_id()
+    ));
+
+-- Gatilho para updated_at
+CREATE TRIGGER set_updated_at_conhecimento_ia
+    BEFORE UPDATE ON public.conhecimento_ia
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- 8. Desabilitar RLS para evitar bloqueios iniciais (Opcional se desejar segurança total imediata, remova estas linhas se preferir)
+ALTER TABLE conhecimento_ia DISABLE ROW LEVEL SECURITY;
+ALTER TABLE conhecimento_ia_historico DISABLE ROW LEVEL SECURITY;
+
+-- 9. Desabilitar RLS para evitar bloqueios
 ALTER TABLE usuarios DISABLE ROW LEVEL SECURITY;
 ALTER TABLE clientes DISABLE ROW LEVEL SECURITY;
 ALTER TABLE conversas DISABLE ROW LEVEL SECURITY;
