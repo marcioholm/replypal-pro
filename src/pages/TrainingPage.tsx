@@ -60,13 +60,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 export default function TrainingPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [knowledges, setKnowledges] = useState<Knowledge[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [activeTab, setActiveTab] = useState("oficial");
   
   // Estados de Gerenciamento
   const [formOpen, setFormOpen] = useState(false);
@@ -87,8 +89,14 @@ export default function TrainingPage() {
         .eq("is_deleted", false)
         .order("updated_at", { ascending: false });
 
+      // Lógica de Tabs
+      if (activeTab === "oficial") {
+        query = query.in("status", ["ativo", "inativo"]);
+      } else {
+        query = query.eq("status", "pendente");
+      }
+
       if (filterCategory !== "all") query = query.eq("categoria", filterCategory);
-      if (filterStatus !== "all") query = query.eq("status", filterStatus);
       if (searchQuery) query = query.ilike("titulo", `%${searchQuery}%`);
 
       const { data, error } = await query;
@@ -104,7 +112,22 @@ export default function TrainingPage() {
 
   useEffect(() => {
     fetchKnowledges();
-  }, [filterCategory, filterStatus, searchQuery]);
+  }, [filterCategory, searchQuery, activeTab]);
+
+  const handleApprove = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("conhecimento_ia")
+        .update({ status: 'ativo', updated_at: new Date().toISOString() })
+        .eq("id", id);
+
+      if (error) throw error;
+      toast.success("Conhecimento aprovado e ativo!");
+      fetchKnowledges();
+    } catch (err) {
+      toast.error("Erro ao aprovar conhecimento");
+    }
+  };
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -223,56 +246,59 @@ export default function TrainingPage() {
         ))}
       </div>
 
-      {/* Filtros */}
-      <Card className="border-none shadow-sm pb-2">
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
+      {/* Abas de Navegação e Filtros */}
+      <Tabs defaultValue="oficial" className="space-y-6" onValueChange={setActiveTab}>
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <TabsList className="bg-muted/40 p-1">
+            <TabsTrigger value="oficial" className="gap-2 px-6">
+               <ShieldCheck className="w-4 h-4" /> Base Oficial
+            </TabsTrigger>
+            <TabsTrigger value="sugestoes" className="gap-2 px-6">
+               <Sparkles className="w-4 h-4" /> Sugestões da IA
+               {knowledges.length > 0 && activeTab === "sugestoes" && (
+                 <Badge className="ml-1 h-5 px-1.5 bg-primary text-white border-none">{knowledges.length}</Badge>
+               )}
+            </TabsTrigger>
+          </TabsList>
+          
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <div className="relative flex-1 md:w-[300px]">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground opacity-50" />
               <Input 
-                placeholder="Buscar por título, categoria ou palavra-chave..." 
-                className="pl-9 bg-muted/20 border-none h-10" 
+                placeholder="Pesquisar..." 
+                className="pl-9 bg-muted/20 border-none h-10 w-full" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-2">
-              <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-[180px] h-10 bg-muted/20 border-none">
-                  <Tag className="w-3.5 h-3.5 mr-2 opacity-50" />
-                  <SelectValue placeholder="Categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas Categorias</SelectItem>
-                  <SelectItem value="Trabalhista / RH">Trabalhista / RH</SelectItem>
-                  <SelectItem value="Fiscal">Fiscal</SelectItem>
-                  <SelectItem value="Contábil">Contábil</SelectItem>
-                  <SelectItem value="Financeiro">Financeiro</SelectItem>
-                  <SelectItem value="Procedimentos internos">Procedimentos internos</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-[140px] h-10 bg-muted/20 border-none">
-                  <Filter className="w-3.5 h-3.5 mr-2 opacity-50" />
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos Status</SelectItem>
-                  <SelectItem value="ativo">Ativos</SelectItem>
-                  <SelectItem value="inativo">Inativos</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => fetchKnowledges()} title="Atualizar">
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-[180px] h-10 bg-muted/20 border-none">
+                <Tag className="w-3.5 h-3.5 mr-2 opacity-50" />
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas Categorias</SelectItem>
+                {["Trabalhista / RH", "Fiscal", "Contábil", "Financeiro", "Atendimento"].map(c => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Listagem */}
+        <TabsContent value="oficial" className="border-none p-0 m-0">
+           {renderKnowledgeTable()}
+        </TabsContent>
+        
+        <TabsContent value="sugestoes" className="border-none p-0 m-0">
+           {renderKnowledgeTable()}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+
+  function renderKnowledgeTable() {
+    return (
       <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
         <Table>
           <TableHeader className="bg-muted/30">
@@ -300,7 +326,7 @@ export default function TrainingPage() {
             ) : knowledges.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-32 text-muted-foreground italic">
-                   Nenhum conhecimento cadastrado com estes filtros.
+                   Nenhum item encontrado nesta categoria.
                 </TableCell>
               </TableRow>
             ) : (
@@ -317,7 +343,7 @@ export default function TrainingPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5 text-[11px] opacity-70">
-                      {k.origem === 'manual' ? <User className="w-3 h-3" /> : <RefreshCw className="w-3 h-3" />}
+                      {k.origem === 'manual' ? <User className="w-3 h-3" /> : <Sparkles className="w-3 h-3 text-primary/60" />}
                       <span className="capitalize">{k.origem}</span>
                     </div>
                   </TableCell>
@@ -336,29 +362,42 @@ export default function TrainingPage() {
                   </TableCell>
                   <TableCell>{getStatusBadge(k.status)}</TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => openEdit(k)}>
-                          <Edit className="w-4 h-4" /> Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => openHistory(k)}>
-                          <History className="w-4 h-4" /> Histórico de Versões
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          className="gap-2 cursor-pointer text-destructive focus:text-destructive"
-                          onClick={() => setDeleteId(k.id)}
+                    <div className="flex items-center justify-end gap-2">
+                      {activeTab === "sugestoes" && (
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-8 px-2 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 gap-1"
+                          onClick={() => handleApprove(k.id)}
                         >
-                          <Trash2 className="w-4 h-4" /> Excluir permanentemente
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Aprovar
+                        </Button>
+                      )}
+                      
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                          <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => openEdit(k)}>
+                            <Edit className="w-4 h-4" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => openHistory(k)}>
+                            <History className="w-4 h-4" /> Histórico de Versões
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            className="gap-2 cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => setDeleteId(k.id)}
+                          >
+                            <Trash2 className="w-4 h-4" /> Excluir permanentemente
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -366,6 +405,6 @@ export default function TrainingPage() {
           </TableBody>
         </Table>
       </div>
-    </div>
-  );
+    );
+  }
 }

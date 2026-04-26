@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS public.conhecimento_ia (
     conteudo TEXT NOT NULL,
     palavras_chave TEXT[],
     cliente_id UUID REFERENCES public.clientes(id) ON DELETE CASCADE,
-    status TEXT NOT NULL DEFAULT 'ativo', -- ativo, inativo
+    status TEXT NOT NULL DEFAULT 'ativo', -- ativo, inativo, pendente
     origem TEXT NOT NULL DEFAULT 'manual', -- manual, conversa, importado
     nivel_confianca TEXT NOT NULL DEFAULT 'alta', -- alta, media, revisar
     data_validade TIMESTAMP WITH TIME ZONE,
@@ -141,6 +141,11 @@ CREATE TABLE IF NOT EXISTS public.conhecimento_ia (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+-- EXTENSÃO DA TABELA DE MENSAGENS PARA APRENDIZADO
+ALTER TABLE public.mensagens ADD COLUMN IF NOT EXISTS feedback TEXT; -- positivo, negativo
+ALTER TABLE public.mensagens ADD COLUMN IF NOT EXISTS intencao TEXT; -- intenção detectada
+ALTER TABLE public.mensagens ADD COLUMN IF NOT EXISTS conhecimento_id UUID REFERENCES public.conhecimento_ia(id);
 
 -- 7. TABELA DE HISTÓRICO DE VERSÕES (CONHECIMENTO)
 CREATE TABLE IF NOT EXISTS public.conhecimento_ia_historico (

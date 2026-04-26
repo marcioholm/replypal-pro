@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Sparkles, Send, X, Loader2, Bot, User as UserIcon } from "lucide-react";
+import { Sparkles, Send, X, Loader2, Bot, User as UserIcon, ThumbsUp, ThumbsDown, BookOpen, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -94,9 +94,35 @@ export function IAChatPanel() {
     }
   };
 
+  const [knowledgeData, setKnowledgeData] = useState<any>(null);
+  const [knowledgeFormOpen, setKnowledgeFormOpen] = useState(false);
+
+  const saveToKnowledge = (msg: Message, userQuestion: string, correction = false) => {
+    setKnowledgeData({
+      titulo: userQuestion.length > 40 ? userQuestion.substring(0, 40) + "..." : userQuestion,
+      conteudo: msg.content,
+      origem: "conversa",
+      nivel_confianca: correction ? "media" : "alta",
+      status: "pendente"
+    });
+    setKnowledgeFormOpen(true);
+  };
+
+  const handleFeedback = async (index: number, feedback: 'positivo' | 'negativo') => {
+    toast.success(`Feedback ${feedback} enviado! Obrigado por ajudar a treinar a IA.`);
+    // Opcional: Salvar no Supabase se houver tabela de auditoria
+  };
+
   if (!isOpen) return null;
 
   return (
+    <>
+    <KnowledgeForm 
+      open={knowledgeFormOpen} 
+      onOpenChange={setKnowledgeFormOpen} 
+      onSuccess={() => toast.success("Conhecimento enviado para curadoria!")}
+      editData={knowledgeData}
+    />
     <div 
       className="h-screen flex flex-col bg-white border-r shadow-[10px_0_30px_-15px_rgba(0,0,0,0.1)] animate-in slide-in-from-left duration-500 ease-out relative z-40 overflow-hidden"
       style={{ width: "380px" }}
@@ -142,9 +168,41 @@ export function IAChatPanel() {
               >
                 {msg.content}
               </div>
-              <span className="text-[10px] text-slate-400 mt-1 px-1">
-                {msg.role === "user" ? "Você" : companyName}
-              </span>
+              
+              <div className="flex items-center justify-between w-full mt-1.5 px-1">
+                <span className="text-[10px] text-slate-400">
+                  {msg.role === "user" ? "Você" : companyName}
+                </span>
+                
+                {msg.role === "ia" && i > 0 && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1 border-r border-slate-200 pr-2 mr-1">
+                      <button onClick={() => handleFeedback(i, 'positivo')} className="p-1 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded transition-colors" title="Resposta correta">
+                        <ThumbsUp className="w-3 h-3" />
+                      </button>
+                      <button onClick={() => handleFeedback(i, 'negativo')} className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition-colors" title="Resposta ruim">
+                        <ThumbsDown className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={() => saveToKnowledge(msg, messages[i-1]?.content || "Dúvida sem título")}
+                        className="flex items-center gap-1 px-1.5 py-0.5 hover:bg-primary/10 text-primary rounded text-[9px] font-bold uppercase transition-all" 
+                        title="Salvar como conhecimento oficial"
+                      >
+                        <BookOpen className="w-2.5 h-2.5" /> Salvar
+                      </button>
+                      <button 
+                        onClick={() => saveToKnowledge(msg, messages[i-1]?.content || "Dúvida sem título", true)}
+                        className="flex items-center gap-1 px-1.5 py-0.5 hover:bg-orange-50 text-orange-600 rounded text-[9px] font-bold uppercase transition-all" 
+                        title="Corrigir e então salvar"
+                      >
+                        <Edit3 className="w-2.5 h-2.5" /> Corrigir
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
           {isLoading && (
