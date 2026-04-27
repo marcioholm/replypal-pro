@@ -105,6 +105,71 @@ export async function sendWhatsAppMessage(phone: string, message: string, agentN
   }
 }
 
+export async function sendMediaMessage(phone: string, mediaUrl: string, type: "image" | "video" | "document", fileName?: string, caption?: string) {
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = EVO_CONFIG.getInstance();
+  
+  if (!url || !key) return { success: false, error: "API não configurada" };
+  
+  const apiUrl = getApiUrl();
+  const phoneNumber = phone.replace(/\D/g, "");
+
+  const endpoint = "/message/sendMedia";
+  
+  try {
+    const res = await fetch(`${apiUrl}${endpoint}/${instance}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": key,
+      },
+      body: JSON.stringify({
+        number: phoneNumber,
+        media: mediaUrl,
+        mediatype: type,
+        fileName: fileName || "arquivo",
+        caption: caption || "",
+      }),
+    });
+    
+    if (res.ok) return { success: true, data: await res.json() };
+    return { success: false, error: "Erro ao enviar mídia" };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+export async function sendAudioMessage(phone: string, audioUrl: string) {
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = EVO_CONFIG.getInstance();
+  
+  if (!url || !key) return { success: false, error: "API não configurada" };
+  
+  const apiUrl = getApiUrl();
+  const phoneNumber = phone.replace(/\D/g, "");
+  
+  try {
+    const res = await fetch(`${apiUrl}/message/sendWhatsAppAudio/${instance}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": key,
+      },
+      body: JSON.stringify({
+        number: phoneNumber,
+        audio: audioUrl,
+      }),
+    });
+    
+    if (res.ok) return { success: true, data: await res.json() };
+    return { success: false, error: "Erro ao enviar áudio" };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
 
 export async function checkConnection() {
   // Primeiro verificar localStorage para performance

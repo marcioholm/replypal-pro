@@ -37,6 +37,9 @@ export interface Tag {
   color: string;
 }
 
+export type MessageType = 'text' | 'audio' | 'image' | 'video' | 'document' | 'sticker';
+export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'error';
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -45,6 +48,43 @@ export interface Message {
   senderName: string;
   timestamp: Date;
   isInternal?: boolean;
+  type?: MessageType;
+  mediaUrl?: string;
+  mediaStoragePath?: string;
+  mimeType?: string;
+  fileName?: string;
+  fileSize?: number;
+  durationSeconds?: number;
+  waveformData?: any;
+  status?: MessageStatus;
+  externalMessageId?: string;
+  errorMessage?: string;
+  sentAt?: Date;
+  deliveredAt?: Date;
+  readAt?: Date;
+  tenantId?: string;
+}
+
+export type ScheduledMessageStatus = 'agendada' | 'enviada' | 'erro' | 'cancelada';
+
+export interface ScheduledMessage {
+  id: string;
+  tenantId: string;
+  clienteId?: string;
+  conversaId?: string;
+  receiverNumber: string;
+  messageType: MessageType;
+  textContent?: string;
+  mediaUrl?: string;
+  mimeType?: string;
+  fileName?: string;
+  scheduledAt: Date;
+  status: ScheduledMessageStatus;
+  createdBy?: string;
+  sentAt?: Date;
+  errorMessage?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface InternalNote {
@@ -174,6 +214,7 @@ let globalCurrentUser: User | null = null;
 let globalIAChatOpen = false;
 let globalTags: Tag[] = [];
 let globalQuickReplies: QuickReply[] = [];
+let globalScheduledMessages: ScheduledMessage[] = [];
 let listeners: (() => void)[] = [];
 
 function notify() {
@@ -215,6 +256,7 @@ export function useStoreInternal(tenantId?: string) {
     users: globalUsers,
     tags: globalTags,
     quickReplies: globalQuickReplies,
+    scheduledMessages: globalScheduledMessages,
     isIAChatOpen: globalIAChatOpen,
     setIAChatOpen: (open: boolean) => {
       globalIAChatOpen = open;
@@ -242,6 +284,9 @@ export function useStoreInternal(tenantId?: string) {
         (conversationId && h.conversationId === conversationId) || 
         (customerId && h.customerId === customerId)
       ).sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()),
+
+    getScheduledMessages: (conversaId?: string) => 
+      globalScheduledMessages.filter(m => !conversaId || m.conversaId === conversaId),
 
     assumeConversation: (conversationId: string, user: User) => {
       globalConversations = globalConversations.map((c) =>
@@ -310,7 +355,7 @@ export function useStoreInternal(tenantId?: string) {
       notify();
     },
 
-    sendMessage: (conversationId: string, content: string, user: User) => {
+    sendMessage: (conversationId: string, content: string, user: User, options?: Partial<Message>) => {
       const msg: Message = {
         id: `m${Date.now()}`,
         conversationId,
@@ -318,12 +363,16 @@ export function useStoreInternal(tenantId?: string) {
         sender: "agent",
         senderName: user.name,
         timestamp: new Date(),
+        status: 'sending',
+        type: 'text',
+        ...options
       };
       globalMessages = [...globalMessages, msg];
       globalConversations = globalConversations.map((c) =>
         c.id === conversationId ? { ...c, lastMessage: content, lastMessageTime: new Date() } : c
       );
       notify();
+      return msg.id;
     },
 
     addNote: (conversationId: string, content: string, user: User) => {
@@ -486,6 +535,17 @@ export function useStoreInternal(tenantId?: string) {
         globalMessages = currentMessages;
         notify();
       }
+    },
+    addDbScheduledMessages: (msgs: ScheduledMessage[]) => {
+      const newMsgs = msgs.filter(m => !globalScheduledMessages.find(gm => gm.id === m.id));
+      if (newMsgs.length > 0) {
+        globalScheduledMessages = [...globalScheduledMessages, ...newMsgs];
+        notify();
+      }
+    },
+    updateScheduledMessage: (id: string, updates: Partial<ScheduledMessage>) => {
+      globalScheduledMessages = globalScheduledMessages.map(m => m.id === id ? { ...m, ...updates } : m);
+      notify();
     },
     setGlobalUsers: (users: User[]) => {
       globalUsers = users;

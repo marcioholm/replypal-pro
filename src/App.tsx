@@ -20,6 +20,7 @@ const CustomersPage = lazy(() => import("@/pages/CustomersPage"));
 const CustomerDetailsPage = lazy(() => import("@/pages/CustomerDetailsPage"));
 const CalendarPage = lazy(() => import("@/pages/CalendarPage"));
 const TrainingPage = lazy(() => import("@/pages/TrainingPage"));
+const ScheduledMessagesPage = lazy(() => import("@/pages/ScheduledMessagesPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const LoginPage = lazy(() => import("@/pages/LoginPage"));
 
@@ -163,6 +164,7 @@ function AppRoutes() {
                     <Route path="/customers" element={<CustomersPage />} />
                     <Route path="/customers/:id" element={<CustomerDetailsPage />} />
                     <Route path="/training" element={<TrainingPage />} />
+                    <Route path="/scheduled" element={<ScheduledMessagesPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>

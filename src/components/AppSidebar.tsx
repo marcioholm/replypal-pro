@@ -22,6 +22,7 @@ const navItems = [
   { title: "Clientes", url: "/customers", icon: Users, badge: "customers" },
   { title: "Treinamento da IA", url: "/training", icon: GraduationCap, badge: "training" },
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, badge: "dashboard" },
+  { title: "Agendamentos", url: "/scheduled", icon: Send, badge: "scheduled" },
   { title: "Calendário Fiscal", url: "/calendar", icon: Calendar, badge: "calendar" },
   { title: "Configurações", url: "/settings", icon: Settings, badge: "settings" },
 ];
