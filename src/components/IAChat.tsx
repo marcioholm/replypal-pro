@@ -6,6 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { useStore } from "@/lib/store";
+import { toast } from "sonner";
+import KnowledgeForm from "@/components/training/KnowledgeForm";
 
 interface Message {
   role: "user" | "ia";
@@ -124,7 +126,7 @@ export function IAChatPanel() {
       editData={knowledgeData}
     />
     <div 
-      className="h-screen flex flex-col bg-white border-r shadow-[10px_0_30px_-15px_rgba(0,0,0,0.1)] animate-in slide-in-from-left duration-500 ease-out relative z-40 overflow-hidden"
+      className="h-screen sticky top-0 flex flex-col bg-white border-r shadow-xl animate-in slide-in-from-left duration-500 ease-out z-40 overflow-hidden shrink-0"
       style={{ width: "380px" }}
     >
       {/* Premium Header */}
@@ -249,6 +251,7 @@ export function IAChatPanel() {
           Powered by ReplyPal Intelligence
         </p>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

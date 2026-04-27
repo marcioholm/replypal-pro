@@ -133,6 +133,8 @@ export default function PipelinePage() {
                   {convs.map((conv) => {
                     const sla = store.getSLAStatus(conv);
                     const assignedUser = store.users.find(u => u.id === conv.assignedTo);
+                    const clientName = conv.clientName || "Cliente sem nome";
+                    
                     return (
                       <div
                         key={conv.id}
@@ -144,10 +146,10 @@ export default function PipelinePage() {
                         <div className="flex items-center gap-3 mb-3">
                           <GripVertical className="w-4 h-4 text-muted-foreground/40 cursor-grab" />
                           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-[10px] font-semibold text-primary">
-                            {conv.clientName.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                            {clientName.split(" ").filter(Boolean).map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate">{conv.clientName}</p>
+                            <p className="text-sm font-semibold truncate">{clientName}</p>
                             {assignedUser && (
                               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                                 <User className="w-3 h-3" />
@@ -156,7 +158,7 @@ export default function PipelinePage() {
                             )}
                           </div>
                         </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2 mb-3 pl-7">{conv.lastMessage}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2 mb-3 pl-7">{conv.lastMessage || "Sem mensagem"}</p>
                         <div className="flex items-center gap-2 flex-wrap pl-2">
                           {(conv.tags || []).slice(0, 2).map((t) => <TagBadge key={t} tagId={t} />)}
                           {status !== "resolvido" && <SLABadge slaStatus={sla} />}

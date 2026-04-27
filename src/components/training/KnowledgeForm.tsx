@@ -34,7 +34,7 @@ const CATEGORIAS = [
 export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData }: KnowledgeFormProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [clientes, setClientes] = useState<{ id: string, name: string }[]>([]);
+  const [clientes, setClientes] = useState<{ id: string, nome_fantasia: string }[]>([]);
   
   const [form, setForm] = useState({
     titulo: "",
@@ -85,7 +85,7 @@ export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData 
   }, [open, editData]);
 
   const fetchClientes = async () => {
-    const { data } = await supabase.from("clientes").select("id, name").order("name");
+    const { data } = await supabase.from("clientes").select("id, nome_fantasia").order("nome_fantasia");
     setClientes(data || []);
   };
 
@@ -220,7 +220,7 @@ export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData 
                   <SelectContent>
                     <SelectItem value="all">Válido para TODOS os Clientes</SelectItem>
                     {clientes.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      <SelectItem key={c.id} value={c.id}>{c.nome_fantasia}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -234,6 +234,7 @@ export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData 
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ativo">Ativo (IA consulta)</SelectItem>
+                    <SelectItem value="pendente">Pendente de Curadoria</SelectItem>
                     <SelectItem value="inativo">Inativo (Em rascunho)</SelectItem>
                   </SelectContent>
                 </Select>

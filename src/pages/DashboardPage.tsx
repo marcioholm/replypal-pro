@@ -62,7 +62,10 @@ export default function DashboardPage() {
   const withStart = convs.filter((c) => c.startedAt);
   const avgResponseMin = withStart.length > 0
     ? Math.round(withStart.reduce((sum, c) => {
-        const diff = (c.lastMessageTime.getTime() - c.startedAt!.getTime()) / 60000;
+        const last = ensureDate(c.lastMessageTime);
+        const start = ensureDate(c.startedAt);
+        if (!last || !start) return sum;
+        const diff = (last.getTime() - start.getTime()) / 60000;
         return sum + Math.abs(diff);
       }, 0) / withStart.length)
     : 0;
@@ -71,7 +74,10 @@ export default function DashboardPage() {
   const resolved = convs.filter((c) => c.status === "resolvido" && c.startedAt);
   const avgResolutionMin = resolved.length > 0
     ? Math.round(resolved.reduce((sum, c) => {
-        const diff = (c.lastMessageTime.getTime() - c.startedAt!.getTime()) / 60000;
+        const last = ensureDate(c.lastMessageTime);
+        const start = ensureDate(c.startedAt);
+        if (!last || !start) return sum;
+        const diff = (last.getTime() - start.getTime()) / 60000;
         return sum + Math.abs(diff);
       }, 0) / resolved.length)
     : 0;
@@ -82,7 +88,12 @@ export default function DashboardPage() {
     const resolvedCount = userConvs.filter((c) => c.status === "resolvido").length;
     const total = userConvs.length;
     const avgTime = userConvs.filter((c) => c.startedAt).length > 0
-      ? Math.round(userConvs.filter((c) => c.startedAt).reduce((sum, c) => sum + Math.abs(c.lastMessageTime.getTime() - c.startedAt!.getTime()) / 60000, 0) / userConvs.filter((c) => c.startedAt).length)
+      ? Math.round(userConvs.filter((c) => c.startedAt).reduce((sum, c) => {
+          const last = ensureDate(c.lastMessageTime);
+          const start = ensureDate(c.startedAt);
+          if (!last || !start) return sum;
+          return sum + Math.abs(last.getTime() - start.getTime()) / 60000;
+        }, 0) / userConvs.filter((c) => c.startedAt).length)
       : 0;
     return { ...u, active, resolvedCount, total, avgTime };
   }).sort((a, b) => b.resolvedCount - a.resolvedCount);

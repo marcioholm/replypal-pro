@@ -38,13 +38,13 @@ interface Knowledge {
   conteudo: string;
   palavras_chave: string[];
   cliente_id: string | null;
-  status: 'ativo' | 'inativo';
+  status: 'ativo' | 'inativo' | 'pendente';
   origem: 'manual' | 'conversa' | 'importado';
   nivel_confianca: 'alta' | 'media' | 'revisar';
   data_validade: string | null;
   created_at: string;
   updated_at: string;
-  cliente?: { name: string };
+  cliente?: { nome_fantasia: string };
 }
 
 import KnowledgeForm from "@/components/training/KnowledgeForm";
@@ -84,7 +84,7 @@ export default function TrainingPage() {
         .from("conhecimento_ia")
         .select(`
           *,
-          cliente:cliente_id (name)
+          cliente:cliente_id (nome_fantasia)
         `)
         .eq("is_deleted", false)
         .order("updated_at", { ascending: false });
@@ -164,6 +164,7 @@ export default function TrainingPage() {
 
   const getStatusBadge = (status: string) => {
     if (status === 'ativo') return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1.5"><CheckCircle2 className="w-3 h-3" /> Ativo</Badge>;
+    if (status === 'pendente') return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 gap-1.5"><History className="w-3 h-3" /> Pendente</Badge>;
     return <Badge variant="outline" className="text-muted-foreground gap-1.5"><XCircle className="w-3 h-3" /> Inativo</Badge>;
   };
 
@@ -350,7 +351,7 @@ export default function TrainingPage() {
                   <TableCell>{getConfidenceBadge(k.nivel_confianca)}</TableCell>
                   <TableCell>
                     {k.cliente ? (
-                       <Badge className="bg-primary/5 text-primary text-[10px] border-primary/10">{k.cliente.name}</Badge>
+                       <Badge className="bg-primary/5 text-primary text-[10px] border-primary/10">{k.cliente.nome_fantasia}</Badge>
                     ) : (
                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight opacity-40">Todos Clientes</span>
                     )}

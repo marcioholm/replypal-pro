@@ -144,6 +144,7 @@ export interface Conversation {
   startedAt?: Date;
   slaDeadline?: Date;
   closingReason?: ClosingReason;
+  tenantId?: string;
 }
 
 export interface QuickReply {
@@ -353,8 +354,9 @@ export function useStoreInternal(tenantId?: string) {
     },
 
     getSLAStatus: (conversation: Conversation): SLAStatus => {
-      if (!conversation.slaDeadline) return "dentro_do_prazo";
-      const remaining = conversation.slaDeadline.getTime() - Date.now();
+      const deadline = ensureDate(conversation.slaDeadline);
+      if (!deadline) return "dentro_do_prazo";
+      const remaining = deadline.getTime() - Date.now();
       if (remaining <= 0) return "estourado";
       if (remaining <= 10 * 60000) return "em_risco";
       return "dentro_do_prazo";
