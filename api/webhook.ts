@@ -1,17 +1,15 @@
-import { createClient } from "@supabase/supabase-js";
-import type { NextApiRequest, NextApiResponse } from "next";
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Use environment variables with fallbacks
-// NOTE: Vercel requires these to be set in the Dashboard
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+async function createSupabaseClient() {
+  const { createClient } = await import("@supabase/supabase-js");
+  return createClient(supabaseUrl, supabaseKey);
+}
 
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    // CORS
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -22,14 +20,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: "Supabase not configured" });
     }
 
+    const supabase = await createSupabaseClient();
     const { type, tenantId } = req.query || {};
 
-    // Fetch conversations
     if (type === "conversas") {
       const { data: conversations, error: convError } = await supabase
         .from("conversas")
         .select("*")
-        .eq("tenant_id", tenantId)
+        .eq("tenant_id", tenantId as string)
         .order("last_message_time", { ascending: false })
         .limit(50);
 
@@ -37,12 +35,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ success: true, conversas: conversations });
     }
 
-    // Fetch messages
     if (type === "mensagens") {
-      const { messages, error: msgsError } = await supabase
+      const { data: messages, error: msgsError } = await supabase
         .from("mensagens")
         .select("*")
-        .eq("conversation_id", req.query.conversationId)
+        .eq("conversation_id", req.query.conversationId as string)
         .order("timestamp", { ascending: true });
 
       if (msgsError) throw msgsError;

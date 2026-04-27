@@ -1,6 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Use environment variables with fallbacks
 const EVOLUTION_URL = process.env.EVOLUTION_URL || "https://evolutionapi.vps8204.panel.icontainer.cloud";
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || "F4EJNZXRtwncyMb4CD2DBCfkk8fimETc";
 const INSTANCE_NAME = process.env.INSTANCE_NAME || "SASAKI";
@@ -14,7 +13,7 @@ interface EvolutionMessage {
 
 const cachedMessages: EvolutionMessage[] = [];
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, apikey");
@@ -40,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(response.status).json({ error: "Failed to fetch from Evolution", details: errorText });
     }
 
-    const data = await response.json();
+    const data = await response.json() as { messages?: EvolutionMessage[] };
     const messages = data.messages || [];
     cachedMessages.length = 0;
     cachedMessages.push(...messages.slice(0, 50));

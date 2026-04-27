@@ -1,10 +1,12 @@
-import { createClient } from "@supabase/supabase-js";
-import type { NextApiRequest, NextApiResponse } from "next";
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+async function createSupabaseClient() {
+  const { createClient } = await import("@supabase/supabase-js");
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 interface QueryParams {
   cliente_id?: string;
@@ -17,9 +19,8 @@ interface QueryParams {
   limit?: string;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    // CORS
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -30,12 +31,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(405).json({ success: false, error: "Method Not Allowed" });
     }
 
-    const { cliente_id, categoria, tipo, mes, ano, uploaded_by, page = "1", limit = "20" } = req.query as QueryParams;
+    const { cliente_id, categoria, tipo, mes, ano, uploaded_by, page = "1", limit = "20" } = req.query as unknown as QueryParams;
 
     if (!cliente_id) {
       return res.status(400).json({ success: false, error: "Missing cliente_id" });
     }
 
+    const supabase = await createSupabaseClient();
     let query = supabase
       .from("documentos")
       .select("*", { count: "exact" })
@@ -43,12 +45,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (categoria && categoria !== "Todos") query = query.eq("categoria", categoria);
     if (tipo && tipo !== "Todos") query = query.eq("tipo", tipo);
-    if (mes && mes !== "Todos") query = query.eq("mes", parseInt(mes));
-    if (ano && ano !== "Todos") query = query.eq("ano", parseInt(ano));
+    if (mes && mes !== "Todos") query = query.eq("mes", parseInt(mes || "0"));
+    if (ano && ano !== "Todos") query = query.eq("ano", parseInt(ano || "0"));
     if (uploaded_by && uploaded_by !== "Todos") query = query.ilike("uploaded_by", `%${uploaded_by}%`);
 
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
+    const pageNum = parseInt(page || "1");
+    const limitNum = parseInt(limit || "20");
     const from = (pageNum - 1) * limitNum;
     const to = from + limitNum - 1;
 

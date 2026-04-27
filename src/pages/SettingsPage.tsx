@@ -69,6 +69,8 @@ export default function SettingsPage() {
   const [waConnection, setWaConnection] = useState<WhatsAppConnection | null>(null);
   const [qrCodeImage, setQrCodeImage] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
+  const [showQr, setShowQr] = useState(false);
+  const [qrConnected, setQrConnected] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 

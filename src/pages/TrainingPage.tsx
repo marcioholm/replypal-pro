@@ -3,7 +3,7 @@ import {
   Plus, Search, Filter, BrainCircuit, GraduationCap, 
   MoreHorizontal, Edit, Trash2, History, CheckCircle2, 
   XCircle, AlertTriangle, ShieldCheck, User, Calendar as CalendarIcon,
-  Tag, Download, RefreshCw, Layers
+  Tag, Download, RefreshCw, Layers, Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
