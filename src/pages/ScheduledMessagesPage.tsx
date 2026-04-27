@@ -3,7 +3,7 @@ import { useStore, ScheduledMessage, formatTime } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { 
   Calendar, Clock, Send, AlertCircle, XCircle, CheckCircle, 
-  Filter, MoreVertical, Trash2, Edit2, Play, RefreshCcw
+  Filter, MoreVertical, Trash2, Edit2, Play, RefreshCcw, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

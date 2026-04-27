@@ -1,4 +1,4 @@
-import { MessageSquare, LayoutDashboard, Columns3, Settings, Zap, Users, TrendingUp, PieChart, Building2, Calendar, LogOut, GraduationCap } from "lucide-react";
+import { MessageSquare, LayoutDashboard, Columns3, Settings, Zap, Users, TrendingUp, PieChart, Building2, Calendar, LogOut, GraduationCap, Send } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useStore } from "@/lib/store";
