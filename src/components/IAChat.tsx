@@ -100,6 +100,7 @@ export function IAChatPanel() {
       console.log("Resposta IA recebida:", data);
 
       const textoIA = 
+        data.resposta_formatada || 
         data.resposta || 
         data.message || 
         data.resposta_ia || 
@@ -195,7 +196,9 @@ export function IAChatPanel() {
                     : "bg-white text-slate-700 rounded-tl-none border border-slate-200"
                 }`}
               >
-                {msg.content}
+                <div className="whitespace-pre-line">
+                  {msg.content}
+                </div>
               </div>
               
               <div className="flex items-center justify-between w-full mt-1.5 px-1">
