@@ -26,6 +26,41 @@ export default function InboxPage() {
   }, [user, store]);
 
   const [filter, setFilter] = useState<Filter>("minhas");
+  const [hasSetDefaultFilter, setHasSetDefaultFilter] = useState(false);
+
+  useEffect(() => {
+    if (user && !hasSetDefaultFilter) {
+      if (['admin', 'supervisor'].includes(user.role)) {
+        setFilter("todas");
+      }
+      setHasSetDefaultFilter(true);
+    }
+  }, [user, hasSetDefaultFilter]);
+
+  useEffect(() => {
+    if (!user?.tenantId) return;
+
+    // Realtime subscription for conversations
+    const channel = supabase
+      .channel('conversas-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversas',
+          filter: `tenant_id=eq.${user.tenantId}`
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.tenantId, fetchData]);
   const [search, setSearch] = useState("");
   const [waConnected, setWaConnected] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -71,22 +106,21 @@ export default function InboxPage() {
       }
 
       if (dbConvs && dbConvs.length > 0) {
-        dbConvs.forEach(c => {
-          store.addDbConversation({
-            id: c.id,
-            clientName: c.client_name || "Cliente sem nome",
-            clientPhone: c.client_phone || "",
-            customerId: c.customer_id,
-            lastMessage: c.last_message || "",
-            lastMessageTime: new Date(c.last_message_time || Date.now()),
-            status: c.status || "novo",
-            assignedTo: c.assigned_to,
-            startedAt: c.started_at ? new Date(c.started_at) : undefined,
-            slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
-            tenantId: c.tenant_id,
-            tags: c.tags || []
-          });
-        });
+        const formattedConvs = dbConvs.map(c => ({
+          id: c.id,
+          clientName: c.client_name || "Cliente sem nome",
+          clientPhone: c.client_phone || "",
+          customerId: c.customer_id,
+          lastMessage: c.last_message || "",
+          lastMessageTime: new Date(c.last_message_time || Date.now()),
+          status: c.status || "novo",
+          assignedTo: c.assigned_to,
+          startedAt: c.started_at ? new Date(c.started_at) : undefined,
+          slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
+          tenantId: c.tenant_id,
+          tags: c.tags || []
+        }));
+        store.addDbConversations(formattedConvs);
       }
     } catch (err) {
       console.error("Erro na busca de conversas:", err);
@@ -101,14 +135,6 @@ export default function InboxPage() {
     }
   }, [user?.tenantId, filter, search, fetchData]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (user?.tenantId) {
-        fetchData();
-      }
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [user?.tenantId, fetchData]);
 
   useEffect(() => {
     const fetchTeam = async () => {

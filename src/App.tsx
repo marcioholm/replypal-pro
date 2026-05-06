@@ -10,6 +10,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Loader2 } from "lucide-react";
+import { SchedulerInit } from "@/components/SchedulerInit";
 
 const InboxPage = lazy(() => import("@/pages/InboxPage"));
 const ChatPage = lazy(() => import("@/pages/ChatPage"));
@@ -186,6 +187,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+            <SchedulerInit />
             <AppRoutes />
           </AuthProvider>
         </BrowserRouter>

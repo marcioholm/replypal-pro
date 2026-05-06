@@ -494,12 +494,34 @@ export function useStoreInternal(tenantId?: string) {
         globalConversations = [conv, ...globalConversations];
         notify();
       } else {
-        // Only update if something changed to avoid unnecessary re-renders
         const existing = globalConversations[existingIdx];
         if (existing.assignedTo !== conv.assignedTo || existing.status !== conv.status || existing.lastMessage !== conv.lastMessage) {
           globalConversations = globalConversations.map(c => c.id === conv.id ? { ...c, ...conv } : c);
           notify();
         }
+      }
+    },
+    addDbConversations: (convs: Conversation[]) => {
+      let hasChanges = false;
+      const currentConversations = [...globalConversations];
+
+      convs.forEach(dbConv => {
+        const idx = currentConversations.findIndex(c => c.id === dbConv.id);
+        if (idx === -1) {
+          currentConversations.push(dbConv);
+          hasChanges = true;
+        } else {
+          const existing = currentConversations[idx];
+          if (existing.assignedTo !== dbConv.assignedTo || existing.status !== dbConv.status || existing.lastMessage !== dbConv.lastMessage) {
+            currentConversations[idx] = { ...existing, ...dbConv };
+            hasChanges = true;
+          }
+        }
+      });
+
+      if (hasChanges) {
+        globalConversations = currentConversations;
+        notify();
       }
     },
     addDbMessages: (msgs: Message[]) => {
