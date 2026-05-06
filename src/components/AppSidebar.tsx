@@ -268,7 +268,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                   <TooltipTrigger asChild>
                     <button
                       onClick={handleLogout}
-                      className="w-full h-10 rounded-[14px] flex items-center justify-center text-[rgba(255,255,255,0.4)] hover:bg-[rgba(239,68,68,0.15)] hover:text-[#EF4444] transition-colors"
+                      className="w-full h-10 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
                       title="Sair"
                     >
                       <LogOut className="w-4 h-4" />
@@ -281,7 +281,6 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               )}
             </div>
           </div>
-        </div>
 
         <button
           onClick={onToggle}
@@ -298,7 +297,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             </div>
           </div>
         </button>
-      </div>
-    </TooltipProvider>
+      </TooltipProvider>
+    </aside>
   );
 }
