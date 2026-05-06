@@ -40,7 +40,8 @@ export default function InboxPage() {
   }, [user, hasSetDefaultFilter]);
 
   useEffect(() => {
-    if (!user?.tenantId) return;
+    const tenantId = user?.tenantId;
+    if (!tenantId || tenantId.length < 5) return;
 
     // Realtime subscription for conversations
     const channel = supabase
@@ -51,7 +52,7 @@ export default function InboxPage() {
           event: '*',
           schema: 'public',
           table: 'conversas',
-          filter: `tenant_id=eq.${user.tenantId}`
+          filter: `tenant_id=eq.${tenantId}`
         },
         () => {
           fetchData();
@@ -132,7 +133,8 @@ export default function InboxPage() {
   }, [user?.tenantId, user?.id, filter, supabase]);
 
   useEffect(() => {
-    if (user?.tenantId) {
+    const tenantId = user?.tenantId;
+    if (tenantId && tenantId.length >= 5) {
       fetchData();
     }
   }, [user?.tenantId, filter, search, fetchData]);
@@ -199,11 +201,7 @@ export default function InboxPage() {
 
   if (!user) return null;
 
-  useRealtimeChat({
-    tenantId: user?.tenantId,
-    userId: user?.id,
-    enabled: true,
-  });
+
 
   const filtered = useMemo(() => {
     let convs = allConversations.filter(c => {

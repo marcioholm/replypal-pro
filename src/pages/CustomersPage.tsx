@@ -35,7 +35,7 @@ export default function CustomersPage() {
   useEffect(() => {
     const fetchCustomers = async () => {
       const tenantId = user?.tenantId;
-      if (!tenantId) return;
+      if (!tenantId || tenantId.length < 5) return;
 
       try {
         const { data, error } = await supabase

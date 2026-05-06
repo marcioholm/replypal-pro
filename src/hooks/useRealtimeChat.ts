@@ -105,12 +105,15 @@ export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtim
     }
   }, []);
 
-  // Cleanup ao desmontar
+  // Automatic subscription
   useEffect(() => {
+    if (enabled && tenantId && tenantId.length >= 5) {
+      subscribeToConversas();
+    }
     return () => {
       unsubscribe();
     };
-  }, [unsubscribe]);
+  }, [enabled, tenantId, subscribeToConversas, unsubscribe]);
 
   return {
     subscribe: subscribeToConversas,

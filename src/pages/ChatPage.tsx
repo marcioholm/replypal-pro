@@ -32,6 +32,8 @@ export default function ChatPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const store = useStore();
+  const storeRef = useRef(store);
+  storeRef.current = store;
   const { user } = useAuth();
   
   const [messageInput, setMessageInput] = useState("");
@@ -62,7 +64,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (user) {
-      store.setCurrentUser(user);
+      storeRef.current.setCurrentUser(user);
     }
   }, [user]);
 
@@ -81,7 +83,7 @@ export default function ChatPage() {
             .maybeSingle();
             
           if (dbConv) {
-            store.addDbConversation({
+            storeRef.current.addDbConversation({
               id: dbConv.id,
               clientName: dbConv.client_name,
               clientPhone: dbConv.client_phone,
@@ -104,7 +106,7 @@ export default function ChatPage() {
           .order("timestamp", { ascending: true });
           
         if (dbMsgs) {
-          store.addDbMessages(dbMsgs.map(m => ({
+          storeRef.current.addDbMessages(dbMsgs.map(m => ({
             id: m.id,
             conversationId: m.conversation_id,
             content: m.content,
@@ -129,7 +131,7 @@ export default function ChatPage() {
           .order("timestamp", { ascending: false });
 
         if (dbHistory) {
-          store.addDbHistory(dbHistory.map(h => ({
+          storeRef.current.addDbHistory(dbHistory.map(h => ({
             id: h.id,
             conversationId: h.conversation_id,
             customerId: h.customer_id,
@@ -161,7 +163,7 @@ export default function ChatPage() {
         .eq("tenant_id", user.tenantId);
       
       if (data) {
-        store.setUsers(data.map(d => ({
+        storeRef.current.setUsers(data.map(d => ({
           id: d.id,
           name: d.nome,
           email: d.email,

@@ -53,7 +53,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   useEffect(() => {
     const fetchCounts = async () => {
       const tenantId = user?.tenantId;
-      if (!tenantId) return;
+      if (!tenantId || tenantId.length < 5) return;
 
       try {
         const { data } = await supabase

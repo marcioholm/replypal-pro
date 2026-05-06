@@ -180,8 +180,8 @@ ON CONFLICT (id) DO UPDATE SET nome = excluded.nome;
 -- Hash gerado com PBKDF2-SHA256, 100000 iterações
 -- Salt: 'replypal-pro-salt-v1'
 INSERT INTO usuarios (id, email, nome, role, tenant_id, senha, senha_hash, senha_salt) VALUES 
-  ('u1', 'carlos@sasaki.com', 'Carlos Silva', 'admin', '11111111-1111-1111-1111-111111111111', 'admin123', 'Emeuc3DADa5TJ3Gr9aBDuVXgXK+Vk/CNwz5ZTSwmh5w=', 'replypal-pro-salt-v1'),
-  ('u2', 'gabriel@sasaki.com', 'Gabriel Souza', 'atendente', '11111111-1111-1111-1111-111111111111', 'sasaki123', 'X/g5Lu2iN+xFGW9AfqNOi+8F5+tYdYWw1L5dfIoiiw4=', 'replypal-pro-salt-v1')
+  ('c1111111-1111-1111-1111-111111111111', 'carlos@sasaki.com', 'Carlos Silva', 'admin', '11111111-1111-1111-1111-111111111111', 'admin123', 'Emeuc3DADa5TJ3Gr9aBDuVXgXK+Vk/CNwz5ZTSwmh5w=', 'replypal-pro-salt-v1'),
+  ('g2222222-2222-2222-2222-222222222222', 'gabriel@sasaki.com', 'Gabriel Souza', 'atendente', '11111111-1111-1111-1111-111111111111', 'sasaki123', 'X/g5Lu2iN+xFGW9AfqNOi+8F5+tYdYWw1L5dfIoiiw4=', 'replypal-pro-salt-v1')
 ON CONFLICT (id) DO UPDATE SET senha = excluded.senha, senha_hash = excluded.senha_hash, senha_salt = excluded.senha_salt;
 
 -- Cliente Real solicitado

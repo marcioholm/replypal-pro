@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, createContext, useContext, ReactNode } from "react";
 
-// Types
+// 1. Types
 export type UserRole = "admin" | "supervisor" | "atendente" | "recepcionista";
 export type ConversationStatus = "novo" | "aguardando_aceite" | "em_atendimento" | "aguardando_cliente" | "resolvido";
 export type SLAStatus = "dentro_do_prazo" | "em_risco" | "estourado";
@@ -193,7 +193,7 @@ export interface QuickReply {
   content: string;
 }
 
-// Production-ready initial state (Empty)
+// 2. Constants
 export const MOCK_TENANTS: Tenant[] = [];
 export const MOCK_USERS: User[] = [];
 export const MOCK_TAGS: Tag[] = [];
@@ -203,7 +203,48 @@ export const INITIAL_CONVERSATIONS: Conversation[] = [];
 const INITIAL_MESSAGES: Message[] = [];
 const INITIAL_HISTORY: HistoryEntry[] = [];
 
-// Store state - singleton for in-memory storage
+export const STATUS_CONFIG: Record<ConversationStatus, { label: string; color: string }> = {
+  novo: { label: "Novo", color: "kanban-new" },
+  aguardando_aceite: { label: "Aguardando aceite", color: "kanban-waiting" },
+  em_atendimento: { label: "Em atendimento", color: "kanban-active" },
+  aguardando_cliente: { label: "Aguardando cliente", color: "kanban-client" },
+  resolvido: { label: "Resolvido", color: "kanban-resolved" },
+};
+
+// 3. Helpers
+export function ensureDate(date: any): Date | null {
+  if (!date) return null;
+  const d = date instanceof Date ? date : new Date(date);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+export function formatTime(date: Date): string {
+  if (!date || isNaN(date.getTime())) return "--:--";
+  return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+export function formatRelativeTime(date: Date): string {
+  if (!date || isNaN(date.getTime())) return "...";
+  const diff = Date.now() - date.getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "agora";
+  if (minutes < 60) return `${minutes}min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+export function formatDuration(start: Date): string {
+  if (!start || isNaN(start.getTime())) return "0m";
+  const diff = Date.now() - start.getTime();
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
+}
+
+// 4. Global State (Singleton)
 let globalConversations = [...INITIAL_CONVERSATIONS];
 let globalMessages = [...INITIAL_MESSAGES];
 let globalNotes: InternalNote[] = [];
@@ -218,7 +259,13 @@ let globalScheduledMessages: ScheduledMessage[] = [];
 let listeners: (() => void)[] = [];
 
 function notify() {
-  listeners.forEach((l) => l());
+  listeners.forEach((l) => {
+    try {
+      l();
+    } catch (e) {
+      console.error("Store listener error:", e);
+    }
+  });
 }
 
 const currentTenantIdCtx = {
@@ -233,8 +280,7 @@ const currentTenantIdCtx = {
 
 let tenantIdSetter: ((id: string) => void) | null = null;
 
-// Store hook - accepts optional tenantId for multi-tenant filtering
-// For internal use - when you need to pass tenantId explicitly
+// 5. Hooks
 export function useStoreInternal(tenantId?: string) {
   const [tick, setTick] = useState(0);
 
@@ -249,12 +295,6 @@ export function useStoreInternal(tenantId?: string) {
   useEffect(() => {
     return subscribe();
   }, [subscribe]);
-
-  // Filter data by tenant if tenantId is provided
-  const filterByTenant = <T extends { tenantId?: string }>(items: T[]): T[] => {
-    if (!tenantId) return items;
-    return items.filter((item) => !item.tenantId || item.tenantId === tenantId);
-  };
 
   return useMemo(() => ({
     conversations: globalConversations,
@@ -631,41 +671,3 @@ export function registerTenantIdSetter(setter: (id: string) => void) {
     setter(currentTenantIdCtx.id);
   }
 }
-
-// Helpers
-export function ensureDate(date: any): Date | null {
-  if (!date) return null;
-  const d = date instanceof Date ? date : new Date(date);
-  return isNaN(d.getTime()) ? null : d;
-}
-
-export function formatTime(date: Date): string {
-  return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-}
-
-export function formatRelativeTime(date: Date): string {
-  const diff = Date.now() - date.getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "agora";
-  if (minutes < 60) return `${minutes}min`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
-}
-
-export function formatDuration(start: Date): string {
-  const diff = Date.now() - start.getTime();
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
-}
-
-export const STATUS_CONFIG: Record<ConversationStatus, { label: string; color: string }> = {
-  novo: { label: "Novo", color: "kanban-new" },
-  aguardando_aceite: { label: "Aguardando aceite", color: "kanban-waiting" },
-  em_atendimento: { label: "Em atendimento", color: "kanban-active" },
-  aguardando_cliente: { label: "Aguardando cliente", color: "kanban-client" },
-  resolvido: { label: "Resolvido", color: "kanban-resolved" },
-};
