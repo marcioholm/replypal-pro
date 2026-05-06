@@ -120,6 +120,26 @@ export default function ChatPage() {
             durationSeconds: m.duration_seconds
           })));
         }
+
+        // Carregar histórico
+        const { data: dbHistory } = await supabase
+          .from("historico")
+          .select("*")
+          .eq("conversation_id", id)
+          .order("timestamp", { ascending: false });
+
+        if (dbHistory) {
+          store.addDbHistory(dbHistory.map(h => ({
+            id: h.id,
+            conversationId: h.conversation_id,
+            customerId: h.customer_id,
+            action: h.action,
+            userId: h.user_id,
+            userName: h.user_name,
+            details: h.details,
+            timestamp: new Date(h.timestamp)
+          })));
+        }
       } catch (e) {
         console.error("Error loading chat data:", e);
       } finally {
@@ -337,6 +357,15 @@ export default function ChatPage() {
         .update({ assigned_to: user?.id, status: "em_atendimento" })
         .eq("id", id);
       if (error) throw error;
+      
+      // Registrar no histórico DB
+      await supabase.from("historico").insert({
+        conversation_id: id,
+        action: "Conversa assumida",
+        user_id: user.id,
+        user_name: user.name
+      });
+
       store.assumeConversation(id!, user!);
       toast.success("Você assumiu esta conversa!");
     } catch (e) {
@@ -352,6 +381,17 @@ export default function ChatPage() {
         .update({ assigned_to: transferTo })
         .eq("id", id);
       if (error) throw error;
+
+      // Registrar no histórico DB
+      const targetUser = store.users.find(u => u.id === transferTo);
+      await supabase.from("historico").insert({
+        conversation_id: id,
+        action: `Transferida de ${user.name} para ${targetUser?.name || transferTo}`,
+        user_id: user.id,
+        user_name: user.name,
+        details: transferReason || undefined
+      });
+
       store.transferConversation(id!, user!, transferTo, transferReason);
       setTransferOpen(false);
       toast.success("Conversa transferida!");
@@ -367,6 +407,16 @@ export default function ChatPage() {
         .update({ status: "resolvido" })
         .eq("id", id);
       if (error) throw error;
+
+      // Registrar no histórico DB
+      await supabase.from("historico").insert({
+        conversation_id: id,
+        action: `Atendimento encerrado`,
+        user_id: user.id,
+        user_name: user.name,
+        details: `Motivo: ${closingReason}`
+      });
+
       store.updateStatus(id!, "resolvido", user!, closingReason);
       setCloseOpen(false);
       toast.success("Conversa encerrada");

@@ -543,6 +543,13 @@ export function useStoreInternal(tenantId?: string) {
         notify();
       }
     },
+    addDbHistory: (entries: HistoryEntry[]) => {
+      const newEntries = entries.filter(e => !globalHistory.find(ge => ge.id === e.id));
+      if (newEntries.length > 0) {
+        globalHistory = [...globalHistory, ...newEntries];
+        notify();
+      }
+    },
     updateScheduledMessage: (id: string, updates: Partial<ScheduledMessage>) => {
       globalScheduledMessages = globalScheduledMessages.map(m => m.id === id ? { ...m, ...updates } : m);
       notify();
