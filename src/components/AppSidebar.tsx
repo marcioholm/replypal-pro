@@ -10,7 +10,8 @@ import {
   GraduationCap, 
   Send,
   Building2,
-  ChevronRight
+  ChevronRight,
+  Cpu
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -94,23 +95,31 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
           <div className="relative z-10 flex flex-col h-full">
             <div className="p-4 flex items-center gap-3 border-b border-[rgba(255,255,255,0.06)]">
-              <div 
-                className="w-10 h-10 rounded-[14px] flex items-center justify-center flex-shrink-0 overflow-hidden transition-transform duration-200 hover:scale-105"
-                style={{
-                  background: "linear-gradient(135deg, rgba(34,199,169,0.3) 0%, rgba(14,143,120,0.4) 100%)",
-                  boxShadow: "0 4px 16px rgba(34,199,169,0.25)",
-                }}
-              >
-                <Building2 className="w-5 h-5 text-[#22C7A9]" />
-              </div>
+                <style>{`
+                  @keyframes pulse-cyan {
+                    0% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.4); }
+                    70% { box-shadow: 0 0 0 10px rgba(0, 229, 255, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0); }
+                  }
+                `}</style>
+                <div 
+                  className="w-10 h-10 rounded-[14px] flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-300 hover:scale-110 active:scale-95 group/logo"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(0,229,255,0.2) 0%, rgba(0,184,212,0.4) 100%)",
+                    boxShadow: "0 4px 16px rgba(0,229,255,0.2)",
+                    animation: "pulse-cyan 3s infinite"
+                  }}
+                >
+                  <Cpu className="w-5 h-5 text-primary animate-pulse" />
+                </div>
               <div className={cn(
                 "flex flex-col overflow-hidden transition-all duration-300 ease-out",
                 collapsed ? "opacity-0 w-0" : "opacity-100"
               )}>
                 <span className="font-semibold text-sm text-foreground dark:text-white tracking-tight whitespace-nowrap">
-                  ReplyPal Pro
+                  Operai
                 </span>
-                <span className="text-[10px] text-muted-foreground dark:text-white/50 font-medium whitespace-nowrap">Contabilidade</span>
+                <span className="text-[10px] text-muted-foreground dark:text-white/50 font-medium whitespace-nowrap">Inteligência Artificial</span>
               </div>
             </div>
 
