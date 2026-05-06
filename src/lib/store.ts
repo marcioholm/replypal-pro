@@ -1,16 +1,8 @@
 import { useState, useEffect } from "react";
 
-// 1. Constantes e Tipos primeiro
+// 1. Tipos e Interfaces Básicos (Sempre no topo)
 export type UserRole = "admin" | "supervisor" | "atendente" | "recepcionista";
 export type StatusFinanceiro = "Adimplente" | "Inadimplente" | "Atenção";
-
-export const STATUS_CONFIG: Record<ConversationStatus, { label: string; color: string }> = {
-  novo: { label: "Novo", color: "kanban-new" },
-  pendente: { label: "Pendente", color: "kanban-waiting" },
-  respondido: { label: "Respondido", color: "kanban-active" },
-  resolvido: { label: "Resolvido", color: "kanban-resolved" },
-};
-
 export type StatusCliente = "Ativo" | "Onboarding" | "Inativo" | "Encerrado";
 export type RegimeTributario = "MEI" | "Simples Nacional" | "Lucro Presumido" | "Lucro Real";
 export type Prioridade = "Baixa" | "Média" | "Alta";
@@ -129,6 +121,22 @@ export interface KnowledgeItem {
   lastUpdated: Date;
 }
 
+// 2. Configurações e Mocks
+export const STATUS_CONFIG: Record<ConversationStatus, { label: string; color: string }> = {
+  novo: { label: "Novo", color: "kanban-new" },
+  pendente: { label: "Pendente", color: "kanban-waiting" },
+  respondido: { label: "Respondido", color: "kanban-active" },
+  resolvido: { label: "Resolvido", color: "kanban-resolved" },
+};
+
+export const MOCK_TAGS: Tag[] = [
+  { id: "1", name: "Prioridade", color: "#EF4444" },
+  { id: "2", name: "Dúvida", color: "#F59E0B" },
+  { id: "3", name: "Financeiro", color: "#10B981" }
+];
+
+// 3. Store Object e Métodos
+// Definimos a interface primeiro para o TypeScript
 interface Store {
   users: User[];
   customers: Customer[];
@@ -142,7 +150,6 @@ interface Store {
   currentTenantId: string | undefined;
   isIAChatOpen: boolean;
   
-  // Actions
   setUsers: (users: User[]) => void;
   setCustomers: (customers: Customer[]) => void;
   addDbCustomer: (customer: Customer) => void;
@@ -170,16 +177,7 @@ interface Store {
   removeTag: (conversationId: string, tagId: string) => void;
 }
 
-// 2. Mocks (Vazios mas existentes)
-export const MOCK_TAGS: Tag[] = [
-  { id: "1", name: "Prioridade", color: "#EF4444" },
-  { id: "2", name: "Dúvida", color: "#F59E0B" },
-  { id: "3", name: "Financeiro", color: "#10B981" }
-];
-
-// 3. Estado interno e Listeners
-const listeners = new Set<() => void>();
-
+// Implementação do Store
 const store: Store = {
   users: [],
   customers: [],
@@ -295,7 +293,7 @@ const store: Store = {
     const deadline = new Date(conv.slaDeadline);
     if (now > deadline) return "estourado";
     const diff = deadline.getTime() - now.getTime();
-    if (diff < 1000 * 60 * 30) return "em_risco"; // 30 min
+    if (diff < 1000 * 60 * 30) return "em_risco";
     return "ok";
   },
   getConversation(id) {
@@ -305,7 +303,7 @@ const store: Store = {
     return store.messages.filter(m => m.conversationId === conversationId);
   },
   getNotes(conversationId) {
-    return []; // Notas agora são carregadas sob demanda ou via mensagens internas
+    return [];
   },
   getHistory(conversationId) {
     return store.history.filter(h => h.conversationId === conversationId);
@@ -352,6 +350,9 @@ const store: Store = {
   }
 };
 
+// 4. Listeners e Notificações
+const listeners = new Set<() => void>();
+
 function notify() {
   listeners.forEach(l => {
     try {
@@ -362,7 +363,7 @@ function notify() {
   });
 }
 
-// 4. Exportar Hooks e Helpers
+// 5. Hooks e Exportações (No final para evitar ReferenceError)
 export const useStore = () => {
   const [state, setState] = useState(store);
   useEffect(() => {
