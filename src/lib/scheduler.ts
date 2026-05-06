@@ -2,16 +2,17 @@ import { supabase } from "./supabase";
 import { sendWhatsAppMessage, sendMediaMessage } from "./evolution";
 
 export async function processScheduledMessages() {
-  const now = new Date().toISOString();
-  
-  // Buscar mensagens agendadas para agora ou antes que ainda não foram enviadas
-  const { data, error } = await supabase
-    .from('mensagens_agendadas')
-    .select('*')
-    .eq('status', 'agendada')
-    .lte('scheduled_at', now);
+  try {
+    const now = new Date().toISOString();
+    
+    // Buscar mensagens agendadas para agora ou antes que ainda não foram enviadas
+    const { data, error } = await supabase
+      .from('mensagens_agendadas')
+      .select('*')
+      .eq('status', 'agendada')
+      .lte('scheduled_at', now);
 
-  if (error || !data || data.length === 0) return;
+    if (error || !data || data.length === 0) return;
 
   for (const msg of data) {
     try {
@@ -73,6 +74,9 @@ export async function processScheduledMessages() {
       console.error(`Erro ao processar mensagem agendada ${msg.id}:`, err);
     }
   }
+} catch (err) {
+  console.error("Critical error in scheduler:", err);
+}
 }
 
 let schedulerInterval: any = null;

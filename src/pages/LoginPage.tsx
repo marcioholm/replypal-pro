@@ -103,60 +103,70 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen w-full flex lg:grid lg:grid-cols-2 bg-slate-50 relative overflow-hidden">
       {/* Lado Esquerdo - Imagem e Frase (Apenas Desktop) */}
-      <div className="hidden lg:flex relative bg-slate-900 overflow-hidden items-center justify-center p-12">
+      <div className="hidden lg:flex relative bg-[#010809] overflow-hidden items-center justify-center p-12">
         <div 
           className="absolute inset-0 z-0 opacity-40 bg-cover bg-center transition-all duration-700"
           style={{ backgroundImage: 'url(/accounting_bg.png)' }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-slate-900/20 z-0" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#010809] via-[#010809]/60 to-[#010809]/20 z-0" />
         
         <div className="relative z-10 w-full max-w-2xl px-8 flex flex-col justify-between h-full py-12">
           <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-600/30 border border-blue-400/20">
-              <Shield className="w-7 h-7 text-white" />
+            <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-lg shadow-emerald-500/10 border border-emerald-400/20">
+              <img src="/logo.png" alt="Operai" className="w-12 h-12 object-contain" />
             </div>
-            <span className="text-3xl font-bold text-white tracking-tight drop-shadow-md">
-              ReplyPal
-            </span>
+            <div className="flex flex-col">
+              <span className="text-3xl font-bold text-white tracking-tight drop-shadow-md">
+                Operai
+              </span>
+              <span className="text-xs text-emerald-400 font-bold uppercase tracking-widest">
+                AI Operations
+              </span>
+            </div>
           </div>
           
           <blockquote className="space-y-8 mt-auto mb-20">
             <p className="text-4xl lg:text-5xl font-medium leading-tight text-white/95">
-              "A verdadeira organização é a base do sucesso. No <span className="text-blue-400 font-semibold">setor contábil</span>, transforme clareza e precisão em estratégias imbatíveis."
+              "Eleve seu atendimento a um <span className="text-emerald-400 font-semibold italic">novo patamar</span> com inteligência artificial de ponta."
             </p>
-            <footer className="text-blue-300 font-medium text-xl flex items-center gap-3">
-              <div className="w-8 h-px bg-blue-500/50"></div>
-              A contabilidade em suas mãos
+            <footer className="text-emerald-300 font-medium text-xl flex items-center gap-3">
+              <div className="w-8 h-px bg-emerald-500/50"></div>
+              Gestão Inteligente e Operações Escaláveis
             </footer>
           </blockquote>
         </div>
       </div>
 
-      {/* Lado Direito - Formulário de Login */}
-      <div className="flex flex-col items-center justify-center px-4 py-8 relative w-full h-full">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-100/40 via-slate-100/50 to-slate-50 lg:hidden" />
+  {/* Lado Direito - Formulário de Login */}
+  <div className="flex flex-col items-center justify-center px-4 py-8 relative w-full h-full">
+    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-100/40 via-slate-100/50 to-slate-50 lg:hidden" />
 
-        <Card className="w-full max-w-md relative z-10 border-slate-200/60 shadow-2xl shadow-slate-200/40 bg-white/90 backdrop-blur-md">
-          <CardHeader className="space-y-6 pb-6">
-            <div className="flex items-center justify-center lg:hidden">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-600/20">
-                  <Shield className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-2xl font-bold text-slate-800 tracking-tight">
-                  ReplyPal
-                </span>
-              </div>
+    <Card className="w-full max-w-md relative z-10 border-slate-200/60 shadow-2xl shadow-slate-200/40 bg-white/90 backdrop-blur-md">
+      <CardHeader className="space-y-6 pb-6">
+        <div className="flex items-center justify-center lg:hidden">
+          <div className="flex items-center gap-2">
+            <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shadow-lg shadow-emerald-500/10 border border-emerald-400/20">
+              <img src="/logo.png" alt="Operai" className="w-9 h-9 object-contain" />
             </div>
-            <div className="text-center space-y-2">
-              <CardTitle className="text-2xl font-bold text-slate-800">
-                Bem-vindo
-              </CardTitle>
-              <CardDescription className="text-slate-500 text-base">
-                Acesse sua área de gestão contábil
-              </CardDescription>
+            <div className="flex flex-col">
+              <span className="text-xl font-bold text-slate-800 tracking-tight">
+                Operai
+              </span>
+              <span className="text-[8px] text-emerald-600 font-bold uppercase tracking-widest leading-none">
+                AI Operations
+              </span>
             </div>
-          </CardHeader>
+          </div>
+        </div>
+        <div className="text-center space-y-2">
+          <CardTitle className="text-2xl font-bold text-slate-800">
+            Acesse sua Conta
+          </CardTitle>
+          <CardDescription className="text-slate-500 text-base">
+            Entre para gerenciar seu atendimento
+          </CardDescription>
+        </div>
+      </CardHeader>
 
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-5">
@@ -175,7 +185,7 @@ export default function LoginPage() {
                   Email Corporativo
                 </Label>
                 <div className="relative group">
-                  <Mail className={cn("absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-200", isFocused === "email" ? "text-blue-500" : "text-slate-400")} />
+                  <Mail className={cn("absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-200", isFocused === "email" ? "text-emerald-500" : "text-slate-400")} />
                   <Input
                     id="email"
                     type="email"
@@ -186,7 +196,7 @@ export default function LoginPage() {
                     onBlur={() => setIsFocused(null)}
                     className={cn(
                       "pl-11 h-12 bg-slate-50/50 border-slate-200/80 text-slate-800 placeholder:text-slate-400 font-medium",
-                      "focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10",
+                      "focus:bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10",
                       "transition-all duration-200 shadow-sm",
                       errors.email && "border-red-300 focus:border-red-400 focus:ring-red-500/20"
                     )}
@@ -211,13 +221,13 @@ export default function LoginPage() {
                   </Label>
                   <button
                     type="button"
-                    className="text-sm text-blue-600 hover:text-blue-800 font-semibold transition-colors"
+                    className="text-sm text-emerald-600 hover:text-emerald-800 font-semibold transition-colors"
                   >
                     Esqueceu a senha?
                   </button>
                 </div>
                 <div className="relative group">
-                  <Lock className={cn("absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-200", isFocused === "password" ? "text-blue-500" : "text-slate-400")} />
+                  <Lock className={cn("absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors duration-200", isFocused === "password" ? "text-emerald-500" : "text-slate-400")} />
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
@@ -228,7 +238,7 @@ export default function LoginPage() {
                     onBlur={() => setIsFocused(null)}
                     className={cn(
                       "pl-11 pr-11 h-12 bg-slate-50/50 border-slate-200/80 text-slate-800 placeholder:text-slate-400 font-medium",
-                      "focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10",
+                      "focus:bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10",
                       "transition-all duration-200 shadow-sm",
                       errors.password && "border-red-300 focus:border-red-400 focus:ring-red-500/20"
                     )}
@@ -237,7 +247,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-600 transition-colors p-1"
                   >
                     {showPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -258,7 +268,7 @@ export default function LoginPage() {
                 <input
                   type="checkbox"
                   id="remember"
-                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 shadow-sm"
+                  className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 shadow-sm"
                 />
                 <Label htmlFor="remember" className="text-sm text-slate-600 cursor-pointer font-medium hover:text-slate-800 transition-colors">
                   Lembrar minha sessão
@@ -270,7 +280,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-base shadow-lg shadow-blue-600/30 disabled:opacity-70 transition-all active:scale-[0.98]"
+                className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-base shadow-lg shadow-emerald-600/30 disabled:opacity-70 transition-all active:scale-[0.98]"
               >
                 {isSubmitting ? (
                   <>
@@ -278,7 +288,7 @@ export default function LoginPage() {
                     Autenticando...
                   </>
                 ) : (
-                  "Acessar Sistema"
+                  "Acessar Operai"
                 )}
               </Button>
 
@@ -291,7 +301,7 @@ export default function LoginPage() {
 
         <div className="absolute bottom-6 w-full text-center">
           <p className="text-xs font-medium text-slate-400">
-            © 2024 ReplyPal. Todos os direitos reservados.
+            © 2024 Operai. Todos os direitos reservados.
           </p>
         </div>
       </div>

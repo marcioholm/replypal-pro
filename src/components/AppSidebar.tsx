@@ -10,8 +10,7 @@ import {
   GraduationCap, 
   Send,
   Building2,
-  ChevronRight,
-  Cpu
+  ChevronRight
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -140,14 +139,13 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                   }
                 `}</style>
                 <div 
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-300 hover:rotate-3 active:scale-90 group/logo shadow-[0_4px_12px_rgba(16,185,129,0.15)]"
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-300 hover:rotate-3 active:scale-90 group/logo shadow-[0_4px_12px_rgba(34,199,169,0.15)]"
                   style={{
-                    background: "linear-gradient(135deg, hsl(var(--primary)/0.1) 0%, hsl(var(--primary)/0.25) 100%)",
+                    background: "white",
                     border: "1px solid hsl(var(--primary)/0.2)",
-                    animation: "pulse-green 4s infinite"
                   }}
                 >
-                  <Cpu className="w-6 h-6 text-primary animate-pulse" />
+                  <img src="/logo.png" alt="Operai" className="w-10 h-10 object-contain" />
                 </div>
               <div className={cn(
                 "flex flex-col overflow-hidden transition-all duration-300 ease-out",

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 
 // Types
 export type UserRole = "admin" | "supervisor" | "atendente" | "recepcionista";
@@ -247,7 +247,7 @@ export function useStoreInternal(tenantId?: string) {
   // Filter users by tenant
   const filteredUsers = filterByTenant(MOCK_USERS);
 
-  return {
+  return useMemo(() => ({
     conversations: globalConversations,
     messages: globalMessages,
     notes: globalNotes,
@@ -610,7 +610,7 @@ export function useStoreInternal(tenantId?: string) {
         }
       }
     }
-  };
+  }), [setTick, tenantId]);
 }
 
 

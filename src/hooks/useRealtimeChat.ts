@@ -10,6 +10,8 @@ interface UseRealtimeOptions {
 
 export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtimeOptions) {
   const store = useStore();
+  const storeRef = useRef(store);
+  storeRef.current = store;
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const subscribeToConversas = useCallback(() => {
@@ -34,7 +36,7 @@ export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtim
           const { eventType, new: newRecord, old: oldRecord } = payload;
 
           if (eventType === "INSERT" && newRecord) {
-            store.addDbConversation({
+            storeRef.current.addDbConversation({
               id: newRecord.id,
               clientName: newRecord.client_name,
               clientPhone: newRecord.client_phone,
@@ -48,7 +50,7 @@ export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtim
               tenantId: newRecord.tenant_id,
             });
           } else if (eventType === "UPDATE" && newRecord) {
-            store.addDbConversation({
+            storeRef.current.addDbConversation({
               id: newRecord.id,
               clientName: newRecord.client_name,
               clientPhone: newRecord.client_phone,
@@ -77,7 +79,7 @@ export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtim
         (payload) => {
           const { new: newRecord } = payload;
           if (newRecord) {
-            store.addDbMessages([
+            storeRef.current.addDbMessages([
               {
                 id: newRecord.id,
                 conversationId: newRecord.conversation_id,
@@ -94,7 +96,7 @@ export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtim
 
     channelRef.current = channel;
     return channel;
-  }, [tenantId, enabled, store]);
+  }, [tenantId, enabled]);
 
   const unsubscribe = useCallback(() => {
     if (channelRef.current) {

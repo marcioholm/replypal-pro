@@ -15,6 +15,8 @@ type Filter = "todas" | "minhas" | "pendentes";
 
 export default function InboxPage() {
   const store = useStore();
+  const storeRef = useRef(store);
+  storeRef.current = store;
   const navigate = useNavigate();
   const { user } = useAuth();
   const { play: playNewMessage, isMuted: soundMuted, toggleMute: toggleSound } = useSound({ soundType: "new_message", volume: 0.3 });
@@ -120,14 +122,14 @@ export default function InboxPage() {
           tenantId: c.tenant_id,
           tags: c.tags || []
         }));
-        store.addDbConversations(formattedConvs);
+        storeRef.current.addDbConversations(formattedConvs);
       }
     } catch (err) {
       console.error("Erro na busca de conversas:", err);
     } finally {
       setIsLoading(false);
     }
-  }, [user?.tenantId, user?.id, filter, store, supabase]);
+  }, [user?.tenantId, user?.id, filter, supabase]);
 
   useEffect(() => {
     if (user?.tenantId) {
@@ -145,7 +147,7 @@ export default function InboxPage() {
         .eq("tenant_id", user.tenantId);
       
       if (data) {
-        store.setUsers(data.map(d => ({
+        storeRef.current.setUsers(data.map(d => ({
           id: d.id,
           name: d.nome,
           email: d.email,
@@ -171,7 +173,7 @@ export default function InboxPage() {
       
       if (dbConvs) {
         dbConvs.forEach(c => {
-          store.addDbConversation({
+          storeRef.current.addDbConversation({
             id: c.id,
             clientName: c.client_name || "Cliente sem nome",
             clientPhone: c.client_phone || "",
@@ -191,7 +193,7 @@ export default function InboxPage() {
       console.error("Erro no refresh:", err);
     }
     setLoading(false);
-  }, [user?.tenantId, store, supabase]);
+  }, [user?.tenantId, supabase]);
 
   const allConversations = useMemo(() => store.conversations || [], [store.conversations]);
 
@@ -231,7 +233,7 @@ export default function InboxPage() {
     });
 
     return convs;
-  }, [allConversations, filter, user?.id, search, store]);
+  }, [allConversations, filter, user?.id, search]);
 
   useEffect(() => {
     if (filtered.length > prevConversationCount && prevConversationCount > 0) {
@@ -290,8 +292,8 @@ export default function InboxPage() {
 
   const getAssignedUser = useCallback((assignedTo?: string) => {
     if (!assignedTo) return null;
-    return store.users.find(u => u.id === assignedTo) || null;
-  }, [store.users]);
+    return storeRef.current.users.find(u => u.id === assignedTo) || null;
+  }, []);
 
   const filterButtons: { key: Filter; label: string; count: number; icon: typeof InboxIcon; visible: boolean }[] = [
     { key: "todas", label: "Todas", count: allConversations.length, icon: InboxIcon, visible: ['admin', 'supervisor', 'recepcionista'].includes(user.role) },
