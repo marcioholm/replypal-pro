@@ -78,17 +78,17 @@ export function IAChatPanel() {
 
     const payload = {
       mensagem_texto: userMessage,
-      tenant_id: user?.tenantId,
-      cliente_id: clienteId,
+      tenant_id: tenant?.id || user?.tenantId || "11111111-1111-1111-1111-111111111111",
+      cliente_id: clienteId || null,
       origem: "replypal_interno",
-      numero_whatsapp: user?.whatsapp || user?.id || "interno",
-      colaborador: user?.name || "Usuário",
+      numero_whatsapp: user?.whatsapp || "interno",
+      colaborador: user?.name || "Usuário ReplyPal",
     };
 
-    console.log("IA Assistant Request Payload:", payload);
+    console.log("Payload IA enviado:", payload);
 
     try {
-      const response = await fetch(import.meta.env.VITE_N8N_IA_WEBHOOK, {
+      const response = await fetch("https://northway.vps8204.panel.icontainer.cloud/webhook/replypal/ia-pro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -97,19 +97,26 @@ export function IAChatPanel() {
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       
       const data = await response.json();
-      console.log("IA Assistant Response Data:", data);
+      console.log("Resposta IA recebida:", data);
 
-      if (data && data.resposta) {
-        setMessages((prev) => [...prev, { role: "ia", content: data.resposta }]);
+      const textoIA = 
+        data.resposta || 
+        data.message || 
+        data.resposta_ia || 
+        data.output || 
+        data.text;
+
+      if (textoIA) {
+        setMessages((prev) => [...prev, { role: "ia", content: textoIA }]);
       } else {
-        console.warn("IA response missing 'resposta' field:", data);
-        setMessages((prev) => [...prev, { role: "ia", content: "Recebi uma resposta vazia da IA. Por favor, tente reformular sua pergunta." }]);
+        console.warn("IA response missing expected fields:", data);
+        setMessages((prev) => [...prev, { role: "ia", content: "Não consegui interpretar a resposta da IA." }]);
       }
     } catch (error) {
       console.error("IA Assistant Error:", error);
       setMessages((prev) => [
         ...prev,
-        { role: "ia", content: "Ops! Tive um problema ao processar sua mensagem. Poderia tentar novamente em alguns instantes?" },
+        { role: "ia", content: "Não consegui interpretar a resposta da IA." },
       ]);
     } finally {
       setIsLoading(false);
