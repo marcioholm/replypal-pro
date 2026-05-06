@@ -17,7 +17,7 @@ import { useLocation } from "react-router-dom";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
-// import { IAChatButton } from "./IAChat";
+import { IAChatButton } from "./IAChat";
 import { supabase } from "@/lib/supabase";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -233,7 +233,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 <p className="text-sm font-bold text-foreground truncate">{tenant?.name}</p>
               </div>
               
-              {/* <IAChatButton collapsed={collapsed} /> */}
+              <IAChatButton collapsed={collapsed} />
               
               <div className={cn(
                 "flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-primary/10 transition-all duration-300 overflow-hidden",
