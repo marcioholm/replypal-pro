@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-// 1. Tipos e Interfaces Básicos (Sempre no topo)
+// 1. Tipos e Interfaces (Sem mudanças)
 export type UserRole = "admin" | "supervisor" | "atendente" | "recepcionista";
 export type StatusFinanceiro = "Adimplente" | "Inadimplente" | "Atenção";
 export type StatusCliente = "Ativo" | "Onboarding" | "Inativo" | "Encerrado";
@@ -121,22 +121,6 @@ export interface KnowledgeItem {
   lastUpdated: Date;
 }
 
-// 2. Configurações e Mocks
-export const STATUS_CONFIG: Record<ConversationStatus, { label: string; color: string }> = {
-  novo: { label: "Novo", color: "kanban-new" },
-  pendente: { label: "Pendente", color: "kanban-waiting" },
-  respondido: { label: "Respondido", color: "kanban-active" },
-  resolvido: { label: "Resolvido", color: "kanban-resolved" },
-};
-
-export const MOCK_TAGS: Tag[] = [
-  { id: "1", name: "Prioridade", color: "#EF4444" },
-  { id: "2", name: "Dúvida", color: "#F59E0B" },
-  { id: "3", name: "Financeiro", color: "#10B981" }
-];
-
-// 3. Store Object e Métodos
-// Definimos a interface primeiro para o TypeScript
 interface Store {
   users: User[];
   customers: Customer[];
@@ -177,208 +161,168 @@ interface Store {
   removeTag: (conversationId: string, tagId: string) => void;
 }
 
-// Implementação do Store
-const store: Store = {
-  users: [],
-  customers: [],
-  conversations: [],
-  messages: [],
-  history: [],
-  knowledge: [],
-  tags: MOCK_TAGS,
-  quickReplies: [],
-  currentUser: null,
-  currentTenantId: undefined,
-  isIAChatOpen: false,
-
-  setUsers(users) {
-    store.users = users;
-    notify();
-  },
-  setCustomers(customers) {
-    store.customers = customers;
-    notify();
-  },
-  addDbCustomer(customer) {
-    const exists = store.customers.find(c => c.id === customer.id);
-    if (exists) {
-      Object.assign(exists, customer);
-    } else {
-      store.customers = [...store.customers, customer];
-    }
-    notify();
-  },
-  setConversations(conversations) {
-    store.conversations = conversations;
-    notify();
-  },
-  addDbConversation(conv) {
-    const index = store.conversations.findIndex(c => c.id === conv.id);
-    if (index !== -1) {
-      store.conversations[index] = { ...store.conversations[index], ...conv };
-      store.conversations = [...store.conversations];
-    } else {
-      store.conversations = [conv, ...store.conversations];
-    }
-    notify();
-  },
-  addDbConversations(convs) {
-    let updated = false;
-    const newConvs = [...store.conversations];
-    convs.forEach(conv => {
-      const index = newConvs.findIndex(c => c.id === conv.id);
-      if (index !== -1) {
-        newConvs[index] = { ...newConvs[index], ...conv };
-      } else {
-        newConvs.unshift(conv);
-      }
-      updated = true;
-    });
-    if (updated) {
-      store.conversations = newConvs;
-      notify();
-    }
-  },
-  setMessages(messages) {
-    store.messages = messages;
-    notify();
-  },
-  addDbMessages(msgs) {
-    let updated = false;
-    const newMsgs = [...store.messages];
-    msgs.forEach(msg => {
-      if (!newMsgs.find(m => m.id === msg.id)) {
-        newMsgs.push(msg);
-        updated = true;
-      }
-    });
-    if (updated) {
-      store.messages = newMsgs.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-      notify();
-    }
-  },
-  addDbHistory(entries) {
-    let updated = false;
-    const newHistory = [...store.history];
-    entries.forEach(e => {
-      if (!newHistory.find(h => h.id === e.id)) {
-        newHistory.push(e);
-        updated = true;
-      }
-    });
-    if (updated) {
-      store.history = newHistory.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-      notify();
-    }
-  },
-  setCurrentUser(user) {
-    store.currentUser = user;
-    if (user?.tenantId) {
-      store.currentTenantId = user.tenantId;
-    }
-    notify();
-  },
-  setCurrentTenantId(id) {
-    store.currentTenantId = id;
-    notify();
-  },
-  setIAChatOpen(open) {
-    store.isIAChatOpen = open;
-    notify();
-  },
-  getSLAStatus(conv) {
-    if (conv.status === "resolvido" || conv.status === "respondido") return "ok";
-    if (!conv.slaDeadline) return "ok";
-    const now = new Date();
-    const deadline = new Date(conv.slaDeadline);
-    if (now > deadline) return "estourado";
-    const diff = deadline.getTime() - now.getTime();
-    if (diff < 1000 * 60 * 30) return "em_risco";
-    return "ok";
-  },
-  getConversation(id) {
-    return store.conversations.find(c => c.id === id);
-  },
-  getMessages(conversationId) {
-    return store.messages.filter(m => m.conversationId === conversationId);
-  },
-  getNotes(conversationId) {
-    return [];
-  },
-  getHistory(conversationId) {
-    return store.history.filter(h => h.conversationId === conversationId);
-  },
-  getCustomer(id) {
-    return store.customers.find(c => c.id === id);
-  },
-  assumeConversation(conversationId, user) {
-    store.addDbConversation({ id: conversationId, assignedTo: user.id, status: "respondido" } as any);
-  },
-  transferConversation(conversationId, fromUser, toUserId, reason) {
-    store.addDbConversation({ id: conversationId, assignedTo: toUserId } as any);
-  },
-  updateStatus(conversationId, status, user, closingReason) {
-    store.addDbConversation({ id: conversationId, status } as any);
-  },
-  sendMessage(conversationId, content, user, options) {
-    const id = `temp-${Date.now()}`;
-    store.addDbMessages([{
-      id,
-      conversationId,
-      content,
-      sender: "agent",
-      senderName: user.name,
-      timestamp: new Date(),
-      ...options
-    }]);
-    return id;
-  },
-  addNote(conversationId, content, user) {
-    // Implementar se necessário
-  },
-  addTag(conversationId, tagId) {
-    const conv = store.getConversation(conversationId);
-    if (conv && !conv.tags.includes(tagId)) {
-      store.addDbConversation({ id: conversationId, tags: [...conv.tags, tagId] } as any);
-    }
-  },
-  removeTag(conversationId, tagId) {
-    const conv = store.getConversation(conversationId);
-    if (conv) {
-      store.addDbConversation({ id: conversationId, tags: conv.tags.filter(t => t !== tagId) } as any);
-    }
-  }
+// 2. Configurações Globais
+export const STATUS_CONFIG: Record<ConversationStatus, { label: string; color: string }> = {
+  novo: { label: "Novo", color: "kanban-new" },
+  pendente: { label: "Pendente", color: "kanban-waiting" },
+  respondido: { label: "Respondido", color: "kanban-active" },
+  resolvido: { label: "Resolvido", color: "kanban-resolved" },
 };
 
-// 4. Listeners e Notificações
+export const MOCK_TAGS: Tag[] = [
+  { id: "1", name: "Prioridade", color: "#EF4444" },
+  { id: "2", name: "Dúvida", color: "#F59E0B" },
+  { id: "3", name: "Financeiro", color: "#10B981" }
+];
+
+// 3. Inicialização Lazy do Store
+let globalStore: Store | null = null;
 const listeners = new Set<() => void>();
 
 function notify() {
   listeners.forEach(l => {
-    try {
-      l();
-    } catch (e) {
-      console.error("Store notification error:", e);
-    }
+    try { l(); } catch (e) { console.error(e); }
   });
 }
 
-// 5. Hooks e Exportações (No final para evitar ReferenceError)
-export const useStore = () => {
-  const [state, setState] = useState(store);
-  useEffect(() => {
-    const listener = () => setState({ ...store });
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
+function getStore(): Store {
+  if (!globalStore) {
+    const s: Store = {
+      users: [],
+      customers: [],
+      conversations: [],
+      messages: [],
+      history: [],
+      knowledge: [],
+      tags: MOCK_TAGS,
+      quickReplies: [],
+      currentUser: null,
+      currentTenantId: undefined,
+      isIAChatOpen: false,
+
+      setUsers(users) { s.users = users; notify(); },
+      setCustomers(customers) { s.customers = customers; notify(); },
+      addDbCustomer(customer) {
+        const exists = s.customers.find(c => c.id === customer.id);
+        if (exists) Object.assign(exists, customer);
+        else s.customers = [...s.customers, customer];
+        notify();
+      },
+      setConversations(conversations) { s.conversations = conversations; notify(); },
+      addDbConversation(conv) {
+        const index = s.conversations.findIndex(c => c.id === conv.id);
+        if (index !== -1) {
+          s.conversations[index] = { ...s.conversations[index], ...conv };
+          s.conversations = [...s.conversations];
+        } else {
+          s.conversations = [conv, ...s.conversations];
+        }
+        notify();
+      },
+      addDbConversations(convs) {
+        let updated = false;
+        const newConvs = [...s.conversations];
+        convs.forEach(conv => {
+          const index = newConvs.findIndex(c => c.id === conv.id);
+          if (index !== -1) newConvs[index] = { ...newConvs[index], ...conv };
+          else newConvs.unshift(conv);
+          updated = true;
+        });
+        if (updated) { s.conversations = newConvs; notify(); }
+      },
+      setMessages(messages) { s.messages = messages; notify(); },
+      addDbMessages(msgs) {
+        let updated = false;
+        const newMsgs = [...s.messages];
+        msgs.forEach(msg => {
+          if (!newMsgs.find(m => m.id === msg.id)) { newMsgs.push(msg); updated = true; }
+        });
+        if (updated) { 
+          s.messages = newMsgs.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+          notify(); 
+        }
+      },
+      addDbHistory(entries) {
+        let updated = false;
+        const newHistory = [...s.history];
+        entries.forEach(e => {
+          if (!newHistory.find(h => h.id === e.id)) { newHistory.push(e); updated = true; }
+        });
+        if (updated) {
+          s.history = newHistory.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+          notify();
+        }
+      },
+      setCurrentUser(user) {
+        s.currentUser = user;
+        if (user?.tenantId) s.currentTenantId = user.tenantId;
+        notify();
+      },
+      setCurrentTenantId(id) { s.currentTenantId = id; notify(); },
+      setIAChatOpen(open) { s.isIAChatOpen = open; notify(); },
+      getSLAStatus(conv) {
+        if (conv.status === "resolvido" || conv.status === "respondido") return "ok";
+        if (!conv.slaDeadline) return "ok";
+        const now = new Date();
+        const deadline = new Date(conv.slaDeadline);
+        if (now > deadline) return "estourado";
+        const diff = deadline.getTime() - now.getTime();
+        return diff < 1000 * 60 * 30 ? "em_risco" : "ok";
+      },
+      getConversation: (id) => s.conversations.find(c => c.id === id),
+      getMessages: (conversationId) => s.messages.filter(m => m.conversationId === conversationId),
+      getNotes: () => [],
+      getHistory: (conversationId) => s.history.filter(h => h.conversationId === conversationId),
+      getCustomer: (id) => s.customers.find(c => c.id === id),
+      assumeConversation(conversationId, user) {
+        s.addDbConversation({ id: conversationId, assignedTo: user.id, status: "respondido" } as any);
+      },
+      transferConversation(conversationId, fromUser, toUserId) {
+        s.addDbConversation({ id: conversationId, assignedTo: toUserId } as any);
+      },
+      updateStatus(conversationId, status) {
+        s.addDbConversation({ id: conversationId, status } as any);
+      },
+      sendMessage(conversationId, content, user, options) {
+        const id = `temp-${Date.now()}`;
+        s.addDbMessages([{
+          id, conversationId, content, sender: "agent", senderName: user.name, timestamp: new Date(), ...options
+        }]);
+        return id;
+      },
+      addNote: () => {},
+      addTag(conversationId, tagId) {
+        const conv = s.getConversation(conversationId);
+        if (conv && !conv.tags.includes(tagId)) {
+          s.addDbConversation({ id: conversationId, tags: [...conv.tags, tagId] } as any);
+        }
+      },
+      removeTag(conversationId, tagId) {
+        const conv = s.getConversation(conversationId);
+        if (conv) {
+          s.addDbConversation({ id: conversationId, tags: conv.tags.filter(t => t !== tagId) } as any);
+        }
+      }
     };
+    globalStore = s;
+  }
+  return globalStore;
+}
+
+// 4. Hooks e Helpers Exportados
+export function useStore() {
+  const [state, setState] = useState(() => getStore());
+  useEffect(() => {
+    const listener = () => setState({ ...getStore() });
+    listeners.add(listener);
+    return () => { listeners.delete(listener); };
   }, []);
   return state;
-};
+}
 
-export const setCurrentTenantId = (id: string | undefined) => {
-  store.setCurrentTenantId(id);
-};
+export function setCurrentTenantId(id: string | undefined) {
+  getStore().setCurrentTenantId(id);
+}
 
 export function formatRelativeTime(date: Date): string {
   if (!date) return "...";

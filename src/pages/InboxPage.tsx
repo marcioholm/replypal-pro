@@ -20,50 +20,10 @@ export default function InboxPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { play: playNewMessage, isMuted: soundMuted, toggleMute: toggleSound } = useSound({ soundType: "new_message", volume: 0.3 });
-  
-  useEffect(() => {
-    if (user) {
-      storeRef.current.setCurrentUser(user);
-    }
-  }, [user]);
 
+  // State Management
   const [filter, setFilter] = useState<Filter>("minhas");
   const [hasSetDefaultFilter, setHasSetDefaultFilter] = useState(false);
-
-  useEffect(() => {
-    if (user && !hasSetDefaultFilter) {
-      if (['admin', 'supervisor'].includes(user.role)) {
-        setFilter("todas");
-      }
-      setHasSetDefaultFilter(true);
-    }
-  }, [user, hasSetDefaultFilter]);
-
-  useEffect(() => {
-    const tenantId = user?.tenantId;
-    if (!tenantId || tenantId.length < 5) return;
-
-    // Realtime subscription for conversations
-    const channel = supabase
-      .channel('conversas-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'conversas',
-          filter: `tenant_id=eq.${tenantId}`
-        },
-        () => {
-          fetchData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.tenantId, fetchData]);
   const [search, setSearch] = useState("");
   const [waConnected, setWaConnected] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -72,19 +32,7 @@ export default function InboxPage() {
   const [isLoading, setIsLoading] = useState(true);
   const conversationsRef = useRef<{ id: string }[]>([]);
 
-  useEffect(() => {
-    const check = async () => {
-      try {
-        const status = await checkConnection();
-        setWaConnected(status.connected);
-      } catch (err) {
-        console.error("Erro ao verificar conexão WhatsApp:", err);
-        setWaConnected(false);
-      }
-    };
-    check();
-  }, []);
-
+  // 1. Helpers e FetchData (Definidos no topo para evitar ReferenceError)
   const fetchData = useCallback(async () => {
     const tenantId = user?.tenantId;
     if (!tenantId) return;
@@ -130,38 +78,7 @@ export default function InboxPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.tenantId, user?.id, filter, supabase]);
-
-  useEffect(() => {
-    const tenantId = user?.tenantId;
-    if (tenantId && tenantId.length >= 5) {
-      fetchData();
-    }
-  }, [user?.tenantId, filter, search, fetchData]);
-
-
-  useEffect(() => {
-    const fetchTeam = async () => {
-      if (!user?.tenantId) return;
-      const { data } = await supabase
-        .from("usuarios")
-        .select("*")
-        .eq("tenant_id", user.tenantId);
-      
-      if (data) {
-        storeRef.current.setUsers(data.map(d => ({
-          id: d.id,
-          name: d.nome,
-          email: d.email,
-          role: d.role as any,
-          tenantId: d.tenant_id,
-          avatar: d.avatar,
-          whatsapp: d.whatsapp
-        })));
-      }
-    };
-    fetchTeam();
-  }, [user?.tenantId]);
+  }, [user?.tenantId, user?.id, filter]);
 
   const handleManualRefresh = useCallback(async () => {
     const tenantId = user?.tenantId;
@@ -195,13 +112,88 @@ export default function InboxPage() {
       console.error("Erro no refresh:", err);
     }
     setLoading(false);
-  }, [user?.tenantId, supabase]);
+  }, [user?.tenantId]);
 
+  // 2. Effects
+  useEffect(() => {
+    if (user) {
+      storeRef.current.setCurrentUser(user);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user && !hasSetDefaultFilter) {
+      if (['admin', 'supervisor'].includes(user.role)) {
+        setFilter("todas");
+      }
+      setHasSetDefaultFilter(true);
+    }
+  }, [user, hasSetDefaultFilter]);
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const status = await checkConnection();
+        setWaConnected(status.connected);
+      } catch (err) {
+        setWaConnected(false);
+      }
+    };
+    check();
+  }, []);
+
+  useEffect(() => {
+    const tenantId = user?.tenantId;
+    if (!tenantId || tenantId.length < 5) return;
+
+    fetchData();
+
+    const channel = supabase
+      .channel('conversas-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversas',
+          filter: `tenant_id=eq.${tenantId}`
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.tenantId, fetchData]);
+
+  useEffect(() => {
+    const fetchTeam = async () => {
+      if (!user?.tenantId) return;
+      const { data } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("tenant_id", user.tenantId);
+      
+      if (data) {
+        storeRef.current.setUsers(data.map(d => ({
+          id: d.id,
+          name: d.nome,
+          email: d.email,
+          role: d.role as any,
+          tenantId: d.tenant_id,
+          avatar: d.avatar,
+          whatsapp: d.whatsapp
+        })));
+      }
+    };
+    fetchTeam();
+  }, [user?.tenantId]);
+
+  // 3. Memoized Data
   const allConversations = useMemo(() => store.conversations || [], [store.conversations]);
-
-  if (!user) return null;
-
-
 
   const filtered = useMemo(() => {
     let convs = allConversations.filter(c => {
@@ -231,7 +223,7 @@ export default function InboxPage() {
     });
 
     return convs;
-  }, [allConversations, filter, user?.id, search]);
+  }, [allConversations, filter, user?.id, search, store]);
 
   useEffect(() => {
     if (filtered.length > prevConversationCount && prevConversationCount > 0) {
@@ -248,252 +240,213 @@ export default function InboxPage() {
   useListKeyboardNav(
     conversationsRef.current,
     handleSelectConversation,
-    true
+    () => setShowShortcuts(true)
   );
 
-  const groupedConversations = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const lastWeek = new Date(today);
-    lastWeek.setDate(lastWeek.getDate() - 7);
-
-    const groups: { label: string; convs: typeof filtered }[] = [];
-    const todayConvs: typeof filtered = [];
-    const yesterdayConvs: typeof filtered = [];
-    const lastWeekConvs: typeof filtered = [];
-    const olderConvs: typeof filtered = [];
-
-    filtered.forEach(c => {
-      const msgDate = new Date(c.lastMessageTime);
-      msgDate.setHours(0, 0, 0, 0);
-      
-      if (msgDate.getTime() === today.getTime()) {
-        todayConvs.push(c);
-      } else if (msgDate.getTime() === yesterday.getTime()) {
-        yesterdayConvs.push(c);
-      } else if (msgDate >= lastWeek) {
-        lastWeekConvs.push(c);
-      } else {
-        olderConvs.push(c);
-      }
-    });
-
-    if (todayConvs.length > 0) groups.push({ label: "Hoje", convs: todayConvs });
-    if (yesterdayConvs.length > 0) groups.push({ label: "Ontem", convs: yesterdayConvs });
-    if (lastWeekConvs.length > 0) groups.push({ label: "Esta Semana", convs: lastWeekConvs });
-    if (olderConvs.length > 0) groups.push({ label: "Anteriores", convs: olderConvs });
-
-    return groups;
-  }, [filtered]);
-
-  const getAssignedUser = useCallback((assignedTo?: string) => {
-    if (!assignedTo) return null;
-    return storeRef.current.users.find(u => u.id === assignedTo) || null;
-  }, []);
-
-  const filterButtons: { key: Filter; label: string; count: number; icon: typeof InboxIcon; visible: boolean }[] = [
-    { key: "todas", label: "Todas", count: allConversations.length, icon: InboxIcon, visible: ['admin', 'supervisor', 'recepcionista'].includes(user.role) },
-    { key: "minhas", label: "Minhas", count: allConversations.filter(c => c.assignedTo === user.id).length, icon: UserCheck, visible: true },
-    { key: "pendentes", label: "Pendentes", count: allConversations.filter(c => !c.assignedTo || c.status === 'novo').length, icon: Users, visible: ['admin', 'supervisor', 'recepcionista'].includes(user.role) },
-  ];
-
-  if (isLoading) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center bg-background">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-muted-foreground mt-4">Carregando conversas...</p>
-      </div>
-    );
-  }
+  if (!user) return null;
 
   return (
-    <div className="h-full flex flex-col bg-background">
-      <div className="p-4 border-b bg-card/50 backdrop-blur-sm space-y-4">
-        <div className="flex items-center justify-between">
+    <div className="flex h-full bg-slate-50/30 dark:bg-[#010809]/30">
+      <div className="flex-1 flex flex-col min-w-0 border-r border-border/40">
+        <header className="h-16 flex items-center justify-between px-6 border-b border-border/40 bg-white/40 dark:bg-[#021B1A]/40 backdrop-blur-md">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
-              <Mail className="w-5 h-5 text-primary-foreground" />
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <InboxIcon className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight text-foreground">Caixa de Entrada</h1>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{filtered.length} conversa(s)</p>
+              <h1 className="text-lg font-bold text-foreground">Caixa de Entrada</h1>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+                {filtered.length} conversas encontradas
+              </p>
             </div>
           </div>
+
           <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={toggleSound}
-              className="h-8 w-8 p-0"
-              title={soundMuted ? "Ativar som" : "Desativar som"}
-            >
-              {soundMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setShowShortcuts(!showShortcuts)}
-              className="h-8 w-8 p-0"
-              title="Atalhos de teclado"
-            >
-              <Keyboard className="w-3.5 h-3.5" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleManualRefresh}
-              disabled={loading}
-              className="h-8"
+              className={cn("h-9 w-9 rounded-xl", loading && "animate-spin")}
             >
-              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-              Atualizar
+              <RefreshCw className="w-4 h-4" />
             </Button>
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-300 ${waConnected ? "bg-emerald-500/5 border-emerald-500/20 shadow-[0_0_12px_rgba(16,185,129,0.1)]" : "bg-muted/30 border-muted/20"}`}>
-              <div className="relative flex items-center justify-center">
-                <span className={`w-1.5 h-1.5 rounded-full ${waConnected ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />
-                {waConnected && <span className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping opacity-75" />}
-              </div>
-              <span className={`text-[10px] font-bold uppercase tracking-widest ${waConnected ? "text-emerald-600" : "text-muted-foreground"}`}>
-                {waConnected ? "WhatsApp Ativo" : "Offline"}
-              </span>
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSound}
+              className="h-9 w-9 rounded-xl"
+            >
+              {soundMuted ? <VolumeX className="w-4 h-4 text-destructive" /> : <Volume2 className="w-4 h-4 text-primary" />}
+            </Button>
+          </div>
+        </header>
+
+        <div className="p-4 space-y-4">
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+            <Input
+              placeholder="Buscar por nome, mensagem ou telefone..."
+              className="pl-10 h-11 bg-white/50 dark:bg-[#021B1A]/50 border-border/40 rounded-xl focus:ring-primary/20"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          <div className="flex p-1 bg-slate-100 dark:bg-white/5 rounded-xl border border-border/20">
+            <button
+              onClick={() => setFilter("minhas")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
+                filter === "minhas" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              Minhas
+            </button>
+            <button
+              onClick={() => setFilter("todas")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
+                filter === "todas" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Users className="w-3.5 h-3.5" />
+              Todas
+            </button>
+            <button
+              onClick={() => setFilter("pendentes")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
+                filter === "pendentes" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              Pendentes
+            </button>
           </div>
         </div>
 
-        {showShortcuts && (
-          <div className="p-3 bg-muted/50 rounded-lg border border-border/50 animate-in fade-in slide-in-from-top-2">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              <div className="flex items-center gap-2">
-                <kbd className="px-1.5 py-0.5 bg-background rounded text-[10px] font-mono border">J</kbd>
-                <span className="text-[10px] text-muted-foreground">Próxima</span>
+        <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center h-64 space-y-4">
+              <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+              <p className="text-sm font-bold text-muted-foreground animate-pulse">Carregando conversas...</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 space-y-4 text-center">
+              <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
+                <Mail className="w-8 h-8 text-muted-foreground/30" />
               </div>
-              <div className="flex items-center gap-2">
-                <kbd className="px-1.5 py-0.5 bg-background rounded text-[10px] font-mono border">K</kbd>
-                <span className="text-[10px] text-muted-foreground">Anterior</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <kbd className="px-1.5 py-0.5 bg-background rounded text-[10px] font-mono border">Enter</kbd>
-                <span className="text-[10px] text-muted-foreground">Abrir</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <kbd className="px-1.5 py-0.5 bg-background rounded text-[10px] font-mono border">g</kbd>
-                <span className="text-[10px] text-muted-foreground">Primeira</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <kbd className="px-1.5 py-0.5 bg-background rounded text-[10px] font-mono border">G</kbd>
-                <span className="text-[10px] text-muted-foreground">Última</span>
+              <div>
+                <p className="text-sm font-bold text-foreground">Nenhuma conversa encontrada</p>
+                <p className="text-xs text-muted-foreground">Tente mudar o filtro ou termo de busca</p>
               </div>
             </div>
-          </div>
-        )}
+          ) : (
+            filtered.map((conv) => {
+              const slaStatus = store.getSLAStatus(conv);
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => handleSelectConversation(conv.id)}
+                  className="w-full group relative flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-[#021B1A]/40 border border-border/40 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all text-left"
+                >
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black">
+                      {conv.clientName.charAt(0)}
+                    </div>
+                    {conv.status === "novo" && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary border-2 border-white dark:border-[#021B1A] rounded-full" />
+                    )}
+                  </div>
 
-        <div className="relative group">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary transition-colors group-focus-within:text-primary" />
-          <Input 
-            placeholder="Buscar por nome, mensagem ou telefone..." 
-            className="pl-10 h-11 w-full bg-white dark:bg-card border-border/40 focus:border-primary/50 shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:shadow-[0_4px_12px_hsl(var(--primary)/0.08)] rounded-xl transition-all"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="font-bold text-foreground truncate">{conv.clientName}</span>
+                      <span className="text-[10px] font-bold text-muted-foreground whitespace-nowrap">
+                        {formatRelativeTime(conv.lastMessageTime)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate line-clamp-1 italic">
+                      {conv.lastMessage || "Sem mensagens"}
+                    </p>
+                    
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className={cn(
+                        "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
+                        "bg-primary/10 text-primary border border-primary/20"
+                      )}>
+                        {conv.status}
+                      </span>
+                      {slaStatus !== "ok" && (
+                        <span className={cn(
+                          "flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider animate-pulse",
+                          slaStatus === "estourado" ? "bg-destructive/10 text-destructive border border-destructive/20" : "bg-warning/10 text-warning border border-warning/20"
+                        )}>
+                          <AlertTriangle className="w-2.5 h-2.5" />
+                          SLA {slaStatus === "estourado" ? "Estourado" : "Em Risco"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })
+          )}
         </div>
-        {['admin', 'supervisor', 'recepcionista'].includes(user.role) && (
-          <div className="flex gap-2 p-1 bg-muted/50 rounded-lg">
-            {filterButtons.filter(f => f.visible).map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
-                  filter === f.key ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                }`}
-              >
-                <f.icon className="w-3.5 h-3.5" />
-                {f.label}
-                <span className="ml-1 px-1.5 py-0.5 bg-muted/80 rounded-full text-[10px]">{f.count}</span>
-              </button>
-            ))}
+
+        {!waConnected && (
+          <div className="m-4 p-4 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-destructive/20 flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-destructive">WhatsApp Desconectado</p>
+              <p className="text-xs text-destructive/70">As mensagens não serão enviadas ou recebidas.</p>
+            </div>
+            <Button size="sm" variant="outline" className="bg-white border-destructive/20 text-destructive hover:bg-destructive/5" onClick={() => navigate("/settings")}>
+              Conectar
+            </Button>
           </div>
         )}
       </div>
-      <div className="flex-1 overflow-y-auto p-4">
-        {groupedConversations.length === 0 ? (
-          <div className="text-center py-20 flex flex-col items-center justify-center">
-            <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-              <InboxIcon className="w-8 h-8 text-muted-foreground/40" />
+
+      <div className="hidden xl:flex w-80 bg-white/40 dark:bg-[#021B1A]/40 backdrop-blur-md flex-col">
+        <div className="p-6 border-b border-border/40">
+          <h3 className="font-bold text-foreground">Acesso Rápido</h3>
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Atalhos do teclado</p>
+        </div>
+        <div className="flex-1 p-6 space-y-4">
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-border/40 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-muted-foreground">Abrir Ajuda</span>
+              <kbd className="px-2 py-1 rounded bg-white dark:bg-[#021B1A] border border-border/50 text-[10px] font-black shadow-sm">?</kbd>
             </div>
-            <p className="text-sm font-medium text-muted-foreground">Nenhuma conversa encontrada</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">Experimente mudar o filtro ou buscar outro termo</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {groupedConversations.map((group) => (
-              <div key={group.label}>
-                <div className="flex items-center gap-2 mb-3">
-                  <Clock className="w-3.5 h-3.5 text-muted-foreground/50" />
-                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{group.label}</h3>
-                  <span className="text-[10px] text-muted-foreground/40">{group.convs.length}</span>
-                </div>
-                <div className="space-y-2">
-                  {group.convs.map((conv) => {
-                    const assignedUser = getAssignedUser(conv.assignedTo);
-                    const slaStatus = store.getSLAStatus(conv);
-                    const isAtRisk = slaStatus === "em_risco" || slaStatus === "estourado";
-                    const firstLetter = (conv.clientName || "?").charAt(0).toUpperCase();
-                    
-                    return (
-                      <button
-                        key={conv.id}
-                        data-conversation-id={conv.id}
-                        onClick={() => navigate(`/chat/${conv.id}`)}
-                        className={`w-full text-left p-4 rounded-2xl border bg-white/50 dark:bg-card/40 hover:bg-white dark:hover:bg-card transition-all active:scale-[0.98] group shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] border-border/40 ${isAtRisk ? "border-l-4 border-l-destructive" : ""}`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                              {firstLetter}
-                            </div>
-                            <div className="space-y-0.5">
-                              <p className="text-sm font-semibold">{conv.clientName || "Cliente sem nome"}</p>
-                              <p className="text-[11px] text-muted-foreground font-medium">{conv.clientPhone || "—"}</p>
-                            </div>
-                          </div>
-                          <div className="text-right space-y-1">
-                            <p className="text-[10px] text-muted-foreground font-medium">{formatRelativeTime(conv.lastMessageTime)}</p>
-                            <div className="flex items-center gap-1 justify-end">
-                              {conv.status === "novo" && (
-                                <span className="inline-block px-2 py-0.5 bg-blue-500/10 text-blue-600 text-[10px] rounded-full font-bold uppercase tracking-wider">Novo</span>
-                              )}
-                              {isAtRisk && (
-                                <span className="inline-block px-1.5 py-0.5 bg-destructive/10 text-destructive text-[10px] rounded-full font-bold flex items-center gap-0.5">
-                                  <AlertTriangle className="w-2.5 h-2.5" />
-                                  SLA
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-3">
-                          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed pl-4 border-l-2 border-primary/20">
-                            {conv.lastMessage || "Sem mensagens"}
-                          </p>
-                        </div>
-                        {assignedUser && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[8px] font-bold">
-                              {(assignedUser.name || "?").charAt(0).toUpperCase()}
-                            </div>
-                            <span className="text-[10px] text-muted-foreground">{assignedUser.name}</span>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-muted-foreground">Navegar</span>
+              <div className="flex gap-1">
+                <kbd className="px-2 py-1 rounded bg-white dark:bg-[#021B1A] border border-border/50 text-[10px] font-black shadow-sm">↑</kbd>
+                <kbd className="px-2 py-1 rounded bg-white dark:bg-[#021B1A] border border-border/50 text-[10px] font-black shadow-sm">↓</kbd>
               </div>
-            ))}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-muted-foreground">Selecionar</span>
+              <kbd className="px-2 py-1 rounded bg-white dark:bg-[#021B1A] border border-border/50 text-[10px] font-black shadow-sm">ENTER</kbd>
+            </div>
           </div>
-        )}
+
+          <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                <Keyboard className="w-4 h-4 text-primary" />
+              </div>
+              <span className="text-xs font-bold text-primary">Modo Agente</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
+              Use as setas do teclado para alternar entre conversas rapidamente e <span className="font-bold text-primary">Enter</span> para abrir o chat.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
