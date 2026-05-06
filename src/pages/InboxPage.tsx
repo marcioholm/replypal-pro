@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, UserCheck, Users, Inbox as InboxIcon, Mail, RefreshCw, AlertTriangle, Clock, Volume2, VolumeX, Keyboard } from "lucide-react";
 import { checkConnection } from "@/lib/evolution";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
