@@ -1,4 +1,4 @@
-import { lazy, Suspense, Component, type ReactNode } from "react";
+import { Suspense, Component, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -8,11 +8,15 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, RefreshCw } from "lucide-react";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, RefreshCw, Loader2 } from "lucide-react";
 import { SchedulerInit } from "@/components/SchedulerInit";
 
-const InboxPage = lazy(() => import("@/pages/InboxPage"));
+// Importação direta das páginas principais para evitar problemas de lazy loading em produção
+import LoginPage from "@/pages/LoginPage";
+import InboxPage from "@/pages/InboxPage";
+
+// Lazy loading apenas para páginas secundárias
+import { lazy } from "react";
 const ChatPage = lazy(() => import("@/pages/ChatPage"));
 const PipelinePage = lazy(() => import("@/pages/PipelinePage"));
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
@@ -23,7 +27,6 @@ const CalendarPage = lazy(() => import("@/pages/CalendarPage"));
 const TrainingPage = lazy(() => import("@/pages/TrainingPage"));
 const ScheduledMessagesPage = lazy(() => import("@/pages/ScheduledMessagesPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
-const LoginPage = lazy(() => import("@/pages/LoginPage"));
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -36,7 +39,7 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryS
     this.state = { hasError: false, error: null };
   }
 
-  static getDerivedFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
 
@@ -48,7 +51,7 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryS
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] p-8">
+        <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-background">
           <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
             <AlertTriangle className="w-10 h-10 text-destructive" />
           </div>
@@ -142,20 +145,20 @@ function AppRoutes() {
   }
 
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={
-          isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />
-        }
-      />
-      <Route
-        path="/*"
-        element={
-          <ProtectedRoute>
-            <AppLayout>
-              <Suspense fallback={<LoadingFallback />}>
-                <AppErrorBoundary>
+    <AppErrorBoundary>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />
+          }
+        />
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <Suspense fallback={<LoadingFallback />}>
                   <Routes>
                     <Route path="/" element={<InboxPage />} />
                     <Route path="/chat/:id" element={<ChatPage />} />
@@ -169,13 +172,13 @@ function AppRoutes() {
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
-                </AppErrorBoundary>
-              </Suspense>
-            </AppLayout>
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
+                </Suspense>
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </AppErrorBoundary>
   );
 }
 
