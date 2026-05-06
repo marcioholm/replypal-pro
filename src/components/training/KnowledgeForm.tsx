@@ -85,7 +85,7 @@ export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData 
   }, [open, editData]);
 
   const fetchClientes = async () => {
-    const { data } = await supabase.from("clientes").select("id, nome_fantasia").order("nome_fantasia");
+    const { data } = await supabase.from("clientes").select("id,nome_fantasia").order("nome_fantasia");
     setClientes(data || []);
   };
 

@@ -58,7 +58,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       try {
         const { data } = await supabase
           .from("conversas")
-          .select("status, sla_deadline")
+          .select("status,sla_deadline")
           .eq("tenant_id", tenantId);
         
         if (data) {
