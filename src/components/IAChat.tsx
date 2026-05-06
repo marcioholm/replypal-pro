@@ -99,25 +99,21 @@ export function IAChatPanel() {
       const data = await response.json();
       console.log("Resposta IA recebida:", data);
 
-      const textoIA = 
-        data.resposta_formatada || 
-        data.resposta || 
-        data.message || 
-        data.resposta_ia || 
-        data.output || 
-        data.text;
+      let rawText = data.resposta || data.resposta_final;
 
-      if (textoIA) {
+      if (rawText) {
+        // Formatar quebras de linha e limpar espaços extras
+        const textoIA = String(rawText).replace(/\\n/g, '\n').trim();
         setMessages((prev) => [...prev, { role: "ia", content: textoIA }]);
       } else {
-        console.warn("IA response missing expected fields:", data);
-        setMessages((prev) => [...prev, { role: "ia", content: "Não consegui interpretar a resposta da IA." }]);
+        console.warn("IA response missing expected fields (resposta/resposta_final):", data);
+        setMessages((prev) => [...prev, { role: "ia", content: "Não foi possível obter resposta da IA." }]);
       }
     } catch (error) {
       console.error("IA Assistant Error:", error);
       setMessages((prev) => [
         ...prev,
-        { role: "ia", content: "Não consegui interpretar a resposta da IA." },
+        { role: "ia", content: "Não foi possível obter resposta da IA." },
       ]);
     } finally {
       setIsLoading(false);
