@@ -36,14 +36,14 @@
 
     --radius: 1rem;
 
-    --sidebar-background: 185 100% 5%;
-    --sidebar-foreground: 185 20% 85%;
-    --sidebar-primary: 185 100% 45%;
-    --sidebar-primary-foreground: 185 100% 5%;
-    --sidebar-accent: 185 40% 15%;
-    --sidebar-accent-foreground: 185 100% 85%;
-    --sidebar-border: 185 40% 15%;
-    --sidebar-ring: 185 100% 45%;
+    --sidebar-background: 185 30% 98%;
+    --sidebar-foreground: 185 40% 20%;
+    --sidebar-primary: 185 100% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 185 100% 92%;
+    --sidebar-accent-foreground: 185 100% 20%;
+    --sidebar-border: 185 20% 90%;
+    --sidebar-ring: 185 100% 40%;
 
     --success: 152 65% 35%;
     --success-foreground: 0 0% 100%;
@@ -105,8 +105,8 @@
     @apply bg-background text-foreground antialiased;
     font-family: 'Source Sans 3', 'Inter', system-ui, sans-serif;
     background: 
-      radial-gradient(circle at top right, rgba(34,199,169,0.05) 0%, transparent 40%),
-      radial-gradient(circle at bottom left, rgba(34,199,169,0.03) 0%, transparent 40%),
+      radial-gradient(circle at top right, hsl(var(--primary)/0.05) 0%, transparent 40%),
+      radial-gradient(circle at bottom left, hsl(var(--primary)/0.03) 0%, transparent 40%),
       hsl(var(--background));
     background-attachment: fixed;
     min-height: 100vh;

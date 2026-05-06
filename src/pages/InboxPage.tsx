@@ -371,13 +371,13 @@ export default function InboxPage() {
           </div>
         )}
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="relative group">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary transition-colors group-focus-within:text-primary" />
           <Input 
             placeholder="Buscar por nome, mensagem ou telefone..." 
-            value={search} 
-            onChange={(e) => setSearch(e.target.value)} 
-            className="pl-9 h-10 text-sm" 
+            className="pl-10 h-11 w-full bg-white dark:bg-card border-border/40 focus:border-primary/50 shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus:shadow-[0_4px_12px_hsl(var(--primary)/0.08)] rounded-xl transition-all"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         {['admin', 'supervisor', 'recepcionista'].includes(user.role) && (

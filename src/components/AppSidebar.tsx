@@ -72,29 +72,28 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           className={cn(
             "relative h-full w-full overflow-hidden rounded-[26px]",
             "backdrop-blur-md",
-            "bg-white/70 dark:bg-[#021B1A]/40",
-            "border border-white/20 dark:border-white/10",
-            "shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)]",
+            "bg-white/95 dark:bg-[#021B1A]/80",
+            "border border-border/50 dark:border-white/10",
+            "shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)]",
             "before:absolute before:inset-0 before:rounded-[26px]",
-            "before:bg-gradient-to-br before:from-white/10 before:to-transparent",
+            "before:bg-gradient-to-br before:from-white/20 before:to-transparent",
             "before:pointer-events-none"
           )}
         >
           <div className="absolute inset-0 rounded-[26px] overflow-hidden">
             <div 
-              className="absolute inset-0 opacity-30"
+              className="absolute inset-0 opacity-[0.03] dark:opacity-[0.1]"
               style={{
                 background: `
-                  radial-gradient(circle at 20% 20%, rgba(34,199,169,0.15) 0%, transparent 50%),
-                  radial-gradient(circle at 80% 80%, rgba(14,143,120,0.1) 0%, transparent 40%)
+                  radial-gradient(circle at 20% 20%, hsl(var(--primary)) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 80%, hsl(var(--primary)) 0%, transparent 40%)
                 `,
               }}
             />
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0wIDQwTDQwIDBIMjBMMCAyME00MCA0MFYyMEwwIDQwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9nPjwvc3ZnPg==')] opacity-[0.3]" />
           </div>
 
           <div className="relative z-10 flex flex-col h-full">
-            <div className="p-4 flex items-center gap-3 border-b border-[rgba(255,255,255,0.06)]">
+            <div className="p-5 flex items-center gap-3 border-b border-border/50">
                 <style>{`
                   @keyframes pulse-cyan {
                     0% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.4); }
@@ -103,10 +102,10 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                   }
                 `}</style>
                 <div 
-                  className="w-10 h-10 rounded-[14px] flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-300 hover:scale-110 active:scale-95 group/logo"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-300 hover:scale-110 active:scale-95 group/logo"
                   style={{
-                    background: "linear-gradient(135deg, rgba(0,229,255,0.2) 0%, rgba(0,184,212,0.4) 100%)",
-                    boxShadow: "0 4px 16px rgba(0,229,255,0.2)",
+                    background: "linear-gradient(135deg, hsl(var(--primary)/0.2) 0%, hsl(var(--primary)/0.4) 100%)",
+                    boxShadow: "0 4px 16px hsl(var(--primary)/0.2)",
                     animation: "pulse-cyan 3s infinite"
                   }}
                 >
@@ -116,42 +115,42 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 "flex flex-col overflow-hidden transition-all duration-300 ease-out",
                 collapsed ? "opacity-0 w-0" : "opacity-100"
               )}>
-                <span className="font-semibold text-sm text-foreground dark:text-white tracking-tight whitespace-nowrap">
+                <span className="font-bold text-sm text-foreground tracking-tight whitespace-nowrap">
                   Operai
                 </span>
-                <span className="text-[10px] text-muted-foreground dark:text-white/50 font-medium whitespace-nowrap">Inteligência Artificial</span>
+                <span className="text-[10px] text-muted-foreground font-semibold whitespace-nowrap">Inteligência Artificial</span>
               </div>
             </div>
 
             <div className="p-3">
               <div className={cn(
-                "px-3 py-3 rounded-[16px] bg-[rgba(34,199,169,0.08)] border border-[rgba(34,199,169,0.12)] transition-all duration-300 overflow-hidden",
+                "px-3 py-3 rounded-[16px] bg-primary/5 border border-primary/10 transition-all duration-300 overflow-hidden",
                 collapsed ? "opacity-0 max-h-0 py-0" : "opacity-100 max-h-[200px]"
               )}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-semibold text-[rgba(255,255,255,0.6)] uppercase tracking-wider">Atendimento</span>
+                  <span className="text-[10px] font-bold text-primary/60 uppercase tracking-widest">Atendimento</span>
                   <div className="relative">
-                    <div className="w-2 h-2 rounded-full bg-[#22C7A9]" />
-                    <div className="absolute inset-0 w-2 h-2 rounded-full bg-[#22C7A9] animate-ping opacity-75" />
+                    <div className="w-2 h-2 rounded-full bg-primary" />
+                    <div className="absolute inset-0 w-2 h-2 rounded-full bg-primary animate-ping opacity-75" />
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
-                    <p className="text-xl font-bold text-white">{openCount}</p>
-                    <p className="text-[9px] text-[rgba(255,255,255,0.4)]">Conversas ativas</p>
+                    <p className="text-xl font-black text-foreground">{openCount}</p>
+                    <p className="text-[9px] text-muted-foreground font-medium uppercase">Conversas ativas</p>
                   </div>
                   {atRiskCount > 0 && (
-                    <div className="px-2.5 py-1.5 rounded-[10px] bg-[rgba(239,68,68,0.15)] border border-[rgba(239,68,68,0.2)]">
-                      <p className="text-xs font-bold text-[#EF4444]">{atRiskCount}</p>
-                      <p className="text-[8px] text-[rgba(239,68,68,0.7)]">SLA</p>
+                    <div className="px-2.5 py-1.5 rounded-[10px] bg-destructive/10 border border-destructive/20">
+                      <p className="text-xs font-bold text-destructive">{atRiskCount}</p>
+                      <p className="text-[8px] text-destructive/70 font-bold">SLA</p>
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 px-3 overflow-y-auto overflow-x-hidden">
-              <div className="space-y-1.5">
+            <div className="flex-1 px-3 overflow-y-auto overflow-x-hidden scrollbar-thin">
+              <div className="space-y-1.5 py-2">
                 {navItems.map((item) => {
                   const isActive = location.pathname === item.url || 
                     (item.url !== "/" && location.pathname.startsWith(item.url));
@@ -162,33 +161,22 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                       to={item.url}
                       end={item.url === "/"}
                       className={cn(
-                        "group relative flex items-center gap-3 px-3 py-2.5 rounded-[14px]",
+                        "group relative flex items-center gap-3 px-3 py-2.5 rounded-xl",
                         "transition-all duration-300 ease-out",
                         isActive 
-                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
-                          : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" 
+                          : "text-foreground/70 hover:bg-primary/10 hover:text-primary"
                       )}
                     >
-                      {isActive && (
-                        <div
-                          className="absolute inset-0 rounded-[14px] transition-all duration-300"
-                          style={{
-                            boxShadow: "0 0 25px rgba(34,199,169,0.25), inset 0 1px 0 rgba(255,255,255,0.3)",
-                          }}
-                        />
-                      )}
-                      <div className={cn(
-                        "relative z-10 flex items-center gap-3",
-                        isActive && "text-[#021B1A]"
-                      )}>
+                      <div className="relative z-10 flex items-center gap-3">
                         <item.icon className={cn(
                           "w-5 h-5 flex-shrink-0 transition-all duration-300",
                           isActive 
-                            ? "text-[#021B1A]" 
-                            : "text-[rgba(255,255,255,0.5)] group-hover:text-[rgba(255,255,255,0.8)]"
+                            ? "text-primary-foreground" 
+                            : "text-foreground/40 group-hover:text-primary"
                         )} />
                         <span className={cn(
-                          "text-sm font-medium whitespace-nowrap transition-all duration-300 overflow-hidden",
+                          "text-sm font-bold whitespace-nowrap transition-all duration-300 overflow-hidden",
                           collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
                         )}>
                           {item.title}
