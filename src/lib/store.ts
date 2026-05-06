@@ -224,7 +224,7 @@ function notify() {
 // Store hook - accepts optional tenantId for multi-tenant filtering
 // For internal use - when you need to pass tenantId explicitly
 export function useStoreInternal(tenantId?: string) {
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
 
   const subscribe = useCallback(() => {
     const listener = () => setTick((t) => t + 1);
@@ -610,7 +610,7 @@ export function useStoreInternal(tenantId?: string) {
         }
       }
     }
-  }), [setTick, tenantId]);
+  }), [tick, tenantId]);
 }
 
 
