@@ -58,16 +58,24 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     navigate("/login");
   };
 
+  const width = collapsed ? "w-20" : "w-[280px]";
+  const left = 20;
+  const top = 20;
+  const bottom = 20;
+
   return (
-    <TooltipProvider delayDuration={0}>
-      <div
-        className="fixed left-4 top-1/2 -translate-y-1/2 z-50 transition-all duration-350 ease-out"
-        style={{
-          width: collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
-          height: "calc(100vh - 64px)",
-          maxHeight: "720px",
-        }}
-      >
+    <aside 
+      className={cn(
+        "fixed z-50 transition-all duration-350 ease-out flex flex-col",
+        width
+      )}
+      style={{ 
+        left: `${left}px`, 
+        top: `${top}px`, 
+        height: `calc(100vh - ${top + bottom}px)`
+      }}
+    >
+      <TooltipProvider delayDuration={0}>
         <div 
           className={cn(
             "relative h-full w-full overflow-hidden rounded-[26px]",
@@ -93,32 +101,32 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           </div>
 
           <div className="relative z-10 flex flex-col h-full">
-            <div className="p-5 flex items-center gap-3 border-b border-border/50">
+            <div className="p-6 flex items-center gap-4 border-b border-border/40">
                 <style>{`
-                  @keyframes pulse-cyan {
-                    0% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.4); }
-                    70% { box-shadow: 0 0 0 10px rgba(0, 229, 255, 0); }
-                    100% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0); }
+                  @keyframes pulse-green {
+                    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+                    70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
                   }
                 `}</style>
                 <div 
-                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-300 hover:scale-110 active:scale-95 group/logo"
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-300 hover:rotate-3 active:scale-90 group/logo shadow-[0_4px_12px_rgba(16,185,129,0.15)]"
                   style={{
-                    background: "linear-gradient(135deg, hsl(var(--primary)/0.2) 0%, hsl(var(--primary)/0.4) 100%)",
-                    boxShadow: "0 4px 16px hsl(var(--primary)/0.2)",
-                    animation: "pulse-cyan 3s infinite"
+                    background: "linear-gradient(135deg, hsl(var(--primary)/0.1) 0%, hsl(var(--primary)/0.25) 100%)",
+                    border: "1px solid hsl(var(--primary)/0.2)",
+                    animation: "pulse-green 4s infinite"
                   }}
                 >
-                  <Cpu className="w-5 h-5 text-primary animate-pulse" />
+                  <Cpu className="w-6 h-6 text-primary animate-pulse" />
                 </div>
               <div className={cn(
                 "flex flex-col overflow-hidden transition-all duration-300 ease-out",
                 collapsed ? "opacity-0 w-0" : "opacity-100"
               )}>
-                <span className="font-bold text-sm text-foreground tracking-tight whitespace-nowrap">
+                <span className="font-black text-base text-foreground tracking-tight whitespace-nowrap">
                   Operai
                 </span>
-                <span className="text-[10px] text-muted-foreground font-semibold whitespace-nowrap">Inteligência Artificial</span>
+                <span className="text-[10px] text-primary font-bold uppercase tracking-widest whitespace-nowrap opacity-80">AI Operations</span>
               </div>
             </div>
 
@@ -149,8 +157,8 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               </div>
             </div>
 
-            <div className="flex-1 px-3 overflow-y-auto overflow-x-hidden scrollbar-thin">
-              <div className="space-y-1.5 py-2">
+            <div className="flex-1 px-4 overflow-y-auto overflow-x-hidden scrollbar-thin">
+              <div className="space-y-2 py-4">
                 {navItems.map((item) => {
                   const isActive = location.pathname === item.url || 
                     (item.url !== "/" && location.pathname.startsWith(item.url));
@@ -161,22 +169,22 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                       to={item.url}
                       end={item.url === "/"}
                       className={cn(
-                        "group relative flex items-center gap-3 px-3 py-2.5 rounded-xl",
+                        "group relative flex items-center gap-4 px-4 py-3.5 rounded-2xl",
                         "transition-all duration-300 ease-out",
                         isActive 
-                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" 
-                          : "text-foreground/70 hover:bg-primary/10 hover:text-primary"
+                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-[1.02]" 
+                          : "text-foreground/60 hover:bg-primary/10 hover:text-primary"
                       )}
                     >
-                      <div className="relative z-10 flex items-center gap-3">
+                      <div className="relative z-10 flex items-center gap-4">
                         <item.icon className={cn(
                           "w-5 h-5 flex-shrink-0 transition-all duration-300",
                           isActive 
-                            ? "text-primary-foreground" 
-                            : "text-foreground/40 group-hover:text-primary"
+                            ? "text-primary-foreground scale-110" 
+                            : "text-foreground/30 group-hover:text-primary group-hover:scale-110"
                         )} />
                         <span className={cn(
-                          "text-sm font-bold whitespace-nowrap transition-all duration-300 overflow-hidden",
+                          "text-[13px] font-bold tracking-tight whitespace-nowrap transition-all duration-300 overflow-hidden",
                           collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
                         )}>
                           {item.title}

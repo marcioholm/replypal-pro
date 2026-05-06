@@ -14,8 +14,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   const { theme, setTheme } = useTheme();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
-  const sidebarWidth = sidebarCollapsed ? 72 : 240;
-  const sidebarOffset = 16 + sidebarWidth;
+  const sidebarWidth = sidebarCollapsed ? 80 : 280;
+  const sidebarOffset = 20 + sidebarWidth;
   
   return (
     <div className="min-h-screen w-full">
