@@ -221,6 +221,18 @@ function notify() {
   listeners.forEach((l) => l());
 }
 
+const currentTenantIdCtx = {
+  id: undefined as string | undefined,
+  set(id: string | undefined) {
+    this.id = id;
+  },
+  get() {
+    return this.id;
+  },
+};
+
+let tenantIdSetter: ((id: string) => void) | null = null;
+
 // Store hook - accepts optional tenantId for multi-tenant filtering
 // For internal use - when you need to pass tenantId explicitly
 export function useStoreInternal(tenantId?: string) {
@@ -243,9 +255,6 @@ export function useStoreInternal(tenantId?: string) {
     if (!tenantId) return items;
     return items.filter((item) => !item.tenantId || item.tenantId === tenantId);
   };
-
-  // Filter users by tenant
-  const filteredUsers = filterByTenant(MOCK_USERS);
 
   return useMemo(() => ({
     conversations: globalConversations,
@@ -310,8 +319,6 @@ export function useStoreInternal(tenantId?: string) {
           : c
       );
       
-      // Também precisamos atualizar as mensagens vinculadas se houver alguma lógica de filtragem, 
-      // mas as mensagens são buscadas por conversationId, então devem permanecer.
       globalHistory = [
         ...globalHistory,
         {
@@ -487,7 +494,6 @@ export function useStoreInternal(tenantId?: string) {
       return newCustomer.id;
     },
 
-    // New: Functions to add DB loaded data to store
     addDbConversation: (conv: Conversation) => {
       const existingIdx = globalConversations.findIndex(c => c.id === conv.id);
       if (existingIdx === -1) {
@@ -529,25 +535,20 @@ export function useStoreInternal(tenantId?: string) {
       const currentMessages = [...globalMessages];
 
       msgs.forEach(dbMsg => {
-        // 1. Skip if ID already exists
         if (currentMessages.find(m => m.id === dbMsg.id)) return;
 
-        // 2. Look for matching optimistic message
-        // An optimistic message has an ID starting with 'm' (see sendMessage)
         const optimisticIdx = currentMessages.findIndex(m => 
           m.id.startsWith('m') && 
           m.conversationId === dbMsg.conversationId &&
           m.content === dbMsg.content &&
           m.sender === dbMsg.sender &&
-          Math.abs(m.timestamp.getTime() - dbMsg.timestamp.getTime()) < 45000 // 45s window
+          Math.abs(m.timestamp.getTime() - dbMsg.timestamp.getTime()) < 45000
         );
 
         if (optimisticIdx !== -1) {
-          // Replace optimistic message with real database message
           currentMessages[optimisticIdx] = dbMsg;
           hasChanges = true;
         } else {
-          // Add as new message
           currentMessages.push(dbMsg);
           hasChanges = true;
         }
@@ -603,7 +604,6 @@ export function useStoreInternal(tenantId?: string) {
         notify();
       } else {
         const existing = globalCustomers[existingIdx];
-        // Atualizar se houve mudança ou se campos críticos estão vazios
         if (existing.name !== customer.name || existing.status !== customer.status || existing.cnpj !== customer.cnpj) {
           globalCustomers = globalCustomers.map(c => c.id === customer.id ? { ...c, ...customer } : c);
           notify();
@@ -613,6 +613,24 @@ export function useStoreInternal(tenantId?: string) {
   }), [tick, tenantId]);
 }
 
+export function useStore(...args: Parameters<typeof useStoreInternal>) {
+  const tenantId = currentTenantIdCtx.get();
+  return useStoreInternal(tenantId ?? args[0]);
+}
+
+export function setCurrentTenantId(id: string | undefined) {
+  currentTenantIdCtx.set(id);
+  if (tenantIdSetter && id) {
+    tenantIdSetter(id);
+  }
+}
+
+export function registerTenantIdSetter(setter: (id: string) => void) {
+  tenantIdSetter = setter;
+  if (currentTenantIdCtx.id) {
+    setter(currentTenantIdCtx.id);
+  }
+}
 
 // Helpers
 export function ensureDate(date: any): Date | null {
@@ -651,34 +669,3 @@ export const STATUS_CONFIG: Record<ConversationStatus, { label: string; color: s
   aguardando_cliente: { label: "Aguardando cliente", color: "kanban-client" },
   resolvido: { label: "Resolvido", color: "kanban-resolved" },
 };
-
-const currentTenantIdCtx = {
-  id: undefined as string | undefined,
-  set(id: string | undefined) {
-    this.id = id;
-  },
-  get() {
-    return this.id;
-  },
-};
-
-let tenantIdSetter: ((id: string) => void) | null = null;
-
-export function registerTenantIdSetter(setter: (id: string) => void) {
-  tenantIdSetter = setter;
-  if (currentTenantIdCtx.id) {
-    setter(currentTenantIdCtx.id);
-  }
-}
-
-export function setCurrentTenantId(id: string | undefined) {
-  currentTenantIdCtx.set(id);
-  if (tenantIdSetter && id) {
-    tenantIdSetter(id);
-  }
-}
-
-export function useStore(...args: Parameters<typeof useStoreInternal>) {
-  const tenantId = currentTenantIdCtx.get();
-  return useStoreInternal(tenantId ?? args[0]);
-}

@@ -23,9 +23,9 @@ export default function InboxPage() {
   
   useEffect(() => {
     if (user) {
-      store.setCurrentUser(user);
+      storeRef.current.setCurrentUser(user);
     }
-  }, [user, store]);
+  }, [user]);
 
   const [filter, setFilter] = useState<Filter>("minhas");
   const [hasSetDefaultFilter, setHasSetDefaultFilter] = useState(false);
