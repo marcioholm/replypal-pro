@@ -33,7 +33,6 @@ export default function InboxPage() {
   const [prevConversationCount, setPrevConversationCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const conversationsRef = useRef<{ id: string }[]>([]);
-  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
     const check = async () => {
@@ -97,24 +96,17 @@ export default function InboxPage() {
   }, [user?.tenantId, user?.id, filter, store, supabase]);
 
   useEffect(() => {
-    if (hasFetchedRef.current && user?.tenantId) {
+    if (user?.tenantId) {
       fetchData();
     }
-  }, [filter]);
-
-  useEffect(() => {
-    if (user?.tenantId && !hasFetchedRef.current) {
-      hasFetchedRef.current = true;
-      fetchData();
-    }
-  }, [user?.tenantId]);
+  }, [user?.tenantId, filter, search, fetchData]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       if (user?.tenantId) {
         fetchData();
       }
-    }, 5000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [user?.tenantId, fetchData]);
 

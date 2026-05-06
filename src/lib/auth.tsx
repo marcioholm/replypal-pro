@@ -102,10 +102,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setTenant({ id: tData.id, name: tData.nome, subdomain: tData.subdomain });
                 setCurrentTenantId(tData.id);
               }
+              setIsLoading(false);
             });
           } else {
             localStorage.removeItem("replypal_user");
+            setIsLoading(false);
           }
+        }).catch(() => {
+          localStorage.removeItem("replypal_user");
           setIsLoading(false);
         });
       } catch {

@@ -53,10 +53,14 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
   useEffect(() => {
     const fetchCounts = async () => {
+      const tenantId = user?.tenantId;
+      if (!tenantId) return;
+
       try {
         const { data } = await supabase
           .from("conversas")
-          .select("status, sla_deadline");
+          .select("status, sla_deadline")
+          .eq("tenant_id", tenantId);
         
         if (data) {
           const open = data.filter(c => c.status !== "resolvido").length;
@@ -75,9 +79,9 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     };
 
     fetchCounts();
-    const interval = setInterval(fetchCounts, 5000); // Mais rápido (5s)
+    const interval = setInterval(fetchCounts, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user?.tenantId]);
 
   const handleLogout = () => {
     logout();
