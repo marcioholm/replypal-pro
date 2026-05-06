@@ -432,6 +432,79 @@ export default function ChatPage() {
     toast.success("Nota adicionada");
   };
 
+  const handleAutoCreateCustomer = async () => {
+    if (!conv || !user) return;
+    const toastId = toast.loading("Cadastrando cliente...");
+    
+    try {
+      const customerId = `cus-${Date.now()}`;
+      const newCustomer = {
+        id: customerId,
+        razao_social: conv.clientName,
+        nome_fantasia: conv.clientName,
+        cnpj: `TEMP-${Date.now()}`,
+        responsavel: conv.clientName,
+        whatsapp: conv.clientPhone,
+        phone: conv.clientPhone,
+        status: "Onboarding",
+        prioridade: "Média",
+        service_level: "Padrão",
+        tenant_id: user.tenantId
+      };
+
+      // 1. Criar no DB
+      const { error: custError } = await supabase
+        .from("clientes")
+        .insert([newCustomer]);
+      
+      if (custError) throw custError;
+
+      // 2. Vincular à conversa no DB
+      const { error: convError } = await supabase
+        .from("conversas")
+        .update({ customer_id: customerId })
+        .eq("id", id);
+      
+      if (convError) throw convError;
+
+      // 3. Atualizar Store local
+      store.addDbCustomer({
+        ...newCustomer,
+        razaoSocial: newCustomer.razao_social,
+        name: newCustomer.nome_fantasia,
+        responsibleName: newCustomer.responsavel,
+        city: "",
+        state: "",
+        email: "",
+        regime: "Simples Nacional",
+        naturezaJuridica: "",
+        cnae: "",
+        hasEmployees: false,
+        employeeCount: 0,
+        preferredChannel: "WhatsApp",
+        plan: "Pendente",
+        monthlyValue: 0,
+        financialStatus: "Atenção",
+        origin: "WhatsApp Automático",
+        contacts: [],
+        observations: "Criado via chat",
+        tags: [],
+        documents: [],
+        createdAt: new Date()
+      } as any);
+
+      store.addDbConversation({
+        ...conv,
+        customerId
+      });
+
+      toast.success("Cliente cadastrado e vinculado!", { id: toastId });
+    } catch (err) {
+      console.error("Erro ao cadastrar cliente:", err);
+      toast.error("Erro ao cadastrar cliente", { id: toastId });
+    }
+  };
+
   if (!user) return null;
   if (loading) return <div className="flex items-center justify-center h-full bg-background"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   if (!conv) return <div className="flex flex-col items-center justify-center h-full bg-background gap-4"><p>Conversa não encontrada</p><Button onClick={() => navigate("/")}>Voltar</Button></div>;
@@ -654,7 +727,7 @@ export default function ChatPage() {
               ) : (
                 <div className="text-center py-8">
                   <p className="text-sm text-muted-foreground mb-4">Cliente não cadastrado.</p>
-                  <Button onClick={() => store.autoCreateCustomer(conv.clientName, conv.clientPhone)}>Cadastrar Agora</Button>
+                  <Button onClick={handleAutoCreateCustomer}>Cadastrar Agora</Button>
                 </div>
               )}
             </div>
