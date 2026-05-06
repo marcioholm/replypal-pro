@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   MessageSquare, 
   LayoutDashboard, 
@@ -19,6 +19,7 @@ import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { IAChatButton } from "./IAChat";
+import { supabase } from "@/lib/supabase";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -47,11 +48,36 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const { user, tenant, logout } = useAuth();
   const navigate = useNavigate();
   
-  const openCount = store.conversations.filter(c => c.status !== "resolvido").length;
-  const atRiskCount = store.conversations.filter(c => {
-    const sla = store.getSLAStatus(c);
-    return sla === "em_risco" || sla === "estourado";
-  }).length;
+  const [openCount, setOpenCount] = useState(0);
+  const [atRiskCount, setAtRiskCount] = useState(0);
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const { data } = await supabase
+          .from("conversas")
+          .select("status, sla_deadline");
+        
+        if (data) {
+          const open = data.filter(c => c.status !== "resolvido").length;
+          const atRisk = data.filter(c => {
+            if (c.status === "resolvido") return false;
+            if (!c.sla_deadline) return false;
+            return new Date(c.sla_deadline) < new Date();
+          }).length;
+          
+          setOpenCount(open);
+          setAtRiskCount(atRisk);
+        }
+      } catch (err) {
+        console.error("Error fetching counts:", err);
+      }
+    };
+
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 5000); // Mais rápido (5s)
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -251,23 +277,23 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               )}
             </div>
           </div>
-
-          <button
-            onClick={onToggle}
-            className="absolute -right-4 top-1/2 -translate-y-1/2 z-50 group/toggle"
-          >
-            <div
-              className="w-8 h-8 rounded-full bg-white dark:bg-card border border-border/50 dark:border-white/10 flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all duration-300 hover:scale-110 active:scale-95 hover:border-primary/50 group-hover/toggle:shadow-primary/20"
-            >
-              <div className={cn(
-                "transition-transform duration-500 ease-in-out",
-                collapsed ? "rotate-0" : "rotate-180"
-              )}>
-                <ChevronRight className="w-5 h-5 text-primary" />
-              </div>
-            </div>
-          </button>
         </div>
+
+        <button
+          onClick={onToggle}
+          className="absolute -right-4 top-1/2 -translate-y-1/2 z-[60] group/toggle"
+        >
+          <div
+            className="w-8 h-8 rounded-full bg-white dark:bg-card border border-border/50 dark:border-white/10 flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all duration-300 hover:scale-110 active:scale-95 hover:border-primary/50 group-hover/toggle:shadow-primary/20"
+          >
+            <div className={cn(
+              "transition-transform duration-500 ease-in-out",
+              collapsed ? "rotate-0" : "rotate-180"
+            )}>
+              <ChevronRight className="w-5 h-5 text-primary" />
+            </div>
+          </div>
+        </button>
       </div>
     </TooltipProvider>
   );
