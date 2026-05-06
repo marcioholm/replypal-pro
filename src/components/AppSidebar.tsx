@@ -281,6 +281,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               )}
             </div>
           </div>
+        </div>
 
         <button
           onClick={onToggle}
