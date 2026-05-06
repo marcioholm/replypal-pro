@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
-import { IAChatPanel } from "@/components/IAChat";
+// import { IAChatPanel } from "@/components/IAChat";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -49,7 +49,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               </header>
               <main className="flex-1 overflow-auto">{children}</main>
             </div>
-            <IAChatPanel />
+            {/* <IAChatPanel /> */}
           </div>
         </div>
       </div>
