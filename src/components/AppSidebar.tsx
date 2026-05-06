@@ -196,37 +196,37 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               </div>
             </div>
 
-            <div className="p-3 border-t border-[rgba(255,255,255,0.06)] space-y-2">
+            <div className="p-4 border-t border-border/40 space-y-2.5">
               <div className={cn(
-                "px-3 py-2 rounded-[12px] bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.05)] transition-all duration-300 overflow-hidden",
+                "px-4 py-3 rounded-xl bg-primary/5 border border-primary/10 transition-all duration-300 overflow-hidden",
                 collapsed ? "opacity-0 max-h-0 py-0" : "opacity-100 max-h-[100px]"
               )}>
-                <p className="text-[10px] text-[rgba(255,255,255,0.4)] uppercase tracking-wider">Empresa</p>
-                <p className="text-sm font-medium text-white">{tenant?.name}</p>
+                <p className="text-[10px] text-primary/60 font-bold uppercase tracking-widest mb-1">Empresa</p>
+                <p className="text-sm font-bold text-foreground truncate">{tenant?.name}</p>
               </div>
               
               <IAChatButton collapsed={collapsed} />
               
               <div className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-[12px] hover:bg-[rgba(255,255,255,0.04)] transition-colors overflow-hidden transition-all duration-300",
-                collapsed ? "opacity-0 max-h-0 py-0" : "opacity-100 max-h-[60px]"
+                "flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-primary/10 transition-all duration-300 overflow-hidden",
+                collapsed ? "opacity-0 max-h-0 py-0" : "opacity-100 max-h-[70px]"
               )}>
-                <div className="w-9 h-9 rounded-[12px] bg-[rgba(34,199,169,0.15)] flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden flex-shrink-0 border border-primary/20">
                   {user?.avatar ? (
                     <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-xs font-bold text-[#22C7A9]">
+                    <span className="text-sm font-black text-primary">
                       {(user?.name || "").split(" ").map((n: string) => n[0]).join("")}
                     </span>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{user?.name}</p>
-                  <p className="text-[10px] text-[rgba(255,255,255,0.5)] truncate uppercase tracking-wider">{user?.role}</p>
+                  <p className="text-sm font-bold text-foreground truncate">{user?.name}</p>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{user?.role}</p>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="p-2 rounded-[10px] hover:bg-[rgba(239,68,68,0.15)] text-[rgba(255,255,255,0.4)] hover:text-[#EF4444] transition-colors flex-shrink-0"
+                  className="p-2.5 rounded-xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all flex-shrink-0"
                   title="Sair"
                 >
                   <LogOut className="w-4 h-4" />
@@ -244,7 +244,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                       <LogOut className="w-4 h-4" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="right" className="bg-[#032B29] border-[rgba(255,255,255,0.1)] text-white">
+                  <TooltipContent side="right" className="bg-card border-border/50 text-foreground font-bold text-xs">
                     Sair
                   </TooltipContent>
                 </Tooltip>
@@ -254,19 +254,16 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
           <button
             onClick={onToggle}
-            className="absolute -right-3 top-1/2 -translate-y-1/2 z-20"
+            className="absolute -right-4 top-1/2 -translate-y-1/2 z-50 group/toggle"
           >
             <div
-              className="w-6 h-6 rounded-full bg-[rgba(34,199,169,0.2)] border border-[rgba(34,199,169,0.3)] flex items-center justify-center backdrop-blur-md transition-transform duration-200 hover:scale-110 active:scale-90"
-              style={{
-                boxShadow: "0 2px 8px rgba(34,199,169,0.2)",
-              }}
+              className="w-8 h-8 rounded-full bg-white dark:bg-card border border-border/50 dark:border-white/10 flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all duration-300 hover:scale-110 active:scale-95 hover:border-primary/50 group-hover/toggle:shadow-primary/20"
             >
               <div className={cn(
-                "transition-transform duration-300",
+                "transition-transform duration-500 ease-in-out",
                 collapsed ? "rotate-0" : "rotate-180"
               )}>
-                <ChevronRight className="w-3.5 h-3.5 text-[#22C7A9]" />
+                <ChevronRight className="w-5 h-5 text-primary" />
               </div>
             </div>
           </button>
