@@ -773,13 +773,24 @@ export default function ChatPage() {
 
           {showPanel === "history" && (
             <div className="space-y-3">
-              {history.map(h => (
-                <div key={h.id} className="p-3 bg-muted/20 border-l-2 border-primary/30 text-[11px]">
-                  <p className="font-bold">{h.action}</p>
-                  {h.userName && <p className="opacity-70">por {h.userName}</p>}
-                  <p className="text-[9px] mt-1 opacity-50">{formatTime(h.timestamp)}</p>
+              {history.length > 0 ? (
+                history.map(h => (
+                  <div key={h.id} className="p-3 bg-muted/20 border-l-2 border-primary/30 rounded-r-lg text-[11px] animate-in fade-in slide-in-from-right-1">
+                    <p className="font-bold text-foreground">{h.action}</p>
+                    {h.userName && <p className="text-muted-foreground mt-0.5">por {h.userName}</p>}
+                    {h.details && <p className="text-[10px] mt-1 italic text-muted-foreground/80">{h.details}</p>}
+                    <p className="text-[9px] mt-1.5 opacity-50 font-mono">{formatTime(h.timestamp)}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                    <RefreshCw className="w-5 h-5 text-muted-foreground/40" />
+                  </div>
+                  <p className="text-xs font-medium text-muted-foreground">Nenhum log registrado</p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-1">Ações como transferências e encerramentos aparecerão aqui.</p>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
