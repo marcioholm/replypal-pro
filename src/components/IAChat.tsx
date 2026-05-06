@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { Sparkles, Send, X, Loader2, Bot, User as UserIcon, ThumbsUp, ThumbsDown, BookOpen, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ export function IAChatButton({ collapsed }: { collapsed: boolean }) {
 
 export function IAChatPanel() {
   const store = useStore();
+  const location = useLocation();
   const isOpen = store.isIAChatOpen;
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -40,6 +42,10 @@ export function IAChatPanel() {
   const { user, tenant } = useAuth();
   const [companyName, setCompanyName] = useState("Assistente IA");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Detectar se está na página de um cliente para enviar cliente_id
+  const pathParts = location.pathname.split("/");
+  const clienteId = (pathParts[1] === "customers" && pathParts[2]) ? pathParts[2] : undefined;
 
   useEffect(() => {
     if (isOpen && tenant) {
@@ -70,23 +76,37 @@ export function IAChatPanel() {
     setInput("");
     setIsLoading(true);
 
+    const payload = {
+      mensagem_texto: userMessage,
+      tenant_id: user?.tenantId,
+      cliente_id: clienteId,
+      origem: "replypal_interno",
+      numero_whatsapp: user?.whatsapp || user?.id || "interno",
+      colaborador: user?.name || "Usuário",
+    };
+
+    console.log("IA Assistant Request Payload:", payload);
+
     try {
       const response = await fetch(import.meta.env.VITE_N8N_IA_WEBHOOK, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mensagem_texto: userMessage,
-          numero_whatsapp: user?.whatsapp || user?.id || "interno",
-          colaborador: user?.name || "Usuário",
-          tenant_id: user?.tenantId,
-          origem: "replypal_interno",
-        }),
+        body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error();
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
       const data = await response.json();
-      setMessages((prev) => [...prev, { role: "ia", content: data.resposta || "Desculpe, não obtive uma resposta clara." }]);
-    } catch {
+      console.log("IA Assistant Response Data:", data);
+
+      if (data && data.resposta) {
+        setMessages((prev) => [...prev, { role: "ia", content: data.resposta }]);
+      } else {
+        console.warn("IA response missing 'resposta' field:", data);
+        setMessages((prev) => [...prev, { role: "ia", content: "Recebi uma resposta vazia da IA. Por favor, tente reformular sua pergunta." }]);
+      }
+    } catch (error) {
+      console.error("IA Assistant Error:", error);
       setMessages((prev) => [
         ...prev,
         { role: "ia", content: "Ops! Tive um problema ao processar sua mensagem. Poderia tentar novamente em alguns instantes?" },

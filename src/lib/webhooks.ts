@@ -1,10 +1,9 @@
 import { User, Conversation, Customer } from "./store";
 
 const N8N_URLS = {
-  ia: import.meta.env.VITE_N8N_IA_WEBHOOK || "",
   financeiro: import.meta.env.VITE_N8N_FINANCEIRO_WEBHOOK || "",
   documentos: import.meta.env.VITE_N8N_WEBHOOK_DOCUMENTOS || "",
-  // Usar IA webhook como fallback para eventos operacionais se não houver um específico
+  // Endpoint para eventos operacionais do sistema
   eventos: import.meta.env.VITE_N8N_IA_WEBHOOK || "", 
 };
 
