@@ -118,6 +118,29 @@ export default function InboxPage() {
     return () => clearInterval(interval);
   }, [user?.tenantId, fetchData]);
 
+  useEffect(() => {
+    const fetchTeam = async () => {
+      if (!user?.tenantId) return;
+      const { data } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("tenant_id", user.tenantId);
+      
+      if (data) {
+        store.setUsers(data.map(d => ({
+          id: d.id,
+          name: d.nome,
+          email: d.email,
+          role: d.role as any,
+          tenantId: d.tenant_id,
+          avatar: d.avatar,
+          whatsapp: d.whatsapp
+        })));
+      }
+    };
+    fetchTeam();
+  }, [user?.tenantId]);
+
   const handleManualRefresh = useCallback(async () => {
     const tenantId = user?.tenantId;
     if (!tenantId) return;

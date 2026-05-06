@@ -133,6 +133,29 @@ export default function ChatPage() {
   }, [id, !!conv]);
 
   useEffect(() => {
+    const fetchTeam = async () => {
+      if (!user?.tenantId) return;
+      const { data } = await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("tenant_id", user.tenantId);
+      
+      if (data) {
+        store.setUsers(data.map(d => ({
+          id: d.id,
+          name: d.nome,
+          email: d.email,
+          role: d.role as UserRole,
+          tenantId: d.tenant_id,
+          avatar: d.avatar,
+          whatsapp: d.whatsapp
+        })));
+      }
+    };
+    fetchTeam();
+  }, [user?.tenantId]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
