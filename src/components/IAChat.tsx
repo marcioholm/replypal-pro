@@ -20,14 +20,20 @@ export function IAChatButton({ collapsed }: { collapsed: boolean }) {
   return (
     <button
       onClick={() => store.setIAChatOpen(!store.isIAChatOpen)}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 hover:bg-sidebar-accent/50 text-sidebar-foreground group relative mb-1 ${
-        store.isIAChatOpen ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md" : ""
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] transition-all duration-300 group relative mb-1 ${
+        store.isIAChatOpen 
+          ? "bg-[rgba(34,199,169,0.2)] text-[#22C7A9]" 
+          : "hover:bg-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.65)] hover:text-white"
       }`}
       title="Assistente IA"
     >
-      <Sparkles className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${store.isIAChatOpen ? "text-sidebar-primary-foreground" : "text-sidebar-primary group-hover:scale-110"}`} />
-      {!collapsed && <span className="text-sm font-medium tracking-tight">Assistente IA</span>}
-      {store.isIAChatOpen && !collapsed && <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+      <Sparkles className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${store.isIAChatOpen ? "text-[#22C7A9]" : "text-[rgba(34,199,169,0.6)] group-hover:text-[#22C7A9] group-hover:scale-110"}`} />
+      <span className={`text-sm font-medium tracking-tight whitespace-nowrap transition-all duration-300 overflow-hidden ${
+        collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+      }`}>
+        Assistente IA
+      </span>
+      {store.isIAChatOpen && !collapsed && <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-[#22C7A9] animate-pulse" />}
     </button>
   );
 }
