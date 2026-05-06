@@ -299,8 +299,8 @@ export default function InboxPage() {
               <Mail className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold tracking-tight">Caixa de Entrada</h1>
-              <p className="text-xs text-muted-foreground">{filtered.length} conversa(s)</p>
+              <h1 className="text-lg font-bold tracking-tight text-foreground">Caixa de Entrada</h1>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{filtered.length} conversa(s)</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -332,10 +332,13 @@ export default function InboxPage() {
               <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
               Atualizar
             </Button>
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${waConnected ? "bg-green-500/10 border-green-500/20" : "bg-muted/50 border-muted/20"}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${waConnected ? "bg-green-500 animate-pulse" : "bg-muted-foreground/40"}`} />
-              <span className={`text-[10px] font-medium ${waConnected ? "text-green-500" : "text-muted-foreground"}`}>
-                {waConnected ? "WhatsApp" : "Offline"}
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-300 ${waConnected ? "bg-emerald-500/5 border-emerald-500/20 shadow-[0_0_12px_rgba(16,185,129,0.1)]" : "bg-muted/30 border-muted/20"}`}>
+              <div className="relative flex items-center justify-center">
+                <span className={`w-1.5 h-1.5 rounded-full ${waConnected ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />
+                {waConnected && <span className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping opacity-75" />}
+              </div>
+              <span className={`text-[10px] font-bold uppercase tracking-widest ${waConnected ? "text-emerald-600" : "text-muted-foreground"}`}>
+                {waConnected ? "WhatsApp Ativo" : "Offline"}
               </span>
             </div>
           </div>
@@ -425,7 +428,7 @@ export default function InboxPage() {
                         key={conv.id}
                         data-conversation-id={conv.id}
                         onClick={() => navigate(`/chat/${conv.id}`)}
-                        className={`w-full text-left p-4 rounded-xl border bg-card hover:bg-muted/30 transition-all active:scale-[0.99] group shadow-sm hover:shadow-md border-border/50 ${isAtRisk ? "border-l-4 border-l-destructive" : ""}`}
+                        className={`w-full text-left p-4 rounded-2xl border bg-white/50 dark:bg-card/40 hover:bg-white dark:hover:bg-card transition-all active:scale-[0.98] group shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] border-border/40 ${isAtRisk ? "border-l-4 border-l-destructive" : ""}`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3">

@@ -103,18 +103,19 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+    font-family: 'Source Sans 3', 'Inter', system-ui, sans-serif;
     background: 
-      radial-gradient(ellipse at top, #0b4d45 0%, #031312 45%, #000000 100%),
-      radial-gradient(circle at 20% 30%, rgba(34,199,169,0.08) 0%, transparent 40%),
-      radial-gradient(circle at 80% 70%, rgba(14,143,120,0.05) 0%, transparent 30%);
+      radial-gradient(circle at top right, rgba(34,199,169,0.05) 0%, transparent 40%),
+      radial-gradient(circle at bottom left, rgba(34,199,169,0.03) 0%, transparent 40%),
+      hsl(var(--background));
     background-attachment: fixed;
     min-height: 100vh;
   }
 
   h1, h2, h3 {
-    font-family: 'IBM Plex Serif', Georgia, serif;
-    letter-spacing: -0.01em;
+    font-family: 'Playfair Display', serif;
+    letter-spacing: -0.02em;
+    @apply font-semibold;
   }
 }
 

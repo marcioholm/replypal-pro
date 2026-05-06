@@ -57,12 +57,12 @@ export function GlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground bg-muted/50 hover:bg-muted rounded-lg border border-transparent hover:border-border transition-all"
+        className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground bg-white/20 dark:bg-black/20 hover:bg-white/40 dark:hover:bg-black/40 rounded-xl border border-white/20 dark:border-white/10 transition-all shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.04)]"
       >
-        <Search className="w-4 h-4" />
-        <span className="hidden sm:inline">Buscar...</span>
-        <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground ml-2">
-          <span className="text-xs">⌘</span>K
+        <Search className="w-4 h-4 text-primary" />
+        <span className="hidden sm:inline font-medium">Pesquisar sistema...</span>
+        <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded-md border bg-muted/50 px-1.5 font-mono text-[10px] font-bold text-muted-foreground ml-4 shadow-sm">
+          <span className="text-[10px]">⌘</span>K
         </kbd>
       </button>
       <CommandDialog open={open} onOpenChange={setOpen}>

@@ -70,12 +70,12 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         <div 
           className={cn(
             "relative h-full w-full overflow-hidden rounded-[26px]",
-            "backdrop-blur-xl",
-            "bg-gradient-to-b from-[#032B29]/70 via-[#021B1A]/80 to-[#021B1A]/90",
-            "border border-[rgba(255,255,255,0.08)]",
-            "shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]",
+            "backdrop-blur-md",
+            "bg-white/70 dark:bg-[#021B1A]/40",
+            "border border-white/20 dark:border-white/10",
+            "shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)]",
             "before:absolute before:inset-0 before:rounded-[26px]",
-            "before:bg-gradient-to-br before:from-[rgba(34,199,169,0.08)] before:to-transparent",
+            "before:bg-gradient-to-br before:from-white/10 before:to-transparent",
             "before:pointer-events-none"
           )}
         >
@@ -107,10 +107,10 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 "flex flex-col overflow-hidden transition-all duration-300 ease-out",
                 collapsed ? "opacity-0 w-0" : "opacity-100"
               )}>
-                <span className="font-semibold text-sm text-white tracking-tight whitespace-nowrap">
+                <span className="font-semibold text-sm text-foreground dark:text-white tracking-tight whitespace-nowrap">
                   ReplyPal Pro
                 </span>
-                <span className="text-[10px] text-[rgba(255,255,255,0.5)] font-medium whitespace-nowrap">Contabilidade</span>
+                <span className="text-[10px] text-muted-foreground dark:text-white/50 font-medium whitespace-nowrap">Contabilidade</span>
               </div>
             </div>
 
@@ -156,8 +156,8 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                         "group relative flex items-center gap-3 px-3 py-2.5 rounded-[14px]",
                         "transition-all duration-300 ease-out",
                         isActive 
-                          ? "bg-[rgba(255,255,255,0.95)] text-[#021B1A]" 
-                          : "hover:bg-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.65)] hover:text-white"
+                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
+                          : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
                       )}
                     >
                       {isActive && (

@@ -523,7 +523,7 @@ export default function ChatPage() {
           <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="h-9 w-9 p-0">
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-sm font-bold text-primary-foreground shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shadow-sm border border-primary/20">
             {conv.clientName.charAt(0)}
           </div>
           <div className="flex-1 min-w-0">
@@ -586,7 +586,7 @@ export default function ChatPage() {
         </div>
 
         {/* Messages List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/5">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-transparent">
           {messages.map((msg) => (
             <MessageBubble key={msg.id} msg={msg} clientName={conv.clientName} />
           ))}
@@ -596,12 +596,12 @@ export default function ChatPage() {
         {/* Input Area */}
         <div className="p-4 border-t bg-card">
           {conv.status === "resolvido" ? (
-            <div className="text-center py-2 text-sm text-muted-foreground bg-muted/20 rounded-lg">
-              Esta conversa foi encerrada.
+            <div className="text-center py-3 text-xs font-bold uppercase tracking-widest text-muted-foreground bg-muted/10 rounded-xl border border-dashed border-muted/30">
+              Atendimento Encerrado
             </div>
           ) : !canRespond ? (
-            <div className="text-center py-2 text-sm text-muted-foreground bg-muted/20 rounded-lg">
-              Você precisa assumir a conversa para responder.
+            <div className="text-center py-3 text-xs font-bold uppercase tracking-widest text-primary/60 bg-primary/5 rounded-xl border border-dashed border-primary/20">
+              Aguardando Assumir Atendimento
             </div>
           ) : (
             <div className="flex flex-col gap-2">
