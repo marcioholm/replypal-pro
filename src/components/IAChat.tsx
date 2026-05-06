@@ -99,13 +99,17 @@ export function IAChatPanel() {
       const data = await response.json();
       console.log("Resposta IA recebida:", data);
 
-      // Priorizar data.resposta, fallback para data.resposta_final
+      // Suporte para resposta direta ou dentro de array (padrão n8n)
+      const resData = Array.isArray(data) ? data[0] : data;
+
+      // Prioridade: resposta > resposta_final > message
       const message =
-        data.resposta ||
-        data.resposta_final ||
+        resData?.resposta ||
+        resData?.resposta_final ||
+        resData?.message ||
         "Não foi possível obter resposta da IA.";
 
-      // Formatar quebras de linha, emojis, bullets e parágrafos
+      // Formatar quebras de linha e limpar espaços extras
       const textoIA = String(message).replace(/\\n/g, '\n').trim();
 
       setMessages((prev) => [...prev, { role: "ia", content: textoIA }]);
