@@ -29,20 +29,28 @@ async function downloadAndUploadMedia(
   try {
     let buffer: Buffer | null = null;
 
-    // Estratégia 1: endpoint base64 da Evolution (mais confiável)
-    if (fullMessage) {
+    // Estratégia 1: Pedir Base64 para a Evolution (Mais estável e já descriptografado)
+    if (evoUrl && evoKey) {
+      console.log(`Webhook Media: Trying Strategy 1 (v2 Convert to Base64) for instance: ${instance}`);
+      
+      // Codificar o nome da instância para lidar com espaços (ex: SASAKI TESTE -> SASAKI%20TESTE)
+      const encodedInstance = encodeURIComponent(instance);
+      const strategy1Url = `${evoUrl}/message/convert/toBase64/${encodedInstance}`;
+      
+      // No v2, o payload esperado é o objeto da mensagem com key e message
+      const v2Payload = fullMessage.data || fullMessage;
+
       try {
-        console.log(`Webhook Media: Trying Strategy 1 (Base64)`);
-        const base64Res = await fetch(`${evoUrl}/message/getBase64FromMediaMessage/${instance}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "apikey": evoKey },
-          body: JSON.stringify({ 
-            message: fullMessage.message ? fullMessage : { message: fullMessage }, 
-            convertToMp4: false 
-          }),
+        const base64Res = await fetch(strategy1Url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': evoKey
+          },
+          body: JSON.stringify(v2Payload),
+          signal: AbortSignal.timeout(10000)
         });
 
-        
         if (base64Res.ok) {
           const json = await base64Res.json();
           if (json.base64) {
