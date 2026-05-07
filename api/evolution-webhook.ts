@@ -428,6 +428,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .update(updateData)
           .eq('external_message_id', key.id);
       }
+    } else if (event === 'contacts.upsert' || event === 'contacts.update') {
+      // IMPLEMENTAÇÃO 6: Sincronizar Foto de Perfil e Nome do Contato
+      const contacts = Array.isArray(data) ? data : [data];
+      
+      for (const contact of contacts) {
+        const phone = contact.id?.split('@')[0] || contact.remoteJid?.split('@')[0];
+        const profilePicUrl = contact.profilePicUrl || contact.imgUrl;
+        const pushName = contact.pushName || contact.name;
+
+        if (phone && (profilePicUrl || pushName)) {
+          console.log(`[WEBHOOK] Atualizando contato: ${phone} | Foto: ${!!profilePicUrl}`);
+          
+          const updateData: any = {};
+          if (profilePicUrl) updateData.client_avatar = profilePicUrl;
+          if (pushName) updateData.client_name = pushName;
+
+          await supabase
+            .from('conversas')
+            .update(updateData)
+            .eq('client_phone', phone);
+        }
+      }
     }
 
     return res.status(200).json({ success: true });
