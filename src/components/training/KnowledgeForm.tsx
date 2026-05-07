@@ -115,8 +115,6 @@ export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData 
         ...form,
         tenant_id: user?.tenantId,
         cliente_id: form.cliente_id === "all" ? null : form.cliente_id,
-        atualizado_por: user?.id,
-        criado_por: editData ? editData.criado_por : user?.id,
         updated_at: new Date().toISOString()
       };
 
@@ -125,8 +123,7 @@ export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData 
         // Se for edit, salvar histórico antes ou via trigger? Vamos salvar histórico manual para controle.
         const { error: histError } = await supabase.from("conhecimento_ia_historico").insert({
           conhecimento_id: editData.id,
-          snapshot: editData,
-          alterado_por: user?.id
+          snapshot: editData
         });
         if (histError) console.error("Error saving history:", histError);
 
