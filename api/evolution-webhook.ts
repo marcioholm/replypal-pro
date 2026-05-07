@@ -1,3 +1,4 @@
+// VERSION: 2026-05-07 03:00 - FORCE FRESH DEPLOY
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
