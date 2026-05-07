@@ -140,8 +140,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log("MÉTODO:", req.method);
   console.log("HEADERS:", JSON.stringify(req.headers).substring(0, 200));
 
+  if (req.method === 'GET') {
+    console.log("!!! [WEBHOOK] HEALTH CHECK (GET) RECEBIDO !!!");
+    return res.status(200).json({ status: 'online', message: 'ReplyPal Webhook is active' });
+  }
+
   if (req.method !== 'POST') {
-    console.log("!!! [WEBHOOK] REJEITADO: NÃO É POST !!!");
+    console.log("!!! [WEBHOOK] REJEITADO: MÉTODO INVÁLIDO !!!", req.method);
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
