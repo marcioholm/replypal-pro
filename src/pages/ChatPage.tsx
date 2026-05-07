@@ -231,12 +231,15 @@ export default function ChatPage() {
         const res = await sendMediaMessage(conv.clientPhone, mediaUrl, type as any, selectedFile.name, messageInput);
         if (!res.success) throw new Error(res.error);
         
+        const extId = res.data?.key?.id;
+        
         const msgId = store.sendMessage(id!, messageInput, user, { 
           type, 
           mediaUrl, 
           fileName: selectedFile.name,
           mimeType: selectedFile.type,
-          fileSize: selectedFile.size
+          fileSize: selectedFile.size,
+          status: 'sent'
         });
 
         await supabase.from("mensagens").insert({
@@ -249,6 +252,7 @@ export default function ChatPage() {
           file_name: selectedFile.name,
           mime_type: selectedFile.type,
           file_size: selectedFile.size,
+          external_message_id: extId,
           status: 'sent'
         });
       } else if (audioBlob) {
@@ -258,11 +262,14 @@ export default function ChatPage() {
         const res = await sendAudioMessage(conv.clientPhone, mediaUrl);
         if (!res.success) throw new Error(res.error);
         
+        const extId = res.data?.key?.id;
+
         store.sendMessage(id!, "[Áudio]", user, { 
           type, 
           mediaUrl, 
           mimeType: 'audio/ogg',
-          durationSeconds: recordingTime
+          durationSeconds: recordingTime,
+          status: 'sent'
         });
 
         await supabase.from("mensagens").insert({
@@ -274,13 +281,16 @@ export default function ChatPage() {
           media_url: mediaUrl,
           mime_type: 'audio/ogg',
           duration_seconds: recordingTime,
+          external_message_id: extId,
           status: 'sent'
         });
       } else {
         const res = await sendWhatsAppMessage(conv.clientPhone, messageInput, user.name);
         if (!res.success) throw new Error(res.error);
         
-        store.sendMessage(id!, messageInput, user);
+        const extId = res.data?.key?.id;
+
+        store.sendMessage(id!, messageInput, user, { status: 'sent' });
 
         await supabase.from("mensagens").insert({
           conversation_id: id,
@@ -288,6 +298,7 @@ export default function ChatPage() {
           sender: "agent",
           sender_name: user.name,
           type: 'text',
+          external_message_id: extId,
           status: 'sent'
         });
       }

@@ -100,10 +100,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileName = messageContent.documentMessage.fileName || messageContent.documentMessage.title;
       }
 
-      // Salvar mensagem
+      // Salvar mensagem (usar upsert para evitar duplicatas se o front já inseriu)
       const { error: msgError } = await supabase
         .from('mensagens')
-        .insert({
+        .upsert({
           conversation_id: conv.id,
           content: content,
           sender: isFromMe ? 'agent' : 'client',
@@ -117,7 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           external_message_id: key.id,
           status: isFromMe ? 'sent' : 'delivered',
           tenant_id: conv.tenant_id
-        });
+        }, { onConflict: 'external_message_id' });
 
       if (msgError) throw msgError;
 
