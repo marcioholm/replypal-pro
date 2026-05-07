@@ -74,6 +74,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       const phone = remoteJid.split('@')[0];
       const isFromMe = key.fromMe;
+
+      // Ignorar mensagens enviadas pelo próprio sistema (fromMe)
+      // O frontend já as insere diretamente no banco
+      if (isFromMe) {
+        return res.status(200).json({ success: true, message: 'Outgoing message ignored' });
+      }
       const DEFAULT_TENANT_ID = '11111111-1111-1111-1111-111111111111';
 
       // Encontrar ou criar conversa - IMPLEMENTAÇÃO 1.1: Tenant lookup robusto
