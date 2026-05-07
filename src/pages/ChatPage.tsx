@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Send, Phone, Video, MoreVertical, Search, Paperclip, Smile, Mic, 
   ChevronLeft, Clock, Zap, MessageSquare, Shield, User, FileText, 
-  Trash2, AlertCircle, RefreshCcw, Check, X, Play, StopCircle, Trash,
+  Trash2, AlertCircle, RefreshCw, Check, X, Play, StopCircle, Trash,
   ArrowLeft, ArrowRightLeft, StickyNote, Tag, History, CheckCircle2, Plus, Loader2
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
