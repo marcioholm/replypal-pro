@@ -146,7 +146,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { event, data, instance: instanceFromPayload } = req.body || {};
-  console.log("EVENTO RECEBIDO:", event, "INSTÂNCIA:", instanceFromPayload);
+  
+  // LOG TEMPORÁRIO DE DEBUG — remover após resolver
+  console.log('=== WEBHOOK RECEIVED ===');
+  console.log('Event:', event);
+  console.log('Instance:', instanceFromPayload);
+  console.log('Data keys:', data ? Object.keys(data) : 'null');
+  if (data?.message) console.log('Message keys:', Object.keys(data.message));
+  if (data?.key) console.log('FromMe:', data.key?.fromMe, '| RemoteJid:', data.key?.remoteJid);
   
   if (!event || !data) {
     console.log("!!! [WEBHOOK] PAYLOAD INVÁLIDO OU VAZIO !!!", req.body);
