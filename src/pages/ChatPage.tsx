@@ -439,65 +439,79 @@ export default function ChatPage() {
     const toastId = toast.loading("Cadastrando cliente...");
     
     try {
-      const customerId = `cus-${Date.now()}`;
-      const newCustomer = {
-        id: customerId,
+      // 1. Criar no DB (deixar o Supabase gerar o UUID)
+      const newCustomerData = {
         razao_social: conv.clientName,
         nome_fantasia: conv.clientName,
         cnpj: `TEMP-${Date.now()}`,
         responsavel: conv.clientName,
         whatsapp: conv.clientPhone,
-        phone: conv.clientPhone,
+        telefone: conv.clientPhone, // Corrigido de 'phone' para 'telefone'
         status: "Onboarding",
         prioridade: "Média",
         service_level: "Padrão",
         tenant_id: user.tenantId
       };
 
-      // 1. Criar no DB
-      const { error: custError } = await supabase
+      const { data: createdCustomer, error: custError } = await supabase
         .from("clientes")
-        .insert([newCustomer]);
+        .insert([newCustomerData])
+        .select()
+        .single();
       
-      if (custError) throw custError;
+      if (custError) {
+        console.error("Erro Supabase ao criar cliente:", custError);
+        throw custError;
+      }
+
+      if (!createdCustomer) throw new Error("Falha ao criar registro de cliente");
 
       // 2. Vincular à conversa no DB
       const { error: convError } = await supabase
         .from("conversas")
-        .update({ customer_id: customerId })
+        .update({ customer_id: createdCustomer.id })
         .eq("id", id);
       
-      if (convError) throw convError;
+      if (convError) {
+        console.error("Erro Supabase ao vincular cliente:", convError);
+        throw convError;
+      }
 
       // 3. Atualizar Store local
       store.addDbCustomer({
-        ...newCustomer,
-        razaoSocial: newCustomer.razao_social,
-        name: newCustomer.nome_fantasia,
-        responsibleName: newCustomer.responsavel,
-        city: "",
-        state: "",
-        email: "",
-        regime: "Simples Nacional",
-        naturezaJuridica: "",
-        cnae: "",
-        hasEmployees: false,
-        employeeCount: 0,
-        preferredChannel: "WhatsApp",
-        plan: "Pendente",
-        monthlyValue: 0,
-        financialStatus: "Atenção",
-        origin: "WhatsApp Automático",
+        id: createdCustomer.id,
+        tenantId: createdCustomer.tenant_id,
+        razaoSocial: createdCustomer.razao_social,
+        name: createdCustomer.nome_fantasia,
+        cnpj: createdCustomer.cnpj,
+        responsibleName: createdCustomer.responsavel,
+        whatsapp: createdCustomer.whatsapp,
+        phone: createdCustomer.telefone,
+        email: createdCustomer.email || "",
+        city: createdCustomer.cidade || "",
+        state: createdCustomer.estado || "",
+        regime: createdCustomer.regime_tributario as any || "Simples Nacional",
+        naturezaJuridica: createdCustomer.natureza_juridica || "",
+        cnae: createdCustomer.cnae || "",
+        hasEmployees: !!createdCustomer.has_employees,
+        employeeCount: createdCustomer.employee_count || 0,
+        status: createdCustomer.status as any,
+        priority: createdCustomer.prioridade as any,
+        serviceLevel: createdCustomer.service_level as any,
+        preferredChannel: createdCustomer.preferred_channel as any || "WhatsApp",
+        plan: createdCustomer.plan || "Pendente",
+        monthlyValue: createdCustomer.monthly_value || 0,
+        origin: createdCustomer.origin || "WhatsApp Automático",
         contacts: [],
-        observations: "Criado via chat",
+        observations: createdCustomer.observations || "Criado via chat",
         tags: [],
         documents: [],
-        createdAt: new Date()
-      } as any);
+        createdAt: new Date(createdCustomer.created_at)
+      });
 
       store.addDbConversation({
         ...conv,
-        customerId
+        customerId: createdCustomer.id
       });
 
       toast.success("Cliente cadastrado e vinculado!", { id: toastId });
