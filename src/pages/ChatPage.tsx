@@ -252,8 +252,17 @@ export default function ChatPage() {
   }, [user?.tenantId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+    const scrollToBottom = () => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+    
+    // Rolar imediatamente
+    scrollToBottom();
+    
+    // Rolar após um pequeno delay para garantir que imagens carregaram
+    const timer = setTimeout(scrollToBottom, 500);
+    return () => clearTimeout(timer);
+  }, [messages.length, id, loading]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
