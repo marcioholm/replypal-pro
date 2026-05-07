@@ -1,4 +1,4 @@
-// VERSION: 2026-05-07 03:08 - AUDIO FIX
+// VERSION: 2026-05-07 03:13 - AUDIO COMPAT FIX
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
@@ -161,8 +161,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.videoMessage.url, 'video.mp4', mimeType, req.body);
       } else if (messageContent.audioMessage) {
         type = 'audio'; content = '[Audio]';
-        mimeType = messageContent.audioMessage.mimetype || 'audio/ogg';
-        // Garantir que o áudio tenha a extensão correta para o Supabase
+        // Limpar o mimeType para garantir compatibilidade (remover codecs=opus etc)
+        mimeType = 'audio/ogg'; 
         mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.audioMessage.url, 'audio.ogg', mimeType, req.body);
       } else if (messageContent.documentMessage) {
         type = 'document'; fileName = messageContent.documentMessage.fileName || 'document';
