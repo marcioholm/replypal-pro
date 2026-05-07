@@ -69,7 +69,7 @@ async function downloadAndUploadMedia(
 
         const response = await fetch(downloadUrl, {
           headers: { "apikey": evoKey },
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(7000), // Reduzido para 7s para evitar kill do Vercel
         });
 
         if (response.ok) {
