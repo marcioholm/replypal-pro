@@ -8,46 +8,89 @@ async function createSupabaseClient() {
   return createClient(supabaseUrl, supabaseKey);
 }
 
-async function downloadAndUploadMedia(supabase: any, evolutionUrl: string, apikey: string, mediaPath: string, fileName: string, mimeType: string) {
-  try {
-    const downloadUrl = mediaPath.startsWith('http') ? mediaPath : `${evolutionUrl}/public/${mediaPath}`;
-    console.log(`Webhook: Downloading media from ${downloadUrl}`);
-    
-    const response = await fetch(downloadUrl, {
-      headers: { "apikey": apikey }
-    });
+async function downloadAndUploadMedia(
+  supabase: any,
+  evolutionUrl: string,
+  apikey: string,
+  mediaPath: string,
+  fileName: string,
+  mimeType: string
+): Promise<string> {
+  // Corrigir: usar variáveis de ambiente sem prefixo VITE_ no servidor
+  const evoUrl = (process.env.EVOLUTION_URL || process.env.VITE_EVOLUTION_URL || evolutionUrl).replace(/\/$/, "");
+  const evoKey = process.env.EVOLUTION_API_KEY || process.env.VITE_EVOLUTION_API_KEY || apikey;
+  const instance = process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI";
 
-    if (!response.ok) {
-      console.error(`Webhook: Failed to download media: ${response.statusText}`);
+  try {
+    let buffer: Buffer | null = null;
+
+    // Estratégia 1: endpoint base64 da Evolution (mais confiável)
+    try {
+      const base64Res = await fetch(`${evoUrl}/message/getBase64FromMediaMessage/${instance}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": evoKey },
+        body: JSON.stringify({ message: { key: {}, message: {} }, convertToMp4: false }),
+      });
+      // Só usa se retornar base64 válido
+      if (base64Res.ok) {
+        const json = await base64Res.json();
+        if (json.base64) {
+          buffer = Buffer.from(json.base64, 'base64');
+        }
+      }
+    } catch { /* tenta próxima estratégia */ }
+
+    // Estratégia 2: download direto da URL com autenticação
+    if (!buffer) {
+      const downloadUrl = mediaPath.startsWith("http")
+        ? mediaPath
+        : `${evoUrl}/${mediaPath}`;
+
+      console.log(`Webhook: Downloading media from ${downloadUrl}`);
+
+      const response = await fetch(downloadUrl, {
+        headers: { "apikey": evoKey },
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (response.ok) {
+        const arrayBuffer = await response.arrayBuffer();
+        buffer = Buffer.from(arrayBuffer);
+        // Arquivo muito pequeno = falhou (retornou JSON de erro)
+        if (buffer.length < 500) buffer = null;
+      }
+    }
+
+    if (!buffer) {
+      console.error(`Webhook: Could not download media, keeping original path`);
       return mediaPath;
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const storagePath = `incoming/${Date.now()}_${fileName}`;
+    const safeFileName = (fileName || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
+    const storagePath = `incoming/${Date.now()}_${safeFileName}`;
 
     const { error } = await supabase.storage
-      .from('chat-media')
-      .upload(storagePath, buffer, {
-        contentType: mimeType,
-        upsert: true
-      });
+      .from("chat-media")
+      .upload(storagePath, buffer, { contentType: mimeType || "application/octet-stream", upsert: true });
 
     if (error) {
-      console.error('Webhook: Supabase upload error:', error);
+      console.error("Webhook: Supabase upload error:", error.message);
       return mediaPath;
     }
 
     const { data: { publicUrl } } = supabase.storage
-      .from('chat-media')
+      .from("chat-media")
       .getPublicUrl(storagePath);
 
+    console.log(`Webhook: Media uploaded successfully: ${publicUrl}`);
     return publicUrl;
+
   } catch (err) {
-    console.error('Webhook: Media proxy error:', err);
+    console.error("Webhook: Media download/upload error:", String(err));
     return mediaPath;
   }
 }
+
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
@@ -164,7 +207,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         mimeType = messageContent.imageMessage.mimetype;
         fileSize = messageContent.imageMessage.fileLength;
         const originalPath = messageContent.imageMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, process.env.VITE_EVOLUTION_URL || "", process.env.VITE_EVOLUTION_API_KEY || "", originalPath, 'image.jpg', mimeType);
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'image.jpg', mimeType);
       } else if (messageContent.videoMessage) {
         type = 'video';
         content = messageContent.videoMessage.caption || '[Vídeo]';
@@ -172,7 +215,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileSize = messageContent.videoMessage.fileLength;
         duration = messageContent.videoMessage.seconds;
         const originalPath = messageContent.videoMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, process.env.VITE_EVOLUTION_URL || "", process.env.VITE_EVOLUTION_API_KEY || "", originalPath, 'video.mp4', mimeType);
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'video.mp4', mimeType);
       } else if (messageContent.audioMessage) {
         type = 'audio';
         content = '[Áudio]';
@@ -180,7 +223,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileSize = messageContent.audioMessage.fileLength;
         duration = messageContent.audioMessage.seconds;
         const originalPath = messageContent.audioMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, process.env.VITE_EVOLUTION_URL || "", process.env.VITE_EVOLUTION_API_KEY || "", originalPath, 'audio.ogg', mimeType);
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'audio.ogg', mimeType);
       } else if (messageContent.documentMessage) {
         type = 'document';
         content = messageContent.documentMessage.title || '[Documento]';
@@ -188,14 +231,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileSize = messageContent.documentMessage.fileLength;
         fileName = messageContent.documentMessage.fileName || messageContent.documentMessage.title;
         const originalPath = messageContent.documentMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, process.env.VITE_EVOLUTION_URL || "", process.env.VITE_EVOLUTION_API_KEY || "", originalPath, fileName || 'document', mimeType);
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, fileName || 'document', mimeType);
       } else if (messageContent.stickerMessage) {
         // IMPLEMENTAÇÃO 5: Sticker
         type = 'sticker';
         content = '[Sticker]';
         mimeType = messageContent.stickerMessage.mimetype || 'image/webp';
         const originalPath = messageContent.stickerMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, process.env.VITE_EVOLUTION_URL || "", process.env.VITE_EVOLUTION_API_KEY || "", originalPath, 'sticker.webp', 'image/webp');
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'sticker.webp', 'image/webp');
       } else if (messageContent.reactionMessage) {
         // IMPLEMENTAÇÃO 5: Reaction
         const reactionKey = messageContent.reactionMessage.key;
@@ -227,7 +270,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           mimeType = docMsg.mimetype;
           fileSize = docMsg.fileLength;
           fileName = docMsg.fileName || docMsg.title;
-          mediaUrl = await downloadAndUploadMedia(supabase, process.env.VITE_EVOLUTION_URL || "", process.env.VITE_EVOLUTION_API_KEY || "", docMsg.url, fileName || 'document', mimeType || 'application/octet-stream');
+          mediaUrl = await downloadAndUploadMedia(supabase, "", "", docMsg.url, fileName || 'document', mimeType || 'application/octet-stream');
         }
       } else if (messageContent.pollCreationMessage || messageContent.pollCreationMessageV2 || messageContent.pollCreationMessageV3) {
         // IMPLEMENTAÇÃO 5: Poll
