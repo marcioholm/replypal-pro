@@ -76,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const isFromMe = key.fromMe;
       const DEFAULT_TENANT_ID = '11111111-1111-1111-1111-111111111111';
 
-      // Encontrar ou criar conversa
+      // Encontrar ou criar conversa - IMPLEMENTAÇÃO 1.1: Tenant lookup robusto
       let { data: conv, error: convError } = await supabase
         .from('conversas')
         .select('id, tenant_id')
@@ -84,8 +84,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .maybeSingle();
 
       if (!conv) {
-        const { data: firstUser } = await supabase.from('usuarios').select('tenant_id').limit(1).single();
-        const tenantToUse = firstUser?.tenant_id || DEFAULT_TENANT_ID;
+        // Buscar tenant pela instância configurada em Settings
+        const instanceName = req.headers['x-instance-name'] as string || process.env.VITE_INSTANCE_NAME || '';
+        
+        let tenantToUse = DEFAULT_TENANT_ID;
+        
+        if (instanceName) {
+          const { data: tenantConfig } = await supabase
+            .from('tenants')
+            .select('id')
+            .eq('evolution_instance', instanceName)
+            .maybeSingle();
+          
+          if (tenantConfig) {
+            tenantToUse = tenantConfig.id;
+          } else {
+            // Fallback: primeiro usuário ativo
+            const { data: firstUser } = await supabase
+              .from('usuarios')
+              .select('tenant_id')
+              .eq('ativo', true)
+              .order('created_at', { ascending: true })
+              .limit(1)
+              .single();
+            tenantToUse = firstUser?.tenant_id || DEFAULT_TENANT_ID;
+          }
+        }
 
         const { data: newConv, error: createError } = await supabase
           .from('conversas')
@@ -95,6 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             status: 'novo',
             last_message_time: new Date().toISOString(),
             tenant_id: tenantToUse
+            // NÃO setar assigned_to — deixar null para aparecer em "Pendentes"
           })
           .select()
           .single();
@@ -108,14 +133,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const tenantId = conv.tenant_id || DEFAULT_TENANT_ID;
 
-      // Processar conteúdo de forma mais robusta
+      // Processar conteúdo
       let type = 'text';
       let content = '';
-      let mediaUrl = null;
-      let mimeType = null;
-      let fileName = null;
-      let fileSize = null;
-      let duration = null;
+      let mediaUrl: string | null = null;
+      let mimeType: string | null = null;
+      let fileName: string | null = null;
+      let fileSize: number | null = null;
+      let duration: number | null = null;
 
       // Verificar texto em vários campos possíveis
       const text = messageContent.conversation || 
@@ -157,13 +182,65 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileSize = messageContent.documentMessage.fileLength;
         fileName = messageContent.documentMessage.fileName || messageContent.documentMessage.title;
         const originalPath = messageContent.documentMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, process.env.VITE_EVOLUTION_URL || "", process.env.VITE_EVOLUTION_API_KEY || "", originalPath, fileName, mimeType);
+        mediaUrl = await downloadAndUploadMedia(supabase, process.env.VITE_EVOLUTION_URL || "", process.env.VITE_EVOLUTION_API_KEY || "", originalPath, fileName || 'document', mimeType);
+      } else if (messageContent.stickerMessage) {
+        // IMPLEMENTAÇÃO 5: Sticker
+        type = 'sticker';
+        content = '[Sticker]';
+        mimeType = messageContent.stickerMessage.mimetype || 'image/webp';
+        const originalPath = messageContent.stickerMessage.url;
+        mediaUrl = await downloadAndUploadMedia(supabase, process.env.VITE_EVOLUTION_URL || "", process.env.VITE_EVOLUTION_API_KEY || "", originalPath, 'sticker.webp', 'image/webp');
+      } else if (messageContent.reactionMessage) {
+        // IMPLEMENTAÇÃO 5: Reaction
+        const reactionKey = messageContent.reactionMessage.key;
+        const reactionText = messageContent.reactionMessage.text;
+        if (reactionKey?.id) {
+          await supabase.from('mensagens').update({ reaction: reactionText || '' })
+            .eq('external_message_id', reactionKey.id);
+        }
+        return res.status(200).json({ success: true, message: 'Reaction processed' });
+      } else if (messageContent.locationMessage) {
+        // IMPLEMENTAÇÃO 5: Location
+        type = 'location';
+        const loc = messageContent.locationMessage;
+        content = loc.name || `${loc.degreesLatitude},${loc.degreesLongitude}`;
+        mediaUrl = `https://www.google.com/maps?q=${loc.degreesLatitude},${loc.degreesLongitude}`;
+        fileName = loc.name || 'Localização';
+      } else if (messageContent.contactMessage || messageContent.contactsArrayMessage) {
+        // IMPLEMENTAÇÃO 5: Contact
+        type = 'contact';
+        const contacts = messageContent.contactsArrayMessage?.contacts || [messageContent.contactMessage];
+        content = contacts.map((c: any) => c?.displayName || c?.vcard?.split('FN:')[1]?.split('\n')[0] || 'Contato').join(', ');
+        fileName = content;
+      } else if (messageContent.documentWithCaptionMessage) {
+        // IMPLEMENTAÇÃO 5: Document with caption
+        const docMsg = messageContent.documentWithCaptionMessage.message?.documentMessage;
+        if (docMsg) {
+          type = 'document';
+          content = docMsg.title || docMsg.fileName || '[Documento]';
+          mimeType = docMsg.mimetype;
+          fileSize = docMsg.fileLength;
+          fileName = docMsg.fileName || docMsg.title;
+          mediaUrl = await downloadAndUploadMedia(supabase, process.env.VITE_EVOLUTION_URL || "", process.env.VITE_EVOLUTION_API_KEY || "", docMsg.url, fileName || 'document', mimeType || 'application/octet-stream');
+        }
+      } else if (messageContent.pollCreationMessage || messageContent.pollCreationMessageV2 || messageContent.pollCreationMessageV3) {
+        // IMPLEMENTAÇÃO 5: Poll
+        const poll = messageContent.pollCreationMessage || messageContent.pollCreationMessageV2 || messageContent.pollCreationMessageV3;
+        type = 'text';
+        const opts = (poll.options || []).map((o: any) => `• ${o.optionName}`).join('\n');
+        content = `📊 *${poll.name}*\n${opts}`;
+      } else if (messageContent.ephemeralMessage) {
+        type = 'text';
+        content = '[Mensagem temporária]';
+      } else if (messageContent.templateMessage) {
+        type = 'text';
+        content = messageContent.templateMessage?.hydratedTemplate?.hydratedContentText || '[Template]';
       } else {
         console.log('Webhook: Unhandled type', Object.keys(messageContent));
         return res.status(200).json({ success: true, message: 'Unhandled type' });
       }
 
-      // Salvar mensagem (usar upsert para evitar duplicatas se o front já inseriu)
+      // Salvar mensagem
       const { error: msgError } = await supabase
         .from('mensagens')
         .upsert({
@@ -195,24 +272,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .eq('id', conv.id);
 
     } else if (event === 'messages.update') {
-      // Atualizar status da mensagem (entregue, lida)
-      const statusUpdate = data[0] || data;
-      const key = statusUpdate.key;
-      const status = statusUpdate.status;
-
-      if (key && status) {
+      // IMPLEMENTAÇÃO 5: messages.update com suporte a array e status como string ou número
+      const updates = Array.isArray(data) ? data : [data];
+      
+      for (const statusUpdate of updates) {
+        const key = statusUpdate.key || statusUpdate.update?.key;
+        const status = statusUpdate.update?.status || statusUpdate.status;
+        
+        if (!key?.id || status === undefined) continue;
+        
         let dbStatus = 'sent';
-        if (status === 3 || status === 'DELIVERY_ACK') dbStatus = 'delivered';
-        if (status === 4 || status === 'READ') dbStatus = 'read';
-        if (status === 5 || status === 'PLAYED') dbStatus = 'read';
-
-        await supabase
-          .from('mensagens')
-          .update({ 
-            status: dbStatus,
-            delivered_at: dbStatus === 'delivered' ? new Date().toISOString() : undefined,
-            read_at: dbStatus === 'read' ? new Date().toISOString() : undefined
-          })
+        if (status === 'DELIVERY_ACK' || status === 3) dbStatus = 'delivered';
+        if (status === 'READ' || status === 4) dbStatus = 'read';
+        if (status === 'PLAYED' || status === 5) dbStatus = 'read';
+        if (status === 'ERROR' || status === 0) dbStatus = 'error';
+        
+        const updateData: Record<string, any> = { status: dbStatus };
+        if (dbStatus === 'delivered') updateData.delivered_at = new Date().toISOString();
+        if (dbStatus === 'read') updateData.read_at = new Date().toISOString();
+        
+        await supabase.from('mensagens')
+          .update(updateData)
           .eq('external_message_id', key.id);
       }
     }

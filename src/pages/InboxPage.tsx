@@ -6,13 +6,15 @@ import { useListKeyboardNav } from "@/hooks/useListNavigation";
 import { useSound } from "@/hooks/useSound";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, UserCheck, Users, Inbox as InboxIcon, Mail, RefreshCw, AlertTriangle, Clock, Volume2, VolumeX, Keyboard } from "lucide-react";
+import { Search, UserCheck, Users, Inbox as InboxIcon, Mail, RefreshCw, AlertTriangle, Clock, Volume2, VolumeX, Keyboard, UserPlus } from "lucide-react";
 import { checkConnection } from "@/lib/evolution";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { toast } from "sonner";
 
-type Filter = "todas" | "minhas" | "pendentes";
+type Filter = "todas" | "minhas" | "pendentes" | "fila";
 
 export default function InboxPage() {
   const store = useStore();
@@ -23,7 +25,7 @@ export default function InboxPage() {
   const { play: playNewMessage, isMuted: soundMuted, toggleMute: toggleSound } = useSound({ soundType: "new_message", volume: 0.3 });
 
   // State Management
-  const [filter, setFilter] = useState<Filter>("minhas");
+  const [filter, setFilter] = useState<Filter>("todas");
   const [hasSetDefaultFilter, setHasSetDefaultFilter] = useState(false);
   const [search, setSearch] = useState("");
   const [waConnected, setWaConnected] = useState(false);
@@ -31,9 +33,10 @@ export default function InboxPage() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [prevConversationCount, setPrevConversationCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const conversationsRef = useRef<{ id: string }[]>([]);
 
-  // 1. Helpers e FetchData (Definidos no topo para evitar ReferenceError)
+  // 1. Helpers e FetchData
   const fetchData = useCallback(async () => {
     const tenantId = user?.tenantId;
     if (!tenantId) return;
@@ -48,6 +51,8 @@ export default function InboxPage() {
         query = query.eq("assigned_to", user?.id);
       } else if (filter === "pendentes") {
         query = query.or(`assigned_to.is.null,status.eq.novo`);
+      } else if (filter === "fila") {
+        query = query.is("assigned_to", null).neq("status", "resolvido");
       }
 
       const { data: dbConvs, error } = await query.order("last_message_time", { ascending: false });
@@ -58,6 +63,25 @@ export default function InboxPage() {
       }
 
       if (dbConvs && dbConvs.length > 0) {
+        // Buscar contagem de não lidas
+        const convIds = dbConvs.map(c => c.id);
+        if (convIds.length > 0) {
+          const { data: unreadData } = await supabase
+            .from('mensagens')
+            .select('conversation_id')
+            .in('conversation_id', convIds)
+            .eq('sender', 'client')
+            .is('read_at', null);
+          
+          if (unreadData) {
+            const counts: Record<string, number> = {};
+            unreadData.forEach(m => {
+              counts[m.conversation_id] = (counts[m.conversation_id] || 0) + 1;
+            });
+            setUnreadCounts(counts);
+          }
+        }
+
         const formattedConvs = dbConvs.map(c => ({
           id: c.id,
           clientName: c.client_name || "Cliente sem nome",
@@ -122,10 +146,14 @@ export default function InboxPage() {
     }
   }, [user]);
 
+  // IMPLEMENTAÇÃO 1.2: Filtro padrão para atendentes = "pendentes"
   useEffect(() => {
     if (user && !hasSetDefaultFilter) {
       if (['admin', 'supervisor'].includes(user.role)) {
         setFilter("todas");
+      } else {
+        // Atendentes começam em "Pendentes" para ver o que precisam assumir
+        setFilter("pendentes");
       }
       setHasSetDefaultFilter(true);
     }
@@ -143,14 +171,16 @@ export default function InboxPage() {
     check();
   }, []);
 
+  // IMPLEMENTAÇÃO 1.2: Canal Realtime SEPARADO do fetchData
   useEffect(() => {
     const tenantId = user?.tenantId;
     if (!tenantId || tenantId.length < 5) return;
 
+    // Primeiro fetch inicial
     fetchData();
 
     const channel = supabase
-      .channel('conversas-changes')
+      .channel(`inbox-conversas-${tenantId}`)
       .on(
         'postgres_changes',
         {
@@ -161,6 +191,7 @@ export default function InboxPage() {
         },
         () => {
           fetchData();
+          playNewMessage();
         }
       )
       .subscribe();
@@ -168,7 +199,15 @@ export default function InboxPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.tenantId, fetchData]);
+    // IMPORTANTE: fetchData NÃO está aqui — só tenantId e playNewMessage
+  }, [user?.tenantId, playNewMessage]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // useEffect separado para quando o FILTRO muda (sem criar novo canal)
+  useEffect(() => {
+    if (user?.tenantId) {
+      fetchData();
+    }
+  }, [filter, fetchData]);
 
   useEffect(() => {
     const fetchTeam = async () => {
@@ -193,13 +232,36 @@ export default function InboxPage() {
     fetchTeam();
   }, [user?.tenantId]);
 
-  // 3. Memoized Data
+  // 3. Função de atribuição rápida - IMPLEMENTAÇÃO 2
+  const handleQuickAssign = async (convId: string, userId: string) => {
+    try {
+      await supabase.from('conversas').update({ 
+        assigned_to: userId,
+        status: 'em_atendimento'
+      }).eq('id', convId);
+      
+      await supabase.from('historico').insert({
+        conversation_id: convId,
+        action: `Atribuída para ${store.users.find(u => u.id === userId)?.name}`,
+        user_id: user?.id,
+        user_name: user?.name,
+      });
+      
+      toast.success('Conversa atribuída!');
+      fetchData();
+    } catch {
+      toast.error('Erro ao atribuir');
+    }
+  };
+
+  // 4. Memoized Data
   const allConversations = useMemo(() => store.conversations || [], [store.conversations]);
 
   const filtered = useMemo(() => {
     let convs = allConversations.filter(c => {
       if (filter === "minhas") return c.assignedTo === user?.id;
       if (filter === "pendentes") return !c.assignedTo || c.status === "novo";
+      if (filter === "fila") return !c.assignedTo && c.status !== "resolvido";
       return true;
     }).filter(c => {
       if (!search) return true;
@@ -225,6 +287,11 @@ export default function InboxPage() {
 
     return convs;
   }, [allConversations, filter, user?.id, search, store]);
+
+  // Contagem da fila
+  const filaCount = useMemo(() => {
+    return allConversations.filter(c => !c.assignedTo && c.status !== "resolvido").length;
+  }, [allConversations]);
 
   useEffect(() => {
     if (filtered.length > prevConversationCount && prevConversationCount > 0) {
@@ -324,6 +391,24 @@ export default function InboxPage() {
               <Clock className="w-3.5 h-3.5" />
               Pendentes
             </button>
+            {/* IMPLEMENTAÇÃO 1.3: Aba Fila para admin/supervisor */}
+            {['admin', 'supervisor'].includes(user.role) && (
+              <button
+                onClick={() => setFilter("fila")}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
+                  filter === "fila" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Users className="w-3.5 h-3.5" />
+                Fila
+                {filaCount > 0 && (
+                  <span className="ml-1 w-4 h-4 bg-destructive text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                    {filaCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -352,6 +437,13 @@ export default function InboxPage() {
                   onClick={() => handleSelectConversation(conv.id)}
                   className="w-full group relative flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-[#021B1A]/40 border border-border/40 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all text-left"
                 >
+                  {/* Badge de não lidas */}
+                  {(unreadCounts[conv.id] || 0) > 0 && (
+                    <span className="absolute top-3 right-3 min-w-5 h-5 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center px-1">
+                      {unreadCounts[conv.id] > 99 ? '99+' : unreadCounts[conv.id]}
+                    </span>
+                  )}
+
                   <div className="relative">
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black overflow-hidden">
                       {conv.clientAvatar ? (
@@ -393,7 +485,39 @@ export default function InboxPage() {
                         </span>
                       )}
                     </div>
+
+                    {/* Mostrar quem está atendendo quando já tem responsável */}
+                    {conv.assignedTo && (
+                      <span className="text-[9px] text-muted-foreground flex items-center gap-1 mt-1">
+                        <UserCheck className="w-2.5 h-2.5" />
+                        {store.users.find(u => u.id === conv.assignedTo)?.name || 'Atribuído'}
+                      </span>
+                    )}
                   </div>
+
+                  {/* IMPLEMENTAÇÃO 2: Atribuição rápida no card para admin/supervisor */}
+                  {['admin', 'supervisor'].includes(user.role) && !conv.assignedTo && (
+                    <div className="mt-2" onClick={e => e.stopPropagation()}>
+                      <Select onValueChange={(uid) => handleQuickAssign(conv.id, uid)}>
+                        <SelectTrigger className="h-7 text-[10px] border-dashed">
+                          <span className="flex items-center gap-1">
+                            <UserPlus className="w-3 h-3" />
+                            Atribuir
+                          </span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {store.users
+                            .filter(u => ['atendente', 'supervisor'].includes(u.role))
+                            .map(u => (
+                              <SelectItem key={u.id} value={u.id} className="text-xs">
+                                {u.name}
+                              </SelectItem>
+                            ))
+                          }
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </button>
               );
             })

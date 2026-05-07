@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useStore, formatTime, formatDuration, MOCK_TAGS, UserRole, MessageType, ConversationStatus, ClosingReason } from "@/lib/store";
-import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage } from "@/lib/evolution";
+import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead } from "@/lib/evolution";
 import { webhooks } from "@/lib/webhooks";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -48,6 +48,7 @@ export default function ChatPage() {
   const [closingReason, setClosingReason] = useState<ClosingReason>("resolvido");
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Media states
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -220,6 +221,10 @@ export default function ChatPage() {
   const handleSend = async () => {
     if ((!messageInput.trim() && !selectedFile && !audioBlob) || !user || !conv) return;
 
+    // IMPLEMENTAÇÃO 10: Parar typing indicator ao enviar
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    sendTypingStatus(conv.clientPhone, false);
+
     const toastId = toast.loading("Enviando...");
     
     try {
@@ -330,6 +335,45 @@ export default function ChatPage() {
       toast.error(`Falha ao enviar: ${String(err)}`, { id: toastId });
     }
   };
+
+  // IMPLEMENTAÇÃO 10 + 3: handleSendAudio com typing indicator
+  const handleSendAudio = useCallback(async (blob: Blob) => {
+    if (!user || !conv) return;
+    const toastId = toast.loading("Enviando áudio...");
+    try {
+      const mediaUrl = await uploadFile(blob, 'audio.ogg');
+      const res = await sendAudioMessage(conv.clientPhone, mediaUrl);
+      if (!res.success) throw new Error(res.error);
+      const extId = res.data?.key?.id;
+      store.sendMessage(id!, "[Áudio]", user, {
+        type: 'audio', mediaUrl, mimeType: 'audio/ogg',
+        durationSeconds: recordingTime, status: 'sent', external_message_id: extId
+      });
+      await supabase.from("mensagens").insert({
+        conversation_id: id, content: "[Áudio]", sender: "agent",
+        sender_name: user.name, type: 'audio', media_url: mediaUrl,
+        mime_type: 'audio/ogg', duration_seconds: recordingTime,
+        external_message_id: extId, status: 'sent', tenant_id: user.tenantId
+      });
+      await supabase.from("conversas").update({
+        last_message: "[Áudio]", last_message_time: new Date().toISOString()
+      }).eq("id", id);
+      clearAudio();
+      toast.success("Áudio enviado!", { id: toastId });
+    } catch (err) {
+      toast.error(`Falha ao enviar áudio: ${String(err)}`, { id: toastId });
+    }
+  }, [user, conv, id, recordingTime, store, clearAudio]);
+
+  // IMPLEMENTAÇÃO 10: Marcar como lida ao abrir/receber mensagens
+  useEffect(() => {
+    if (!conv || !messages.length) return;
+    const lastClientMsg = [...messages].reverse()
+      .find(m => m.sender === 'client' && m.external_message_id);
+    if (lastClientMsg?.external_message_id) {
+      markAsRead(conv.clientPhone, lastClientMsg.external_message_id);
+    }
+  }, [conv?.id, messages.length]);
 
   const handleSchedule = async (scheduledAt: Date) => {
     if (!messageInput.trim() && !selectedFile) {
@@ -456,6 +500,29 @@ export default function ChatPage() {
     store.addNote(id!, noteInput.trim(), user!);
     setNoteInput("");
     toast.success("Nota adicionada");
+  };
+
+  // IMPLEMENTAÇÃO 4: Tags com persistência no banco
+  const handleAddTag = async (tagId: string) => {
+    if (!conv || !id) return;
+    const newTags = [...(conv.tags || []), tagId];
+    try {
+      await supabase.from("conversas").update({ tags: newTags }).eq("id", id);
+      store.addTag(id, tagId);
+    } catch {
+      toast.error("Erro ao adicionar tag");
+    }
+  };
+
+  const handleRemoveTag = async (tagId: string) => {
+    if (!conv || !id) return;
+    const newTags = (conv.tags || []).filter(t => t !== tagId);
+    try {
+      await supabase.from("conversas").update({ tags: newTags }).eq("id", id);
+      store.removeTag(id, tagId);
+    } catch {
+      toast.error("Erro ao remover tag");
+    }
   };
 
   const handleAutoCreateCustomer = () => {
@@ -645,13 +712,22 @@ export default function ChatPage() {
                       <div className="w-2 h-2 rounded-full bg-red-500 mr-2 animate-ping" />
                       <span className="text-sm font-medium flex-1">Gravando... {recordingTime}s</span>
                       <Button variant="ghost" size="sm" className="h-7 text-red-500" onClick={cancelRecording}>Cancelar</Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-primary" onClick={stopRecording}><Check className="w-4 h-4 mr-1" /> Enviar</Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-primary" onClick={() => stopRecording(handleSendAudio)}><Check className="w-4 h-4 mr-1" /> Enviar</Button>
                     </div>
                   ) : (
                     <Textarea
                       placeholder="Digite sua mensagem..."
                       value={messageInput}
-                      onChange={(e) => setMessageInput(e.target.value)}
+                      onChange={(e) => {
+                        setMessageInput(e.target.value);
+                        if (conv?.clientPhone) {
+                          sendTypingStatus(conv.clientPhone, true);
+                          if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+                          typingTimerRef.current = setTimeout(() => {
+                            sendTypingStatus(conv.clientPhone, false);
+                          }, 3000);
+                        }
+                      }}
                       className="min-h-[40px] h-10 py-2.5 resize-none bg-muted/50 border-none rounded-2xl focus-visible:ring-1"
                       onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSend())}
                     />
@@ -741,14 +817,14 @@ export default function ChatPage() {
             <div className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 {conv.tags.map(t => (
-                  <TagBadge key={t} tagId={t} onRemove={() => store.removeTag(conv.id, t)} />
+                  <TagBadge key={t} tagId={t} onRemove={() => handleRemoveTag(t)} />
                 ))}
               </div>
               <div className="border-t pt-4">
                 <p className="text-xs font-bold text-muted-foreground mb-3">Disponíveis</p>
                 <div className="flex flex-wrap gap-2">
                   {MOCK_TAGS.filter(t => !conv.tags.includes(t.id)).map(tag => (
-                    <button key={tag.id} onClick={() => store.addTag(conv.id, tag.id)} className="text-[10px] px-3 py-1 rounded-full border border-dashed hover:border-solid transition-all" style={{ borderColor: tag.color, color: tag.color }}>
+                    <button key={tag.id} onClick={() => handleAddTag(tag.id)} className="text-[10px] px-3 py-1 rounded-full border border-dashed hover:border-solid transition-all" style={{ borderColor: tag.color, color: tag.color }}>
                       + {tag.name}
                     </button>
                   ))}

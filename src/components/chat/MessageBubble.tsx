@@ -1,6 +1,6 @@
 import { Message, formatTime } from '@/lib/store';
 import { AudioPlayer } from './AudioPlayer';
-import { Clock, FileText, Download, ExternalLink, Image as ImageIcon, PlayCircle } from 'lucide-react';
+import { Clock, FileText, Download, ExternalLink, Image as ImageIcon, PlayCircle, MapPin, User as UserIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 
@@ -79,6 +79,47 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
           </div>
         );
 
+      // IMPLEMENTAÇÃO 6: Sticker
+      case 'sticker':
+        return (
+          <div className="w-28 h-28">
+            <img src={msg.mediaUrl} alt="Sticker" className="w-full h-full object-contain" />
+          </div>
+        );
+
+      // IMPLEMENTAÇÃO 6: Location
+      case 'location':
+        return (
+          <a href={msg.mediaUrl || '#'} target="_blank" rel="noopener noreferrer"
+            className={`flex items-center gap-3 p-3 rounded-lg border hover:opacity-80 transition-opacity ${
+              isAgent ? 'bg-white/10 border-white/20' : 'bg-muted/30 border-border/50'
+            }`}>
+            <div className={`p-2 rounded-md ${isAgent ? 'bg-white/20' : 'bg-green-500/10'}`}>
+              <MapPin className="w-5 h-5 text-green-500" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold">{msg.fileName || 'Localização'}</p>
+              <p className="text-[10px] opacity-60">Abrir no Google Maps →</p>
+            </div>
+          </a>
+        );
+
+      // IMPLEMENTAÇÃO 6: Contact
+      case 'contact':
+        return (
+          <div className={`flex items-center gap-3 p-3 rounded-lg border ${
+            isAgent ? 'bg-white/10 border-white/20' : 'bg-muted/30 border-border/50'
+          }`}>
+            <div className={`p-2 rounded-full ${isAgent ? 'bg-white/20' : 'bg-primary/10'}`}>
+              <UserIcon className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold">{msg.fileName || 'Contato'}</p>
+              <p className="text-[10px] opacity-60">Contato compartilhado</p>
+            </div>
+          </div>
+        );
+
       default:
         return <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>;
     }
@@ -96,7 +137,8 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
 
   return (
     <div className={`flex ${isAgent ? "justify-end" : "justify-start"} animate-fade-in group`}>
-      <div className={`max-w-[75%] min-w-[120px]`}>
+      {/* Adicionar mb-3 para dar espaço à reação */}
+      <div className={`max-w-[75%] min-w-[120px] mb-3`}>
         <div className={`rounded-2xl px-4 py-3 shadow-sm relative ${
           isAgent 
             ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-br-md" 
@@ -115,6 +157,15 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
             {getStatusIcon()}
           </div>
         </div>
+        
+        {/* Badge de reação */}
+        {msg.reaction && (
+          <div className={`flex ${isAgent ? "justify-end mr-2" : "justify-start ml-2"} -mt-2`}>
+            <span className="bg-background border border-border/50 rounded-full px-1.5 py-0.5 text-sm shadow-sm">
+              {msg.reaction}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

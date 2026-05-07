@@ -75,29 +75,37 @@ export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtim
           event: "INSERT",
           schema: "public",
           table: "mensagens",
+          // Sem filtro direto de tenant_id aqui — filtrar no handler
         },
         (payload) => {
           const { new: newRecord } = payload;
-          if (newRecord) {
-            storeRef.current.addDbMessages([
-              {
-                id: newRecord.id,
-                conversationId: newRecord.conversation_id,
-                content: newRecord.content,
-                sender: newRecord.sender as "client" | "agent",
-                senderName: newRecord.sender_name || "",
-                timestamp: new Date(newRecord.timestamp),
-                type: newRecord.type,
-                mediaUrl: newRecord.media_url,
-                status: newRecord.status,
-                fileName: newRecord.file_name,
-                mimeType: newRecord.mime_type,
-                fileSize: newRecord.file_size,
-                durationSeconds: newRecord.duration_seconds,
-                external_message_id: newRecord.external_message_id
-              },
-            ]);
-          }
+          if (!newRecord) return;
+          
+          // IMPLEMENTAÇÃO 9: Filtrar só mensagens de conversas que o store conhece
+          const knownConv = storeRef.current.conversations.find(
+            c => c.id === newRecord.conversation_id
+          );
+          if (!knownConv) return; // Ignora mensagens de outros tenants
+          
+          storeRef.current.addDbMessages([
+            {
+              id: newRecord.id,
+              conversationId: newRecord.conversation_id,
+              content: newRecord.content,
+              sender: newRecord.sender as "client" | "agent",
+              senderName: newRecord.sender_name || "",
+              timestamp: new Date(newRecord.timestamp),
+              type: newRecord.type,
+              mediaUrl: newRecord.media_url,
+              status: newRecord.status,
+              fileName: newRecord.file_name,
+              mimeType: newRecord.mime_type,
+              fileSize: newRecord.file_size,
+              durationSeconds: newRecord.duration_seconds,
+              external_message_id: newRecord.external_message_id,
+              reaction: newRecord.reaction,
+            },
+          ]);
         }
       )
       .subscribe();

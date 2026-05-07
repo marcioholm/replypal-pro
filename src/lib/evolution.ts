@@ -170,12 +170,16 @@ export async function sendAudioMessage(phone: string, audioUrl: string) {
   }
 }
 
-
+// IMPLEMENTAÇÃO 7: checkConnection com TTL de 30 segundos
 export async function checkConnection() {
-  // Primeiro verificar localStorage para performance
-  if (localStorage.getItem("wa_connected") === "true") {
-    return { connected: true };
-  }
+  // Cache com TTL de 30 segundos
+  try {
+    const cached = localStorage.getItem("wa_connection_cache");
+    if (cached) {
+      const { connected, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < 30_000) return { connected };
+    }
+  } catch { localStorage.removeItem("wa_connection_cache"); }
   
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
@@ -188,18 +192,58 @@ export async function checkConnection() {
   try {
     const res = await fetch(`${apiUrl}/instance/connectionState/${instance}`, {
       headers: { "apikey": key },
+      signal: AbortSignal.timeout(5000)
     });
     
     if (res.ok) {
       const data = await res.json();
-      if (data.state === "open" || data.instance?.state === "open") {
-        localStorage.setItem("wa_connected", "true");
-        return { connected: true, phone: data.phoneNumber };
-      }
+      const connected = data.state === "open" || data.instance?.state === "open";
+      localStorage.setItem("wa_connection_cache", JSON.stringify({ connected, timestamp: Date.now() }));
+      return { connected, phone: data.phoneNumber };
     }
-    localStorage.removeItem("wa_connected");
+    localStorage.removeItem("wa_connection_cache");
     return { connected: false };
   } catch {
+    localStorage.removeItem("wa_connection_cache");
     return { connected: false };
   }
+}
+
+// IMPLEMENTAÇÃO 10: sendTypingStatus
+export async function sendTypingStatus(phone: string, typing: boolean) {
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = EVO_CONFIG.getInstance();
+  if (!url || !key) return;
+  try {
+    await fetch(`${getApiUrl()}/chat/updatePresence/${instance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key },
+      body: JSON.stringify({
+        number: phone.replace(/\D/g, ""),
+        options: { presence: typing ? "composing" : "paused" }
+      })
+    });
+  } catch { /* Silencioso — não crítico */ }
+}
+
+// IMPLEMENTAÇÃO 10: markAsRead
+export async function markAsRead(phone: string, messageId: string) {
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = EVO_CONFIG.getInstance();
+  if (!url || !key) return;
+  try {
+    await fetch(`${getApiUrl()}/chat/markMessageAsRead/${instance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key },
+      body: JSON.stringify({
+        readMessages: [{
+          remoteJid: `${phone.replace(/\D/g, "")}@s.whatsapp.net`,
+          fromMe: false,
+          id: messageId
+        }]
+      })
+    });
+  } catch { /* Silencioso */ }
 }
