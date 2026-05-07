@@ -39,8 +39,12 @@ async function downloadAndUploadMedia(
                        msgObj?.stickerMessage?.base64;
 
     if (base64Data) {
-      console.log(`Webhook Media: Strategy 0 (Payload Base64) success!`);
-      buffer = Buffer.from(base64Data, 'base64');
+      console.log(`Webhook Media: Strategy 0 (Payload Base64) success! Length: ${base64Data.length}`);
+      // Limpar prefixo data:image/...;base64, se existir
+      const cleanBase64 = base64Data.includes('base64,') 
+        ? base64Data.split('base64,')[1] 
+        : base64Data;
+      buffer = Buffer.from(cleanBase64, 'base64');
     }
 
     // Estratégia 1: Pedir Base64 para a Evolution (Caso a Strat 0 não tenha funcionado)
