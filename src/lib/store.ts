@@ -100,6 +100,7 @@ export interface Message {
   fileSize?: number;
   durationSeconds?: number;
   status?: string;
+  external_message_id?: string;
 }
 
 export interface ScheduledMessage {
@@ -164,6 +165,7 @@ interface Store {
   addDbConversations: (convs: Conversation[]) => void;
   setMessages: (messages: Message[]) => void;
   addDbMessages: (msgs: Message[]) => void;
+  updateMessage: (id: string, updates: Partial<Message>) => void;
   setScheduledMessages: (msgs: ScheduledMessage[]) => void;
   addDbScheduledMessages: (msgs: ScheduledMessage[]) => void;
   updateScheduledMessage: (id: string, updates: Partial<ScheduledMessage>) => void;
@@ -264,11 +266,30 @@ function getStore(): Store {
         let updated = false;
         const newMsgs = [...s.messages];
         msgs.forEach(msg => {
-          if (!newMsgs.find(m => m.id === msg.id)) { newMsgs.push(msg); updated = true; }
+          const exists = newMsgs.find(m => 
+            m.id === msg.id || 
+            (msg.external_message_id && m.external_message_id === msg.external_message_id)
+          );
+          if (!exists) { 
+            newMsgs.push(msg); 
+            updated = true; 
+          } else {
+            // Update existing message with potentially new info (like status)
+            Object.assign(exists, msg);
+            updated = true;
+          }
         });
         if (updated) { 
           s.messages = newMsgs.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
           notify(); 
+        }
+      },
+      updateMessage(id, updates) {
+        const index = s.messages.findIndex(m => m.id === id);
+        if (index !== -1) {
+          s.messages[index] = { ...s.messages[index], ...updates };
+          s.messages = [...s.messages];
+          notify();
         }
       },
       setScheduledMessages(msgs) { s.scheduledMessages = msgs; notify(); },

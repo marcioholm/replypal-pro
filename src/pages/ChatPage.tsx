@@ -239,7 +239,8 @@ export default function ChatPage() {
           fileName: selectedFile.name,
           mimeType: selectedFile.type,
           fileSize: selectedFile.size,
-          status: 'sent'
+          status: 'sent',
+          external_message_id: extId
         });
 
         await supabase.from("mensagens").insert({
@@ -269,7 +270,8 @@ export default function ChatPage() {
           mediaUrl, 
           mimeType: 'audio/ogg',
           durationSeconds: recordingTime,
-          status: 'sent'
+          status: 'sent',
+          external_message_id: extId
         });
 
         await supabase.from("mensagens").insert({
@@ -290,7 +292,10 @@ export default function ChatPage() {
         
         const extId = res.data?.key?.id;
 
-        store.sendMessage(id!, messageInput, user, { status: 'sent' });
+        store.sendMessage(id!, messageInput, user, { 
+          status: 'sent',
+          external_message_id: extId 
+        });
 
         await supabase.from("mensagens").insert({
           conversation_id: id,

@@ -93,7 +93,8 @@ export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtim
                 fileName: newRecord.file_name,
                 mimeType: newRecord.mime_type,
                 fileSize: newRecord.file_size,
-                durationSeconds: newRecord.duration_seconds
+                durationSeconds: newRecord.duration_seconds,
+                external_message_id: newRecord.external_message_id
               },
             ]);
           }
