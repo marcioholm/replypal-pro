@@ -169,6 +169,11 @@ export default function InboxPage() {
       }
     };
     check();
+
+    // Solicitar permissão de notificação
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
   }, []);
 
   // IMPLEMENTAÇÃO 1.2: Canal Realtime SEPARADO do fetchData
@@ -495,14 +500,24 @@ export default function InboxPage() {
                     )}
                   </div>
 
-                  {/* IMPLEMENTAÇÃO 2: Atribuição rápida no card para admin/supervisor */}
-                  {['admin', 'supervisor'].includes(user.role) && !conv.assignedTo && (
-                    <div className="mt-2" onClick={e => e.stopPropagation()}>
+                  {/* IMPLEMENTAÇÃO: Atribuição rápida / Aceitar */}
+                  <div className="flex flex-col gap-2" onClick={e => e.stopPropagation()}>
+                    {!conv.assignedTo && (
+                      <Button 
+                        size="sm" 
+                        className="h-8 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-[10px] uppercase tracking-wider shadow-lg shadow-primary/20 animate-pulse"
+                        onClick={() => handleQuickAssign(conv.id, user.id)}
+                      >
+                        Aceitar
+                      </Button>
+                    )}
+
+                    {['admin', 'supervisor'].includes(user.role) && !conv.assignedTo && (
                       <Select onValueChange={(uid) => handleQuickAssign(conv.id, uid)}>
-                        <SelectTrigger className="h-7 text-[10px] border-dashed">
+                        <SelectTrigger className="h-7 text-[10px] border-dashed bg-transparent">
                           <span className="flex items-center gap-1">
                             <UserPlus className="w-3 h-3" />
-                            Atribuir
+                            Delegar
                           </span>
                         </SelectTrigger>
                         <SelectContent>
@@ -516,8 +531,8 @@ export default function InboxPage() {
                           }
                         </SelectContent>
                       </Select>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </button>
               );
             })
