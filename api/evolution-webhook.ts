@@ -1,4 +1,4 @@
-// VERSION: 2026-05-07 09:42 - AUDIO BASE64 FIX
+// VERSION: 2026-05-07 11:53 - PDF & DOC CAPTION FIX
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
@@ -14,23 +14,23 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
   try {
     let buffer: Buffer | null = null;
 
-    const findBase64 = (obj: any, isAudio: boolean): string | null => {
+    const findBase64 = (obj: any, isMedia: boolean): string | null => {
       if (!obj || typeof obj !== 'object') return null;
       if (obj.base64 && typeof obj.base64 === 'string') {
-        // Se for áudio, aceita qualquer tamanho. Se for imagem, exige > 10KB para evitar thumbnails.
-        if (isAudio || obj.base64.length > 10000) return obj.base64;
+        // Se for áudio ou documento, aceita qualquer tamanho. Se for imagem, exige > 10KB para evitar thumbnails.
+        if (isMedia || obj.base64.length > 10000) return obj.base64;
       }
       for (const key in obj) {
-        const result = findBase64(obj[key], isAudio);
+        const result = findBase64(obj[key], isMedia);
         if (result) return result;
       }
       return null;
     };
 
-    const isAudio = mimeType.includes('audio');
-    const b64 = findBase64(fullMessage, isAudio);
+    const isMedia = mimeType.includes('audio') || mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('msword');
+    const b64 = findBase64(fullMessage, isMedia);
     if (b64) {
-      console.log(`Webhook Media: Base64 found (${b64.length} bytes, isAudio: ${isAudio})`);
+      console.log(`Webhook Media: Base64 found (${b64.length} bytes, isMedia: ${isMedia})`);
       const clean = b64.includes('base64,') ? b64.split('base64,')[1] : b64;
       buffer = Buffer.from(clean, 'base64');
     }
@@ -167,10 +167,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Limpar o mimeType para garantir compatibilidade (remover codecs=opus etc)
         mimeType = 'audio/ogg'; 
         mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.audioMessage.url, 'audio.ogg', mimeType, req.body);
-      } else if (messageContent.documentMessage) {
-        type = 'document'; fileName = messageContent.documentMessage.fileName || 'document';
-        content = fileName; mimeType = messageContent.documentMessage.mimetype;
-        mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.documentMessage.url, fileName, mimeType, req.body);
+      } else if (messageContent.documentMessage || messageContent.documentWithCaptionMessage) {
+        const doc = messageContent.documentMessage || messageContent.documentWithCaptionMessage?.message?.documentMessage;
+        if (doc) {
+          type = 'document'; fileName = doc.fileName || 'document';
+          content = doc.caption || fileName; mimeType = doc.mimetype;
+          mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, doc.url, fileName, mimeType, req.body);
+        }
       } else if (messageContent.stickerMessage) {
         type = 'sticker'; content = '[Figurinha]'; mimeType = 'image/webp';
         mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.stickerMessage.url, 'sticker.webp', mimeType, req.body);
