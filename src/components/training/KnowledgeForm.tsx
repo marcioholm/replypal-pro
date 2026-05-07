@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Save, X, Plus, AlertCircle, Loader2, Tag, Calendar as CalendarIcon } from "lucide-react";
+import { Save, X, Plus, AlertCircle, Loader2, Tag, Calendar as CalendarIcon, Paperclip } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
@@ -104,6 +104,34 @@ export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData 
 
   const removeKeyword = (tag: string) => {
     setForm(prev => ({ ...prev, palavras_chave: prev.palavras_chave.filter(t => t !== tag) }));
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    const toastId = toast.loading("Subindo arquivo...");
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${user.tenantId}/knowledge/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-media')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-media')
+        .getPublicUrl(filePath);
+
+      setForm(prev => ({ ...prev, link_url: publicUrl }));
+      toast.success("Arquivo pronto e link gerado!", { id: toastId });
+    } catch (err) {
+      console.error("Upload error:", err);
+      toast.error("Erro ao subir arquivo", { id: toastId });
+    }
   };
 
   const handleSubmit = async () => {
@@ -309,15 +337,34 @@ export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData 
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground text-blue-500 italic">Link do Documento (Drive / URL / Download)</Label>
-            <Input 
-              placeholder="https://drive.google.com/..." 
-              value={form.link_url}
-              onChange={e => setForm(p => ({ ...p, link_url: e.target.value }))}
-              className="h-10 bg-blue-500/5 border-blue-500/20"
-            />
-            <p className="text-[10px] text-muted-foreground">
-              Se preenchido, a IA poderá enviar este link quando o cliente solicitar o documento.
+            <Label className="text-xs font-bold uppercase tracking-wider text-blue-500 italic">Link do Documento (Drive / URL / Download)</Label>
+            <div className="flex gap-2">
+              <Input 
+                placeholder="https://drive.google.com/..." 
+                value={form.link_url}
+                onChange={e => setForm(p => ({ ...p, link_url: e.target.value }))}
+                className="h-10 bg-blue-500/5 border-blue-500/20 flex-1"
+              />
+              <div className="relative">
+                <input
+                  type="file"
+                  id="file-upload"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="h-10 border-blue-500/20 text-blue-500 hover:bg-blue-500/10 gap-2"
+                  onClick={() => document.getElementById('file-upload')?.click()}
+                >
+                  <Paperclip className="w-4 h-4" /> Subir
+                </Button>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground italic">
+              Você pode colar um link manual ou clicar em **Subir** para hospedar um arquivo automaticamente.
             </p>
           </div>
         </div>
