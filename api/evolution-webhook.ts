@@ -26,15 +26,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (event === 'messages.upsert') {
       const msg = data.message || data;
-      const key = msg.key;
-      const messageContent = msg.message;
+      const key = msg.key || data.key;
+      const messageContent = msg.message || data.message;
       
-      if (!key || !messageContent) return res.status(200).json({ success: true, message: 'No content' });
+      if (!key || !messageContent) {
+        console.log('Webhook: No key or messageContent found', { key: !!key, content: !!messageContent });
+        return res.status(200).json({ success: true, message: 'No content' });
+      }
 
       const remoteJid = key.remoteJid;
+      if (!remoteJid) return res.status(200).json({ success: true, message: 'No remoteJid' });
+      
       const phone = remoteJid.split('@')[0];
       const isFromMe = key.fromMe;
       
+      // Default Tenant ID (from dbSetup.ts)
+      const DEFAULT_TENANT_ID = '11111111-1111-1111-1111-111111111111';
+
       // Encontrar ou criar conversa
       let { data: conv, error: convError } = await supabase
         .from('conversas')
@@ -43,6 +51,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .maybeSingle();
 
       if (!conv) {
+        // Tentar encontrar o tenant do primeiro usuário ou usar default
+        const { data: firstUser } = await supabase.from('usuarios').select('tenant_id').limit(1).single();
+        const tenantToUse = firstUser?.tenant_id || DEFAULT_TENANT_ID;
+
         // Criar nova conversa se não existir
         const { data: newConv, error: createError } = await supabase
           .from('conversas')
@@ -50,14 +62,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             client_name: phone,
             client_phone: phone,
             status: 'novo',
-            last_message_time: new Date().toISOString()
+            last_message_time: new Date().toISOString(),
+            tenant_id: tenantToUse
           })
           .select()
           .single();
         
-        if (createError) throw createError;
+        if (createError) {
+          console.error('Webhook: Error creating conversation:', createError);
+          throw createError;
+        }
         conv = newConv;
       }
+
+      const tenantId = conv.tenant_id || DEFAULT_TENANT_ID;
 
       // Processar conteúdo
       let type = 'text';
@@ -68,13 +86,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let fileSize = null;
       let duration = null;
 
+      // Suporte para mensagens de texto simples ou estendido
       if (messageContent.conversation || messageContent.extendedTextMessage) {
         type = 'text';
         content = messageContent.conversation || messageContent.extendedTextMessage.text;
-      } else if (messageContent.imageMessage) {
+      } 
+      // Suporte para mídias (Imagem, Vídeo, Áudio, Documento)
+      else if (messageContent.imageMessage) {
         type = 'image';
         content = messageContent.imageMessage.caption || '[Imagem]';
-        mediaUrl = messageContent.imageMessage.url; // Nota: Evolution API URL
+        mediaUrl = messageContent.imageMessage.url;
         mimeType = messageContent.imageMessage.mimetype;
         fileSize = messageContent.imageMessage.fileLength;
       } else if (messageContent.videoMessage) {
@@ -98,6 +119,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         mimeType = messageContent.documentMessage.mimetype;
         fileSize = messageContent.documentMessage.fileLength;
         fileName = messageContent.documentMessage.fileName || messageContent.documentMessage.title;
+      } else {
+        // Caso seja algum tipo não tratado explicitamente
+        console.log('Webhook: Unhandled message type:', Object.keys(messageContent));
+        return res.status(200).json({ success: true, message: 'Unhandled type' });
       }
 
       // Salvar mensagem (usar upsert para evitar duplicatas se o front já inseriu)
@@ -116,7 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           duration_seconds: duration,
           external_message_id: key.id,
           status: isFromMe ? 'sent' : 'delivered',
-          tenant_id: conv.tenant_id
+          tenant_id: tenantId
         }, { onConflict: 'external_message_id' });
 
       if (msgError) throw msgError;
@@ -126,7 +151,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .from('conversas')
         .update({
           last_message: content,
-          last_message_time: new Date().toISOString()
+          last_message_time: new Date().toISOString(),
+          tenant_id: tenantId
         })
         .eq('id', conv.id);
 
