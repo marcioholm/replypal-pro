@@ -1,4 +1,4 @@
-// VERSION: 2026-05-07 12:01 - PROFILE PICTURE SUPPORT
+// VERSION: 2026-05-07 12:12 - 413 PAYLOAD FIX & DOWNLOAD OPTIMIZATION
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
@@ -36,6 +36,7 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
     }
 
     if (!buffer && evoUrl && evoKey) {
+      console.log(`Webhook Media: Base64 missing, attempting API download...`);
       const instanceId = fullMessage?.instanceId || fullMessage?.data?.instanceId;
       const ids = [instance, instanceId].filter(Boolean);
       const v2Payload = fullMessage.data || fullMessage;
@@ -59,6 +60,7 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
             const dataB64 = json.base64 || json.data?.base64;
             if (dataB64) {
               buffer = Buffer.from(dataB64.includes('base64,') ? dataB64.split('base64,')[1] : dataB64, 'base64');
+              console.log(`Webhook Media: API Download successful (${buffer.length} bytes)`);
               break;
             }
           }
@@ -67,6 +69,7 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
     }
 
     if (!buffer) {
+      console.log(`Webhook Media: API method failed, trying public/direct URL...`);
       const fileNameId = mediaPath.split('/').pop()?.split('?')[0] || fileName;
       const encInstance = encodeURIComponent(instance);
       const evoPublicUrl = `${evoUrl}/public/media/${encInstance}/${fileNameId}`;
@@ -81,6 +84,7 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
             const tmp = Buffer.from(await res.arrayBuffer());
             if (tmp.length > 100) { 
               buffer = tmp;
+              console.log(`Webhook Media: Direct URL download successful (${buffer.length} bytes)`);
               break;
             }
           }
