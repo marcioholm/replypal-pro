@@ -30,7 +30,14 @@ async function downloadAndUploadMedia(
     let buffer: Buffer | null = null;
 
     // Estratégia 0: Verificar se a Evolution já enviou o Base64 direto no payload (Webhook Base64 ligado)
-    const base64Data = fullMessage?.data?.base64 || fullMessage?.base64;
+    const msgObj = fullMessage?.data?.message || fullMessage?.message;
+    const base64Data = fullMessage?.data?.base64 || 
+                       fullMessage?.base64 || 
+                       msgObj?.imageMessage?.base64 || 
+                       msgObj?.videoMessage?.base64 || 
+                       msgObj?.audioMessage?.base64 ||
+                       msgObj?.stickerMessage?.base64;
+
     if (base64Data) {
       console.log(`Webhook Media: Strategy 0 (Payload Base64) success!`);
       buffer = Buffer.from(base64Data, 'base64');
