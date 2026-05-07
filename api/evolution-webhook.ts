@@ -34,8 +34,12 @@ async function downloadAndUploadMedia(
         const base64Res = await fetch(`${evoUrl}/message/getBase64FromMediaMessage/${instance}`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "apikey": evoKey },
-          body: JSON.stringify({ message: fullMessage, convertToMp4: false }),
+          body: JSON.stringify({ 
+            message: fullMessage.message ? fullMessage : { message: fullMessage }, 
+            convertToMp4: false 
+          }),
         });
+
         
         if (base64Res.ok) {
           const json = await base64Res.json();
@@ -245,7 +249,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         mimeType = messageContent.imageMessage.mimetype;
         fileSize = messageContent.imageMessage.fileLength;
         const originalPath = messageContent.imageMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'image.jpg', mimeType, msg);
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'image.jpg', mimeType, data);
       } else if (messageContent.videoMessage) {
         type = 'video';
         content = messageContent.videoMessage.caption || '[Vídeo]';
@@ -253,7 +257,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileSize = messageContent.videoMessage.fileLength;
         duration = messageContent.videoMessage.seconds;
         const originalPath = messageContent.videoMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'video.mp4', mimeType, msg);
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'video.mp4', mimeType, data);
       } else if (messageContent.audioMessage) {
         type = 'audio';
         content = '[Áudio]';
@@ -261,7 +265,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileSize = messageContent.audioMessage.fileLength;
         duration = messageContent.audioMessage.seconds;
         const originalPath = messageContent.audioMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'audio.ogg', mimeType, msg);
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'audio.ogg', mimeType, data);
       } else if (messageContent.documentMessage) {
         type = 'document';
         content = messageContent.documentMessage.title || '[Documento]';
@@ -269,14 +273,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileSize = messageContent.documentMessage.fileLength;
         fileName = messageContent.documentMessage.fileName || messageContent.documentMessage.title;
         const originalPath = messageContent.documentMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, fileName || 'document', mimeType, msg);
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, fileName || 'document', mimeType, data);
       } else if (messageContent.stickerMessage) {
         // IMPLEMENTAÇÃO 5: Sticker
         type = 'sticker';
         content = '[Sticker]';
         mimeType = messageContent.stickerMessage.mimetype || 'image/webp';
         const originalPath = messageContent.stickerMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'sticker.webp', 'image/webp', msg);
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'sticker.webp', 'image/webp', data);
       } else if (messageContent.reactionMessage) {
         // IMPLEMENTAÇÃO 5: Reaction
         const reactionKey = messageContent.reactionMessage.key;
@@ -308,7 +312,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           mimeType = docMsg.mimetype;
           fileSize = docMsg.fileLength;
           fileName = docMsg.fileName || docMsg.title;
-          mediaUrl = await downloadAndUploadMedia(supabase, "", "", docMsg.url, fileName || 'document', mimeType || 'application/octet-stream', msg);
+          mediaUrl = await downloadAndUploadMedia(supabase, "", "", docMsg.url, fileName || 'document', mimeType || 'application/octet-stream', data);
         }
       } else if (messageContent.pollCreationMessage || messageContent.pollCreationMessageV2 || messageContent.pollCreationMessageV3) {
         // IMPLEMENTAÇÃO 5: Poll
