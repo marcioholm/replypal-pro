@@ -87,8 +87,16 @@ async function downloadAndUploadMedia(
 
     if (!buffer) {
       console.error(`Webhook Media: All download strategies failed for ${mediaPath}`);
-      return mediaPath;
+      // Fallback: retornar a URL direta da Evolution com o apikey na query se possível,
+      // ou apenas a URL base + path para que o frontend tente carregar.
+      const fallbackUrl = mediaPath.startsWith("http") 
+        ? mediaPath 
+        : `${evoUrl}/public/${mediaPath}`;
+      
+      console.log(`Webhook Media: Falling back to original URL: ${fallbackUrl}`);
+      return fallbackUrl;
     }
+
 
     const safeFileName = (fileName || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
     const storagePath = `incoming/${Date.now()}_${safeFileName}`;
@@ -129,6 +137,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const supabase = await createSupabaseClient();
+    console.log(`Webhook Received: Event=${event}, Phone=${data.key?.remoteJid || 'N/A'}`);
 
     if (event === 'messages.upsert') {
       const msg = data.message || data;
