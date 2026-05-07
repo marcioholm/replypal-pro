@@ -29,7 +29,7 @@ export function GlobalSearch() {
     id: c.id,
     type: "conversation" as const,
     title: c.clientName,
-    subtitle: c.lastMessage.slice(0, 50),
+    subtitle: (c.lastMessage || "").slice(0, 50),
     icon: MessageSquare,
     url: `/chat/${c.id}`
   }));
