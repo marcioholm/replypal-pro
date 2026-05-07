@@ -92,16 +92,6 @@ async function downloadAndUploadMedia(
       }
     }
 
-    // Estratégia 2: download direto da URL com autenticação
-    if (!buffer) {
-      try {
-        const downloadUrl = mediaPath.startsWith("http")
-          ? mediaPath
-          : `${evoUrl}/public/${mediaPath}`; // Adicionado /public/ que é comum na Evolution
-
-        console.log(`Webhook Media: Trying Strategy 2 (Download) from ${downloadUrl}`);
-
-        const response = await fetch(downloadUrl, {
     // Estratégia 2: Download direto da Evolution ou WhatsApp
     if (!buffer) {
       const fileNameId = mediaPath.split('/').pop()?.split('?')[0] || fileName;
@@ -109,17 +99,20 @@ async function downloadAndUploadMedia(
       
       // Tentar o endereço de mídia pública da Evolution (Plano Z)
       const evoPublicUrl = `${evoUrl}/public/media/${encodedInstance}/${fileNameId}`;
-      
       const downloadUrls = [evoPublicUrl, mediaPath];
       
       for (const dUrl of downloadUrls) {
         try {
           console.log(`Webhook Media: Trying Strategy 2 at ${dUrl}`);
-          const res = await fetch(dUrl, { signal: AbortSignal.timeout(10000) });
+          const res = await fetch(dUrl, { 
+            headers: dUrl === mediaPath ? {} : { 'apikey': evoKey },
+            signal: AbortSignal.timeout(10000) 
+          });
+          
           if (res.ok) {
             const tempBuffer = Buffer.from(await res.arrayBuffer());
-            if (tempBuffer.length > 500) { // Evitar arquivos vazios ou erros
-              console.log(`Webhook Media: Strategy 2 SUCCESS at ${dUrl}`);
+            if (tempBuffer.length > 100) { 
+              console.log(`Webhook Media: Strategy 2 SUCCESS at ${dUrl} (${tempBuffer.length} bytes)`);
               buffer = tempBuffer;
               break;
             }
@@ -132,14 +125,7 @@ async function downloadAndUploadMedia(
 
     if (!buffer) {
       console.error(`Webhook Media: All download strategies failed for ${mediaPath}`);
-      // Fallback: retornar a URL direta da Evolution com o apikey na query se possível,
-      // ou apenas a URL base + path para que o frontend tente carregar.
-      const fallbackUrl = mediaPath.startsWith("http") 
-        ? mediaPath 
-        : `${evoUrl}/public/${mediaPath}`;
-      
-      console.log(`Webhook Media: Falling back to original URL: ${fallbackUrl}`);
-      return fallbackUrl;
+      return mediaPath.startsWith("http") ? mediaPath : `${evoUrl}/public/${mediaPath}`;
     }
 
 
