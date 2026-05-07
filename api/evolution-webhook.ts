@@ -169,6 +169,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabase = await createSupabaseClient();
     console.log(`[WEBHOOK] Supabase inicializado. Processando ${event}...`);
 
+    // Definir credenciais da Evolution para uso no download de mídias
+    const evoUrl = (process.env.EVOLUTION_URL || process.env.VITE_EVOLUTION_URL || "").replace(/\/$/, "");
+    const evoKey = process.env.EVOLUTION_API_KEY || process.env.VITE_EVOLUTION_API_KEY || "";
+
     if (event === 'messages.upsert') {
       const msg = data.message || data;
       const key = msg.key || data.key;
