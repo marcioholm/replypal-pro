@@ -7,6 +7,7 @@ export type StatusCliente = "Ativo" | "Onboarding" | "Inativo" | "Encerrado";
 export type RegimeTributario = "MEI" | "Simples Nacional" | "Lucro Presumido" | "Lucro Real";
 export type Prioridade = "Baixa" | "Média" | "Alta";
 export type ConversationStatus = "novo" | "pendente" | "respondido" | "resolvido" | "aguardando_aceite" | "em_atendimento" | "aguardando_cliente";
+export type SLAStatus = "ok" | "em_risco" | "estourado";
 export type ClosingReason = "resolvido" | "aguardando_cliente" | "transferido" | "sem_resposta" | "outro";
 export type MessageType = "text" | "image" | "audio" | "video" | "document" | "sticker";
 

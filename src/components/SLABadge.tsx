@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, AlertTriangle, XCircle } from "lucide-react";
 
 const config: Record<SLAStatus, { label: string; className: string; icon: typeof Clock }> = {
-  dentro_do_prazo: { label: "No prazo", className: "bg-success/15 text-success border-success/30", icon: Clock },
+  ok: { label: "No prazo", className: "bg-success/15 text-success border-success/30", icon: Clock },
   em_risco: { label: "Em risco", className: "bg-warning/15 text-warning border-warning/30", icon: AlertTriangle },
   estourado: { label: "SLA estourado", className: "bg-destructive/15 text-destructive border-destructive/30", icon: XCircle },
 };
