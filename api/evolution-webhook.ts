@@ -29,8 +29,15 @@ async function downloadAndUploadMedia(
   try {
     let buffer: Buffer | null = null;
 
-    // Estratégia 1: Pedir Base64 para a Evolution (Mais estável e já descriptografado)
-    if (evoUrl && evoKey) {
+    // Estratégia 0: Verificar se a Evolution já enviou o Base64 direto no payload (Webhook Base64 ligado)
+    const base64Data = fullMessage?.data?.base64 || fullMessage?.base64;
+    if (base64Data) {
+      console.log(`Webhook Media: Strategy 0 (Payload Base64) success!`);
+      buffer = Buffer.from(base64Data, 'base64');
+    }
+
+    // Estratégia 1: Pedir Base64 para a Evolution (Caso a Strat 0 não tenha funcionado)
+    if (!buffer && evoUrl && evoKey) {
       console.log(`Webhook Media: Trying Strategy 1 (v2 Convert to Base64) for instance: ${instance}`);
       
       // Codificar o nome da instância para lidar com espaços (ex: SASAKI TESTE -> SASAKI%20TESTE)
