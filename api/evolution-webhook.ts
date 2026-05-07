@@ -1,4 +1,4 @@
-// VERSION: 2026-05-07 11:53 - PDF & DOC CAPTION FIX
+// VERSION: 2026-05-07 12:01 - PROFILE PICTURE SUPPORT
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
@@ -131,8 +131,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const phone = remoteJid.split('@')[0];
       const DEFAULT_TENANT = '11111111-1111-1111-1111-111111111111';
+      // Capturar avatar do cliente se disponível
+      const profilePic = data.profilePicUrl || messageContent.profilePicUrl || data.data?.profilePicUrl;
 
-      let { data: conv } = await supabase.from('conversas').select('id, tenant_id').eq('client_phone', phone).maybeSingle();
+      // 1. Garantir que a conversa existe
+      let { data: conv } = await supabase.from('conversas').select('*').eq('client_phone', phone).maybeSingle();
 
       if (!conv) {
         const instName = instPayload || req.headers['x-instance-name'] as string || "";
@@ -142,10 +145,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (tCfg) tId = tCfg.id;
         }
         const { data: nConv, error: cErr } = await supabase.from('conversas').insert({
-          client_name: pushName || phone, client_phone: phone, status: 'novo', last_message_time: new Date().toISOString(), tenant_id: tId
+          client_name: pushName || phone, 
+          client_phone: phone, 
+          status: 'novo', 
+          last_message_time: new Date().toISOString(), 
+          tenant_id: tId,
+          client_avatar: profilePic // Salvar avatar na criação
         }).select().single();
         if (cErr) throw cErr;
         conv = nConv;
+      } else if (profilePic && conv.client_avatar !== profilePic) {
+        // Atualizar avatar se mudou
+        await supabase.from('conversas').update({ client_avatar: profilePic }).eq('id', conv.id);
       }
 
       const tenantId = conv?.tenant_id || DEFAULT_TENANT;
