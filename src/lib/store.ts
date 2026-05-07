@@ -102,6 +102,26 @@ export interface Message {
   status?: string;
 }
 
+export interface ScheduledMessage {
+  id: string;
+  tenantId: string;
+  clienteId: string;
+  conversaId: string;
+  receiverNumber: string;
+  messageType: "text" | "image" | "audio" | "video" | "document" | "sticker";
+  textContent?: string;
+  mediaUrl?: string;
+  mimeType?: string;
+  fileName?: string;
+  scheduledAt: Date;
+  status: "agendada" | "enviada" | "erro" | "cancelada";
+  createdBy: string;
+  sentAt?: Date;
+  errorMessage?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface HistoryEntry {
   id: string;
   conversationId?: string;
@@ -134,6 +154,7 @@ interface Store {
   currentUser: User | null;
   currentTenantId: string | undefined;
   isIAChatOpen: boolean;
+  scheduledMessages: ScheduledMessage[];
   
   setUsers: (users: User[]) => void;
   setCustomers: (customers: Customer[]) => void;
@@ -143,6 +164,9 @@ interface Store {
   addDbConversations: (convs: Conversation[]) => void;
   setMessages: (messages: Message[]) => void;
   addDbMessages: (msgs: Message[]) => void;
+  setScheduledMessages: (msgs: ScheduledMessage[]) => void;
+  addDbScheduledMessages: (msgs: ScheduledMessage[]) => void;
+  updateScheduledMessage: (id: string, updates: Partial<ScheduledMessage>) => void;
   addDbHistory: (entries: HistoryEntry[]) => void;
   setCurrentUser: (user: User | null) => void;
   setCurrentTenantId: (id: string | undefined) => void;
@@ -203,6 +227,7 @@ function getStore(): Store {
       currentUser: null,
       currentTenantId: undefined,
       isIAChatOpen: false,
+      scheduledMessages: [],
 
       setUsers(users) { s.users = users; notify(); },
       setCustomers(customers) { s.customers = customers; notify(); },
@@ -244,6 +269,33 @@ function getStore(): Store {
         if (updated) { 
           s.messages = newMsgs.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
           notify(); 
+        }
+      },
+      setScheduledMessages(msgs) { s.scheduledMessages = msgs; notify(); },
+      addDbScheduledMessages(msgs) {
+        let updated = false;
+        const newMsgs = [...s.scheduledMessages];
+        msgs.forEach(msg => {
+          const index = newMsgs.findIndex(m => m.id === msg.id);
+          if (index !== -1) {
+            newMsgs[index] = { ...newMsgs[index], ...msg };
+            updated = true;
+          } else {
+            newMsgs.push(msg);
+            updated = true;
+          }
+        });
+        if (updated) {
+          s.scheduledMessages = [...newMsgs];
+          notify();
+        }
+      },
+      updateScheduledMessage(id, updates) {
+        const index = s.scheduledMessages.findIndex(m => m.id === id);
+        if (index !== -1) {
+          s.scheduledMessages[index] = { ...s.scheduledMessages[index], ...updates };
+          s.scheduledMessages = [...s.scheduledMessages];
+          notify();
         }
       },
       addDbHistory(entries) {
