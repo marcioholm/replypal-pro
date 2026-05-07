@@ -33,8 +33,8 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
                   </div>
                 </div>
               </DialogTrigger>
-              <DialogContent className="max-w-[90vw] max-h-[90vh] p-1 bg-black/90 border-none">
-                <img src={msg.mediaUrl} alt="Preview" className="w-full h-full object-contain" />
+              <DialogContent className="max-w-[95vw] max-h-[95vh] p-1 bg-black/95 border-none flex items-center justify-center overflow-hidden">
+                <img src={msg.mediaUrl} alt="Preview" className="max-w-full max-h-full object-contain shadow-2xl" />
               </DialogContent>
             </Dialog>
             {msg.content && <p className="text-sm">{msg.content}</p>}

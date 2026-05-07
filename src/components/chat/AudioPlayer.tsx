@@ -35,7 +35,7 @@ export function AudioPlayer({ url, sender }: AudioPlayerProps) {
       responsive: true,
       height: 35,
       normalize: true,
-      backend: 'WebAudio',
+      backend: 'MediaElement',
     });
 
     ws.load(url);
