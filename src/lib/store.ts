@@ -68,6 +68,9 @@ export interface Customer {
   tags: string[];
   documents: any[];
   observations: string;
+  driveFolderUrl?: string;
+  drivePayrollUrl?: string;
+  driveBillingUrl?: string;
   createdAt: Date;
 }
 

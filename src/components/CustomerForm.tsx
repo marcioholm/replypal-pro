@@ -104,6 +104,9 @@ const customerFormSchema = z.object({
   contacts: z.array(contactSchema),
   observations: z.string().optional(),
   tags: z.array(z.string()).default([]),
+  driveFolderUrl: z.string().optional(),
+  drivePayrollUrl: z.string().optional(),
+  driveBillingUrl: z.string().optional(),
 });
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
@@ -177,6 +180,9 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
       contacts: [],
       observations: "",
       tags: [],
+      driveFolderUrl: "",
+      drivePayrollUrl: "",
+      driveBillingUrl: "",
     },
   });
 
@@ -209,7 +215,10 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
             nivel_atendimento: values.serviceLevel,
             plano: values.plan,
             valor_mensal: values.monthlyValue,
-            origem: values.origin
+            origem: values.origin,
+            drive_folder_url: values.driveFolderUrl,
+            drive_payroll_url: values.drivePayrollUrl,
+            drive_billing_url: values.driveBillingUrl,
           })
           .eq("id", initialData.id);
 
@@ -248,7 +257,10 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
             plan: values.plan,
             monthly_value: values.monthlyValue,
             financial_status: values.financialStatus,
-            observations: values.observations
+            observations: values.observations,
+            drive_folder_url: values.driveFolderUrl,
+            drive_payroll_url: values.drivePayrollUrl,
+            drive_billing_url: values.driveBillingUrl,
           }])
           .select()
           .single();
@@ -712,6 +724,45 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
               <FormField control={form.control} name="observations" render={({ field }) => (
                 <FormItem><FormControl><Textarea placeholder="Ex: cliente não atende ligação, sempre atrasa documentos..." className="min-h-[100px]" {...field} /></FormControl></FormItem>
               )} />
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Seção 7: Links do Google Drive */}
+          <AccordionItem value="drive" className="border rounded-lg px-4 mb-3 border-blue-200 bg-blue-50/10">
+            <AccordionTrigger className="hover:no-underline">
+              <div className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-blue-500" />
+                <span className="font-semibold text-base text-blue-700">Links do Google Drive (IA)</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="grid grid-cols-1 gap-4 pt-4">
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800 text-xs text-blue-800 dark:text-blue-200 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <p>Cole aqui os links das pastas ou arquivos do Drive. A IA usará esses links para responder ao cliente quando solicitado.</p>
+              </div>
+              
+              <FormField control={form.control} name="driveFolderUrl" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-blue-600">Pasta Principal no Drive</FormLabel>
+                  <FormControl><Input placeholder="https://drive.google.com/drive/folders/..." {...field} className="border-blue-200" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="drivePayrollUrl" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-blue-600 font-medium">Link Direto: Folha de Pagamento</FormLabel>
+                    <FormControl><Input placeholder="Link do PDF ou Pasta de Folhas" {...field} className="border-blue-200" /></FormControl>
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="driveBillingUrl" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-blue-600 font-medium">Link Direto: Faturamento / Notas</FormLabel>
+                    <FormControl><Input placeholder="Link do Relatório ou Pasta" {...field} className="border-blue-200" /></FormControl>
+                  </FormItem>
+                )} />
+              </div>
             </AccordionContent>
           </AccordionItem>
         </Accordion>

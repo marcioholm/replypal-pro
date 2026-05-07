@@ -130,6 +130,29 @@ export function IAChatPanel() {
     }
   };
 
+  const renderContent = (content: string) => {
+    // Regex para detectar URLs
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = content.split(urlRegex);
+
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a 
+            key={i} 
+            href={part} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-blue-500 hover:text-blue-600 underline font-medium break-all"
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   const [knowledgeData, setKnowledgeData] = useState<any>(null);
   const [knowledgeFormOpen, setKnowledgeFormOpen] = useState(false);
 
@@ -203,7 +226,7 @@ export function IAChatPanel() {
                 }`}
               >
                 <div className="whitespace-pre-line">
-                  {msg.content}
+                  {renderContent(msg.content)}
                 </div>
               </div>
               

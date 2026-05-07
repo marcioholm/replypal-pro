@@ -105,6 +105,9 @@ export default function CustomerDetailsPage() {
     financialStatus: customerData.financial_status || "Adimplente",
     origin: customerData.origin || "Manual",
     observations: customerData.observations,
+    driveFolderUrl: customerData.drive_folder_url,
+    drivePayrollUrl: customerData.drive_payroll_url,
+    driveBillingUrl: customerData.drive_billing_url,
     contacts: [],
     tags: [],
     documents: [],
@@ -242,24 +245,59 @@ export default function CustomerDetailsPage() {
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Contato Principal */}
-              <Card>
+              <Card className="md:col-span-1">
                 <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /> Contato e Localização</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-2 gap-4 text-sm">
                   <div className="flex flex-col gap-1.5 p-3 rounded-lg bg-muted/30"><span className="text-[10px] uppercase text-muted-foreground font-bold">Local</span><div className="flex items-center gap-2">{customer.city} - {customer.state}</div></div>
-                  <div className="flex flex-col gap-1.5 p-3 rounded-lg bg-muted/30"><span className="text-[10px] uppercase text-muted-foreground font-bold">E-mail</span><div className="flex items-center gap-2">{customer.email || "—"}</div></div>
                   <div className="flex flex-col gap-1.5 p-3 rounded-lg bg-muted/30"><span className="text-[10px] uppercase text-muted-foreground font-bold">WhatsApp</span><div className="flex items-center gap-2">{customer.whatsapp || "—"}</div></div>
-                  <div className="flex flex-col gap-1.5 p-3 rounded-lg bg-muted/30"><span className="text-[10px] uppercase text-muted-foreground font-bold">Telefone</span><div className="flex items-center gap-2">{customer.phone || "—"}</div></div>
+                </CardContent>
+              </Card>
+
+              {/* Links do Drive */}
+              <Card className="md:col-span-1 border-blue-100 bg-blue-50/5">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-blue-600">
+                    <Globe className="w-4 h-4" /> Links do Drive (IA)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {customer.driveFolderUrl ? (
+                    <Button asChild variant="outline" size="sm" className="w-full justify-start gap-2 border-blue-200 text-blue-700 hover:bg-blue-100">
+                      <a href={customer.driveFolderUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="w-3.5 h-3.5" /> Pasta Principal
+                      </a>
+                    </Button>
+                  ) : (
+                    <p className="text-[10px] text-muted-foreground italic">Pasta principal não configurada</p>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    {customer.drivePayrollUrl && (
+                      <Button asChild variant="ghost" size="sm" className="text-[10px] h-8 bg-blue-50 text-blue-600 hover:text-blue-700 p-1">
+                        <a href={customer.drivePayrollUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
+                          <FileText className="w-3 h-3" /> Folha
+                        </a>
+                      </Button>
+                    )}
+                    {customer.driveBillingUrl && (
+                      <Button asChild variant="ghost" size="sm" className="text-[10px] h-8 bg-blue-50 text-blue-600 hover:text-blue-700 p-1">
+                        <a href={customer.driveBillingUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
+                          <DollarSign className="w-3 h-3" /> Faturamento
+                        </a>
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 
               {/* Observações */}
-              <Card>
-                <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><FileText className="w-4 h-4 text-primary" /> Observações Internas</CardTitle></CardHeader>
+              <Card className="md:col-span-1">
+                <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><FileText className="w-4 h-4 text-primary" /> Obs. Internas</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200/50 dark:border-amber-900/50 text-sm text-amber-900 dark:text-amber-200 min-h-[100px] italic">
-                    {customer.observations || "Nenhuma observação interna registrada para este cliente."}
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200/50 text-[11px] text-amber-900 min-h-[60px] italic line-clamp-3">
+                    {customer.observations || "Sem observações."}
                   </div>
                 </CardContent>
               </Card>
