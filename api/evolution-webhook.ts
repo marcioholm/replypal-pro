@@ -29,60 +29,62 @@ async function downloadAndUploadMedia(
   try {
     let buffer: Buffer | null = null;
 
-    // Estratégia 0: Verificar se a Evolution já enviou o Base64 direto no payload (Webhook Base64 ligado)
-    const msgObj = fullMessage?.data?.message || fullMessage?.message;
-    const base64Data = fullMessage?.data?.base64 || 
-                       fullMessage?.base64 || 
-                       msgObj?.imageMessage?.base64 || 
-                       msgObj?.videoMessage?.base64 || 
-                       msgObj?.audioMessage?.base64 ||
-                       msgObj?.stickerMessage?.base64;
+    // Estratégia 0: Busca recursiva de Base64 no payload (Webhook Base64)
+    const findBase64 = (obj: any): string | null => {
+      if (!obj || typeof obj !== 'object') return null;
+      if (obj.base64 && typeof obj.base64 === 'string') return obj.base64;
+      for (const key in obj) {
+        const result = findBase64(obj[key]);
+        if (result) return result;
+      }
+      return null;
+    };
 
-    if (base64Data) {
-      console.log(`Webhook Media: Strategy 0 (Payload Base64) success! Length: ${base64Data.length}`);
-      // Limpar prefixo data:image/...;base64, se existir
-      const cleanBase64 = base64Data.includes('base64,') 
-        ? base64Data.split('base64,')[1] 
-        : base64Data;
+    const base64FromPayload = findBase64(fullMessage);
+    if (base64FromPayload) {
+      console.log(`Webhook Media: Strategy 0 (Payload Base64) success! Length: ${base64FromPayload.length}`);
+      const cleanBase64 = base64FromPayload.includes('base64,') 
+        ? base64FromPayload.split('base64,')[1] 
+        : base64FromPayload;
       buffer = Buffer.from(cleanBase64, 'base64');
     }
 
-    // Estratégia 1: Pedir Base64 para a Evolution (Caso a Strat 0 não tenha funcionado)
+    // Estratégia 1: Multi-tentativa em endpoints da Evolution (v1 e v2)
     if (!buffer && evoUrl && evoKey) {
-      console.log(`Webhook Media: Trying Strategy 1 (v2 Convert to Base64) for instance: ${instance}`);
-      
-      // Codificar o nome da instância para lidar com espaços (ex: SASAKI TESTE -> SASAKI%20TESTE)
       const encodedInstance = encodeURIComponent(instance);
-      const strategy1Url = `${evoUrl}/message/convert/toBase64/${encodedInstance}`;
-      
-      // No v2, o payload esperado é o objeto da mensagem com key e message
       const v2Payload = fullMessage.data || fullMessage;
+      
+      // Lista de possíveis endpoints da Evolution para Base64
+      const endpoints = [
+        `${evoUrl}/message/convert/toBase64/${encodedInstance}`, // v2 Padrão
+        `${evoUrl}/message/getBase64FromMediaMessage/${encodedInstance}`, // v1 Padrão
+        `${evoUrl}/chat/getBase64FromMediaMessage/${encodedInstance}` // Alternativo
+      ];
 
-      try {
-        const base64Res = await fetch(strategy1Url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': evoKey
-          },
-          body: JSON.stringify(v2Payload),
-          signal: AbortSignal.timeout(10000)
-        });
+      for (const url of endpoints) {
+        try {
+          console.log(`Webhook Media: Trying Strategy 1 at ${url}`);
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+            body: JSON.stringify(v2Payload),
+            signal: AbortSignal.timeout(8000)
+          });
 
-        if (base64Res.ok) {
-          const json = await base64Res.json();
-          if (json.base64) {
-            console.log(`Webhook Media: Strategy 1 success!`);
-            buffer = Buffer.from(json.base64, 'base64');
+          if (res.ok) {
+            const json = await res.json();
+            const b64 = json.base64 || json.data?.base64;
+            if (b64) {
+              console.log(`Webhook Media: Strategy 1 SUCCESS at ${url}`);
+              buffer = Buffer.from(b64.includes('base64,') ? b64.split('base64,')[1] : b64, 'base64');
+              break;
+            }
           } else {
-            console.log(`Webhook Media: Strategy 1 returned no base64`);
+            console.log(`Webhook Media: Endpoint ${url} failed with status ${res.status}`);
           }
-        } else {
-          const errText = await base64Res.text();
-          console.log(`Webhook Media: Strategy 1 failed with status ${base64Res.status}: ${errText}`);
+        } catch (e) {
+          console.log(`Webhook Media: Error calling ${url}: ${String(e)}`);
         }
-      } catch (err) {
-        console.log(`Webhook Media: Strategy 1 error: ${String(err)}`);
       }
     }
 
