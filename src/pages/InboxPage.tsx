@@ -353,8 +353,12 @@ export default function InboxPage() {
                   className="w-full group relative flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-[#021B1A]/40 border border-border/40 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all text-left"
                 >
                   <div className="relative">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black">
-                      {conv.clientName.charAt(0)}
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black overflow-hidden">
+                      {conv.clientAvatar ? (
+                        <img src={conv.clientAvatar} alt={conv.clientName} className="w-full h-full object-cover" />
+                      ) : (
+                        conv.clientName.charAt(0)
+                      )}
                     </div>
                     {conv.status === "novo" && (
                       <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary border-2 border-white dark:border-[#021B1A] rounded-full" />

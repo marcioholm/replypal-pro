@@ -84,6 +84,7 @@ export interface Conversation {
   slaDeadline?: Date;
   tenantId: string;
   tags: string[];
+  clientAvatar?: string;
 }
 
 export interface Message {

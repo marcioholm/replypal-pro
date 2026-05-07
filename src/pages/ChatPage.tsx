@@ -97,7 +97,8 @@ export default function ChatPage() {
               assignedTo: dbConv.assigned_to,
               startedAt: dbConv.started_at ? new Date(dbConv.started_at) : undefined,
               slaDeadline: dbConv.sla_deadline ? new Date(dbConv.sla_deadline) : undefined,
-              tags: dbConv.tags || []
+              tags: dbConv.tags || [],
+              clientAvatar: dbConv.client_avatar
             });
           }
         }
@@ -504,8 +505,12 @@ export default function ChatPage() {
           <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="h-9 w-9 p-0">
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shadow-sm border border-primary/20">
-            {conv.clientName.charAt(0)}
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shadow-sm border border-primary/20 overflow-hidden">
+            {conv.clientAvatar ? (
+              <img src={conv.clientAvatar} alt={conv.clientName} className="w-full h-full object-cover" />
+            ) : (
+              conv.clientName.charAt(0)
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate">{conv.clientName}</p>
