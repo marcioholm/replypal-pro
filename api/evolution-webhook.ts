@@ -21,7 +21,7 @@ async function downloadAndUploadMedia(
 ): Promise<string> {
   const evoUrl = (process.env.EVOLUTION_URL || process.env.VITE_EVOLUTION_URL || evolutionUrl || "").replace(/\/$/, "");
   const evoKey = process.env.EVOLUTION_API_KEY || process.env.VITE_EVOLUTION_API_KEY || apikey || "";
-  const instance = process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI";
+  const instance = fullMessage?.instance || process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI";
 
   console.log(`Webhook Media: Processing ${fileName} (${mimeType}). Path: ${mediaPath}`);
   console.log(`Webhook Media: evoUrl: ${evoUrl}, instance: ${instance}`);
@@ -145,8 +145,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { event, data } = req.body || {};
-  console.log("EVENTO RECEBIDO:", event);
+  const { event, data, instance: instanceFromPayload } = req.body || {};
+  console.log("EVENTO RECEBIDO:", event, "INSTÂNCIA:", instanceFromPayload);
   
   if (!event || !data) {
     console.log("!!! [WEBHOOK] PAYLOAD INVÁLIDO OU VAZIO !!!", req.body);
@@ -191,8 +191,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .maybeSingle();
 
       if (!conv) {
-        // Buscar tenant pela instância configurada em Settings
-        const instanceName = req.headers['x-instance-name'] as string || process.env.VITE_INSTANCE_NAME || '';
+        // Buscar tenant pela instância que enviou o webhook
+        const instanceName = instanceFromPayload || req.headers['x-instance-name'] as string || process.env.VITE_INSTANCE_NAME || '';
         
         let tenantToUse = DEFAULT_TENANT_ID;
         
