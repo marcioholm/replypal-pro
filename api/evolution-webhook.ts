@@ -1,4 +1,4 @@
-// VERSION: 2026-05-07 09:31 - CLEAN UI & AUDIO LOGS
+// VERSION: 2026-05-07 09:42 - AUDIO BASE64 FIX
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
@@ -14,20 +14,23 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
   try {
     let buffer: Buffer | null = null;
 
-    const findBase64 = (obj: any): string | null => {
+    const findBase64 = (obj: any, isAudio: boolean): string | null => {
       if (!obj || typeof obj !== 'object') return null;
-      // Se acharmos uma chave 'base64', verificamos se é grande o suficiente (> 10KB)
-      if (obj.base64 && typeof obj.base64 === 'string' && obj.base64.length > 10000) return obj.base64;
+      if (obj.base64 && typeof obj.base64 === 'string') {
+        // Se for áudio, aceita qualquer tamanho. Se for imagem, exige > 10KB para evitar thumbnails.
+        if (isAudio || obj.base64.length > 10000) return obj.base64;
+      }
       for (const key in obj) {
-        const result = findBase64(obj[key]);
+        const result = findBase64(obj[key], isAudio);
         if (result) return result;
       }
       return null;
     };
 
-    const b64 = findBase64(fullMessage);
+    const isAudio = mimeType.includes('audio');
+    const b64 = findBase64(fullMessage, isAudio);
     if (b64) {
-      console.log(`Webhook Media: High-quality Base64 found (${b64.length} bytes)`);
+      console.log(`Webhook Media: Base64 found (${b64.length} bytes, isAudio: ${isAudio})`);
       const clean = b64.includes('base64,') ? b64.split('base64,')[1] : b64;
       buffer = Buffer.from(clean, 'base64');
     }
