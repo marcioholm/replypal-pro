@@ -10,15 +10,7 @@ async function createSupabaseClient() {
   return createClient(supabaseUrl, supabaseKey);
 }
 
-async function downloadAndUploadMedia(
-  supabase: any,
-  evolutionUrl: string,
-  apikey: string,
-  mediaPath: string,
-  fileName: string,
-  mimeType: string,
-  fullMessage?: any
-): Promise<string> {
+async function downloadAndUploadMedia(supabase: any, evolutionUrl: string, apikey: string, mediaPath: string, fileName: string, mimeType: string, fullMessage?: any): Promise<string> {
   const evoUrl = (process.env.EVOLUTION_URL || process.env.VITE_EVOLUTION_URL || evolutionUrl || "").replace(/\/$/, "");
   const evoKey = process.env.EVOLUTION_API_KEY || process.env.VITE_EVOLUTION_API_KEY || apikey || "";
   const instance = fullMessage?.instance || process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI";
@@ -29,7 +21,7 @@ async function downloadAndUploadMedia(
   try {
     let buffer: Buffer | null = null;
 
-    // Estratégia 0: Busca recursiva de Base64 no payload (Webhook Base64)
+    // Estrategia 0: Busca recursiva de Base64 no payload (Webhook Base64)
     const findBase64 = (obj: any): string | null => {
       if (!obj || typeof obj !== 'object') return null;
       if (obj.base64 && typeof obj.base64 === 'string') return obj.base64;
@@ -49,7 +41,7 @@ async function downloadAndUploadMedia(
       buffer = Buffer.from(cleanBase64, 'base64');
     }
 
-    // Estratégia 1: Multi-tentativa em endpoints (v1, v2, Nome e ID)
+    // Estrategia 1: Multi-tentativa em endpoints (v1, v2, Nome e ID)
     if (!buffer && evoUrl && evoKey) {
       const instanceId = fullMessage?.instanceId || fullMessage?.data?.instanceId;
       const identifiers = [instance, instanceId].filter(Boolean);
@@ -71,8 +63,7 @@ async function downloadAndUploadMedia(
           const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-            body: JSON.stringify(v2Payload),
-            signal: AbortSignal.timeout(8000)
+            body: JSON.stringify(v2Payload)
           });
 
           if (res.ok) {
@@ -92,7 +83,7 @@ async function downloadAndUploadMedia(
       }
     }
 
-    // Estratégia 2: Download direto da Evolution ou WhatsApp
+    // Estrategia 2: Download direto da Evolution ou WhatsApp
     if (!buffer) {
       const fileNameId = mediaPath.split('/').pop()?.split('?')[0] || fileName;
       const encodedInstance = encodeURIComponent(instance);
@@ -105,8 +96,7 @@ async function downloadAndUploadMedia(
         try {
           console.log(`Webhook Media: Trying Strategy 2 at ${dUrl}`);
           const res = await fetch(dUrl, { 
-            headers: dUrl === mediaPath ? {} : { 'apikey': evoKey },
-            signal: AbortSignal.timeout(10000) 
+            headers: dUrl === mediaPath ? {} : { 'apikey': evoKey }
           });
           
           if (res.ok) {
@@ -161,7 +151,7 @@ async function downloadAndUploadMedia(
 
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  console.log("!!! [WEBHOOK] INÍCIO DA REQUISIÇÃO !!!");
+  console.log("!!! [WEBHOOK] INICIO DA REQUISICÃO !!!");
   console.log("MÉTODO:", req.method);
   console.log("HEADERS:", JSON.stringify(req.headers).substring(0, 200));
 
@@ -177,7 +167,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { event, data, instance: instanceFromPayload } = req.body || {};
   
-  // LOG TEMPORÁRIO DE DEBUG — remover após resolver
+  // LOG TEMPORÁRIO DE DEBUG — remover apos resolver
   console.log('=== WEBHOOK RECEIVED ===');
   console.log('Event:', event);
   console.log('Instance:', instanceFromPayload);
@@ -217,14 +207,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const phone = remoteJid.split('@')[0];
       const isFromMe = key.fromMe;
 
-      // Ignorar mensagens enviadas pelo próprio sistema (fromMe)
-      // O frontend já as insere diretamente no banco
+      // Ignorar mensagens enviadas pelo proprio sistema (fromMe)
+      // O frontend ja as insere diretamente no banco
       if (isFromMe) {
         return res.status(200).json({ success: true, message: 'Outgoing message ignored' });
       }
       const DEFAULT_TENANT_ID = '11111111-1111-1111-1111-111111111111';
 
-      // Encontrar ou criar conversa - IMPLEMENTAÇÃO 1.1: Tenant lookup robusto
+      // Encontrar ou criar conversa - IMPLEMENTACÃO 1.1: Tenant lookup robusto
       let { data: conv, error: convError } = await supabase
         .from('conversas')
         .select('id, tenant_id')
@@ -247,7 +237,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (tenantConfig) {
             tenantToUse = tenantConfig.id;
           } else {
-            // Fallback: primeiro usuário ativo
+            // Fallback: primeiro usuario ativo
             const { data: firstUser } = await supabase
               .from('usuarios')
               .select('tenant_id')
@@ -298,7 +288,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return typeof val === 'number' ? val : 0;
       };
 
-      // Verificar texto em vários campos possíveis
+      // Verificar texto em varios campos possíveis
       const text = messageContent.conversation || 
                    messageContent.extendedTextMessage?.text || 
                    messageContent.text || 
@@ -354,20 +344,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         return res.status(200).json({ success: true, message: 'Reaction processed' });
       } else if (messageContent.locationMessage) {
-        // IMPLEMENTAÇÃO 5: Location
+        // IMPLEMENTACÃO 5: Location
         type = 'location';
         const loc = messageContent.locationMessage;
         content = loc.name || `${loc.degreesLatitude},${loc.degreesLongitude}`;
         mediaUrl = `https://www.google.com/maps?q=${loc.degreesLatitude},${loc.degreesLongitude}`;
-        fileName = loc.name || 'Localização';
+        fileName = loc.name || 'Localizaçao';
       } else if (messageContent.contactMessage || messageContent.contactsArrayMessage) {
-        // IMPLEMENTAÇÃO 5: Contact
+        // IMPLEMENTACÃO 5: Contact
         type = 'contact';
         const contacts = messageContent.contactsArrayMessage?.contacts || [messageContent.contactMessage];
         content = contacts.map((c: any) => c?.displayName || c?.vcard?.split('FN:')[1]?.split('\n')[0] || 'Contato').join(', ');
         fileName = content;
       } else if (messageContent.documentWithCaptionMessage) {
-        // IMPLEMENTAÇÃO 5: Document with caption
+        // IMPLEMENTACÃO 5: Document with caption
         const docMsg = messageContent.documentWithCaptionMessage.message?.documentMessage;
         if (docMsg) {
           type = 'document';
@@ -386,14 +376,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           mediaUrl = await downloadAndUploadMedia(supabase, evoUrl, evoKey, docMsg.url, fileName || 'document', mimeType || 'application/octet-stream', req.body);
         }
       } else if (messageContent.pollCreationMessage || messageContent.pollCreationMessageV2 || messageContent.pollCreationMessageV3) {
-        // IMPLEMENTAÇÃO 5: Poll
+        // IMPLEMENTACÃO 5: Poll
         const poll = messageContent.pollCreationMessage || messageContent.pollCreationMessageV2 || messageContent.pollCreationMessageV3;
         type = 'text';
         const opts = (poll.options || []).map((o: any) => `• ${o.optionName}`).join('\n');
         content = `📊 *${poll.name}*\n${opts}`;
       } else if (messageContent.ephemeralMessage) {
         type = 'text';
-        content = '[Mensagem temporária]';
+        content = '[Mensagem temporaria]';
       } else if (messageContent.templateMessage) {
         type = 'text';
         content = messageContent.templateMessage?.hydratedTemplate?.hydratedContentText || '[Template]';
@@ -434,7 +424,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .eq('id', conv.id);
 
     } else if (event === 'messages.update') {
-      // IMPLEMENTAÇÃO 5: messages.update com suporte a array e status como string ou número
+      // IMPLEMENTACÃO 5: messages.update com suporte a array e status como string ou número
       const updates = Array.isArray(data) ? data : [data];
       
       for (const statusUpdate of updates) {
@@ -458,7 +448,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .eq('external_message_id', key.id);
       }
     } else if (event === 'contacts.upsert' || event === 'contacts.update') {
-      // IMPLEMENTAÇÃO 6: Sincronizar Foto de Perfil e Nome do Contato
+      // IMPLEMENTACÃO 6: Sincronizar Foto de Perfil e Nome do Contato
       const contacts = Array.isArray(data) ? data : [data];
       
       for (const contact of contacts) {
