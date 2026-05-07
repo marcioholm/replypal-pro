@@ -28,15 +28,17 @@ async function setWebhook() {
         "apikey": evolutionKey 
       },
       body: JSON.stringify({
-        url: targetWebhookUrl,
-        enabled: true,
-        events: [
-          "MESSAGES_UPSERT",
-          "MESSAGES_UPDATE",
-          "CONNECTION_UPDATE",
-          "MESSAGES_SET",
-          "SEND_MESSAGE"
-        ]
+        webhook: {
+          url: targetWebhookUrl,
+          enabled: true,
+          events: [
+            "MESSAGES_UPSERT",
+            "MESSAGES_UPDATE",
+            "CONNECTION_UPDATE",
+            "MESSAGES_SET",
+            "SEND_MESSAGE"
+          ]
+        }
       })
     });
     

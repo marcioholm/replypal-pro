@@ -10,25 +10,23 @@ async function createSupabaseClient() {
 
 async function downloadAndUploadMedia(supabase: any, evolutionUrl: string, apikey: string, mediaPath: string, fileName: string, mimeType: string) {
   try {
-    // Se a URL já for pública (contém http), tentar usar ela, senão construir a URL da Evolution
     const downloadUrl = mediaPath.startsWith('http') ? mediaPath : `${evolutionUrl}/public/${mediaPath}`;
-    
     console.log(`Webhook: Downloading media from ${downloadUrl}`);
     
-    const fetch = (await import('node-fetch')).default;
     const response = await fetch(downloadUrl, {
       headers: { "apikey": apikey }
     });
 
     if (!response.ok) {
       console.error(`Webhook: Failed to download media: ${response.statusText}`);
-      return mediaPath; // Fallback para a URL original
+      return mediaPath;
     }
 
-    const buffer = await response.buffer();
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
     const storagePath = `incoming/${Date.now()}_${fileName}`;
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('chat-media')
       .upload(storagePath, buffer, {
         contentType: mimeType,
@@ -52,17 +50,10 @@ async function downloadAndUploadMedia(supabase: any, evolutionUrl: string, apike
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
-  const payload = req.body;
-  const event = payload.event;
-  const data = payload.data;
-
-  if (!event || !data) {
-    return res.status(400).json({ error: 'Invalid payload' });
-  }
+  const { event, data } = req.body;
+  if (!event || !data) return res.status(400).json({ error: 'Invalid payload' });
 
   try {
     const supabase = await createSupabaseClient();
@@ -71,9 +62,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const msg = data.message || data;
       const key = msg.key || data.key;
       const messageContent = msg.message || data.message;
+      const pushName = data.pushName || msg.pushName || '';
       
       if (!key || !messageContent) {
-        console.log('Webhook: No key or messageContent found', { key: !!key, content: !!messageContent });
+        console.log('Webhook: No key or messageContent found');
         return res.status(200).json({ success: true, message: 'No content' });
       }
 
@@ -82,8 +74,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       const phone = remoteJid.split('@')[0];
       const isFromMe = key.fromMe;
-      
-      // Default Tenant ID (from dbSetup.ts)
       const DEFAULT_TENANT_ID = '11111111-1111-1111-1111-111111111111';
 
       // Encontrar ou criar conversa
@@ -94,15 +84,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .maybeSingle();
 
       if (!conv) {
-        // Tentar encontrar o tenant do primeiro usuário ou usar default
         const { data: firstUser } = await supabase.from('usuarios').select('tenant_id').limit(1).single();
         const tenantToUse = firstUser?.tenant_id || DEFAULT_TENANT_ID;
 
-        // Criar nova conversa se não existir
         const { data: newConv, error: createError } = await supabase
           .from('conversas')
           .insert({
-            client_name: phone,
+            client_name: pushName || phone,
             client_phone: phone,
             status: 'novo',
             last_message_time: new Date().toISOString(),
@@ -111,16 +99,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .select()
           .single();
         
-        if (createError) {
-          console.error('Webhook: Error creating conversation:', createError);
-          throw createError;
-        }
+        if (createError) throw createError;
         conv = newConv;
+      } else if (pushName) {
+        // Atualizar nome se mudou
+        await supabase.from('conversas').update({ client_name: pushName }).eq('id', conv.id);
       }
 
       const tenantId = conv.tenant_id || DEFAULT_TENANT_ID;
 
-      // Processar conteúdo
+      // Processar conteúdo de forma mais robusta
       let type = 'text';
       let content = '';
       let mediaUrl = null;
@@ -129,26 +117,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let fileSize = null;
       let duration = null;
 
-      console.log('Webhook: Processing message content keys:', Object.keys(messageContent));
+      // Verificar texto em vários campos possíveis
+      const text = messageContent.conversation || 
+                   messageContent.extendedTextMessage?.text || 
+                   messageContent.text || 
+                   messageContent.body || 
+                   '';
 
-      // Suporte para mensagens de texto simples ou estendido
-      if (messageContent.conversation || messageContent.extendedTextMessage) {
+      if (text) {
         type = 'text';
-        content = messageContent.conversation || messageContent.extendedTextMessage.text;
-      } 
-      // Evolution API settings for media download
-      const evolutionUrl = process.env.VITE_EVOLUTION_URL || "";
-      const evolutionKey = process.env.VITE_EVOLUTION_API_KEY || "";
-
-      // Suporte para mídias (Imagem, Vídeo, Áudio, Documento)
-      else if (messageContent.imageMessage) {
+        content = text;
+      } else if (messageContent.imageMessage) {
         type = 'image';
         content = messageContent.imageMessage.caption || '[Imagem]';
         mimeType = messageContent.imageMessage.mimetype;
         fileSize = messageContent.imageMessage.fileLength;
         const originalPath = messageContent.imageMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, evolutionUrl, evolutionKey, originalPath, 'image.jpg', mimeType);
-        console.log('Webhook: Image processed', { mediaUrl });
+        mediaUrl = await downloadAndUploadMedia(supabase, process.env.VITE_EVOLUTION_URL || "", process.env.VITE_EVOLUTION_API_KEY || "", originalPath, 'image.jpg', mimeType);
       } else if (messageContent.videoMessage) {
         type = 'video';
         content = messageContent.videoMessage.caption || '[Vídeo]';
@@ -156,7 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileSize = messageContent.videoMessage.fileLength;
         duration = messageContent.videoMessage.seconds;
         const originalPath = messageContent.videoMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, evolutionUrl, evolutionKey, originalPath, 'video.mp4', mimeType);
+        mediaUrl = await downloadAndUploadMedia(supabase, process.env.VITE_EVOLUTION_URL || "", process.env.VITE_EVOLUTION_API_KEY || "", originalPath, 'video.mp4', mimeType);
       } else if (messageContent.audioMessage) {
         type = 'audio';
         content = '[Áudio]';
@@ -164,7 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileSize = messageContent.audioMessage.fileLength;
         duration = messageContent.audioMessage.seconds;
         const originalPath = messageContent.audioMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, evolutionUrl, evolutionKey, originalPath, 'audio.ogg', mimeType);
+        mediaUrl = await downloadAndUploadMedia(supabase, process.env.VITE_EVOLUTION_URL || "", process.env.VITE_EVOLUTION_API_KEY || "", originalPath, 'audio.ogg', mimeType);
       } else if (messageContent.documentMessage) {
         type = 'document';
         content = messageContent.documentMessage.title || '[Documento]';
@@ -172,10 +157,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileSize = messageContent.documentMessage.fileLength;
         fileName = messageContent.documentMessage.fileName || messageContent.documentMessage.title;
         const originalPath = messageContent.documentMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, evolutionUrl, evolutionKey, originalPath, fileName, mimeType);
+        mediaUrl = await downloadAndUploadMedia(supabase, process.env.VITE_EVOLUTION_URL || "", process.env.VITE_EVOLUTION_API_KEY || "", originalPath, fileName, mimeType);
       } else {
-        // Caso seja algum tipo não tratado explicitamente
-        console.log('Webhook: Unhandled message type:', Object.keys(messageContent));
+        console.log('Webhook: Unhandled type', Object.keys(messageContent));
         return res.status(200).json({ success: true, message: 'Unhandled type' });
       }
 
