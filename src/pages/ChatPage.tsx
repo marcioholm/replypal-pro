@@ -57,6 +57,7 @@ export default function ChatPage() {
   const { isRecording, recordingTime, audioBlob, startRecording, stopRecording, cancelRecording, clearAudio } = useAudioRecorder();
   
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const conv = store.getConversation(id || "");
@@ -124,7 +125,8 @@ export default function ChatPage() {
             fileName: m.file_name,
             mimeType: m.mime_type,
             fileSize: m.file_size,
-            durationSeconds: m.duration_seconds
+            durationSeconds: m.duration_seconds,
+            external_message_id: m.external_message_id
           })));
         }
 
@@ -148,13 +150,12 @@ export default function ChatPage() {
           })));
         }
 
-        // Sincronizar histórico da Evolution se o banco estiver vazio ou quase vazio
+        // Se tiver poucas mensagens no banco, sincronizar histórico da Evolution
         const currentConv = conv || storeRef.current.getConversation(id || "");
-        if (dbMsgs && dbMsgs.length < 5 && currentConv?.clientPhone) {
+        if (dbMsgs && dbMsgs.length < 15 && currentConv?.clientPhone) {
           const sync = await syncConversationHistory(currentConv.clientPhone, user?.tenantId || "");
           
-          if (sync.success && sync.messages && sync.messages.length > 0) {
-            const syncMsgs = [];
+          if (sync.success && sync.messages.length > 0) {
             for (const m of sync.messages) {
               const key = m.key || {};
               const msgContent = m.message || {};
@@ -172,7 +173,8 @@ export default function ChatPage() {
                 : msgContent.documentMessage ? 'document'
                 : 'text';
               
-              syncMsgs.push({
+              // Upsert — não duplica se já existir
+              await supabase.from("mensagens").upsert({
                 conversation_id: id,
                 content: text || `[${type}]`,
                 sender: key.fromMe ? "agent" : "client",
@@ -182,40 +184,38 @@ export default function ChatPage() {
                 external_message_id: key.id,
                 status: key.fromMe ? "sent" : "delivered",
                 tenant_id: user?.tenantId
-              });
+              }, { onConflict: "external_message_id" });
             }
-
-            if (syncMsgs.length > 0) {
-              await supabase.from("mensagens").upsert(syncMsgs, { onConflict: "external_message_id" });
+            
+            // Recarregar mensagens após sync
+            const { data: refreshed } = await supabase
+              .from("mensagens")
+              .select("*")
+              .eq("conversation_id", id)
+              .order("timestamp", { ascending: true });
               
-              // Recarregar mensagens após sync
-              const { data: refreshed } = await supabase
-                .from("mensagens")
-                .select("*")
-                .eq("conversation_id", id)
-                .order("timestamp", { ascending: true });
-                
-              if (refreshed) {
-                storeRef.current.addDbMessages(refreshed.map(m => ({
-                  id: m.id,
-                  conversationId: m.conversation_id,
-                  content: m.content,
-                  sender: m.sender as "client" | "agent",
-                  senderName: m.sender_name,
-                  timestamp: new Date(m.timestamp),
-                  type: m.type as MessageType,
-                  mediaUrl: m.media_url,
-                  status: m.status,
-                  fileName: m.file_name,
-                  mimeType: m.mime_type,
-                  fileSize: m.file_size,
-                  durationSeconds: m.duration_seconds,
-                  external_message_id: m.external_message_id
-                })));
-              }
+            if (refreshed) {
+              storeRef.current.addDbMessages(refreshed.map(m => ({
+                id: m.id,
+                conversationId: m.conversation_id,
+                content: m.content,
+                sender: m.sender as "client" | "agent",
+                senderName: m.sender_name,
+                timestamp: new Date(m.timestamp),
+                type: m.type as MessageType,
+                mediaUrl: m.media_url,
+                status: m.status,
+                fileName: m.file_name,
+                mimeType: m.mime_type,
+                fileSize: m.file_size,
+                durationSeconds: m.duration_seconds,
+                external_message_id: m.external_message_id
+              })));
             }
           }
         }
+
+
       } catch (e) {
         console.error("Error loading chat data:", e);
       } finally {
@@ -436,13 +436,42 @@ export default function ChatPage() {
 
   // IMPLEMENTAÇÃO 10: Marcar como lida ao abrir/receber mensagens
   useEffect(() => {
-    if (!conv || !messages.length) return;
-    const lastClientMsg = [...messages].reverse()
-      .find(m => m.sender === 'client' && m.external_message_id);
-    if (lastClientMsg?.external_message_id) {
-      markAsRead(conv.clientPhone, lastClientMsg.external_message_id);
-    }
-  }, [conv?.id, messages.length]);
+    if (!conv || !id) return;
+
+    const markAsReadDb = async () => {
+      try {
+        // 1. Marcar como lida na Evolution API
+        const lastClientMsg = [...messages].reverse()
+          .find(m => m.sender === 'client' && m.external_message_id);
+        if (lastClientMsg?.external_message_id) {
+          markAsRead(conv.clientPhone, lastClientMsg.external_message_id);
+        }
+
+        // 2. Atualizar status no Supabase (de novo para pendente)
+        if (conv.status === "novo") {
+          await supabase
+            .from("conversas")
+            .update({ status: "pendente" })
+            .eq("id", id);
+          store.addDbConversation({ ...conv, status: "pendente" });
+        }
+
+        // 3. Marcar mensagens como lidas no banco
+        await supabase
+          .from("mensagens")
+          .update({ read_at: new Date().toISOString() })
+          .eq("conversation_id", id)
+          .eq("sender", "client")
+          .is("read_at", null);
+
+      } catch (err) {
+        console.error("Erro ao marcar como lida:", err);
+      }
+    };
+
+    markAsReadDb();
+  }, [id, conv?.id, conv?.status, messages.length]);
+
 
   const handleSchedule = async (scheduledAt: Date) => {
     if (!messageInput.trim() && !selectedFile) {
@@ -598,7 +627,80 @@ export default function ChatPage() {
     setShowCreateModal(true);
   };
 
+  const handleSyncHistory = async () => {
+    if (!conv?.clientPhone || syncing) return;
+    setSyncing(true);
+    const toastId = toast.loading("Sincronizando histórico completo...");
+    try {
+      const sync = await syncConversationHistory(conv.clientPhone, user?.tenantId || "");
+      if (sync.success && sync.messages.length > 0) {
+        for (const m of sync.messages) {
+          const key = m.key || {};
+          const msgContent = m.message || {};
+          const text = msgContent.conversation 
+            || msgContent.extendedTextMessage?.text 
+            || msgContent.imageMessage?.caption
+            || "";
+          
+          if (!text && !msgContent.audioMessage && !msgContent.imageMessage 
+              && !msgContent.videoMessage && !msgContent.documentMessage) continue;
+          
+          const type = msgContent.audioMessage ? 'audio'
+            : msgContent.imageMessage ? 'image'
+            : msgContent.videoMessage ? 'video'
+            : msgContent.documentMessage ? 'document'
+            : 'text';
+          
+          await supabase.from("mensagens").upsert({
+            conversation_id: id,
+            content: text || `[${type}]`,
+            sender: key.fromMe ? "agent" : "client",
+            sender_name: key.fromMe ? "WhatsApp" : (m.pushName || conv.clientPhone),
+            type,
+            timestamp: new Date((m.messageTimestamp || Date.now() / 1000) * 1000).toISOString(),
+            external_message_id: key.id,
+            status: key.fromMe ? "sent" : "delivered",
+            tenant_id: user?.tenantId
+          }, { onConflict: "external_message_id" });
+        }
+        
+        const { data: refreshed } = await supabase
+          .from("mensagens")
+          .select("*")
+          .eq("conversation_id", id)
+          .order("timestamp", { ascending: true });
+          
+        if (refreshed) {
+          storeRef.current.addDbMessages(refreshed.map(m => ({
+            id: m.id,
+            conversationId: m.conversation_id,
+            content: m.content,
+            sender: m.sender as "client" | "agent",
+            senderName: m.sender_name,
+            timestamp: new Date(m.timestamp),
+            type: m.type as MessageType,
+            mediaUrl: m.media_url,
+            status: m.status,
+            fileName: m.file_name,
+            mimeType: m.mime_type,
+            fileSize: m.file_size,
+            durationSeconds: m.duration_seconds,
+            external_message_id: m.external_message_id
+          })));
+        }
+        toast.success("Histórico sincronizado!", { id: toastId });
+      } else {
+        toast.info("Nenhuma nova mensagem encontrada no histórico.", { id: toastId });
+      }
+    } catch (err) {
+      toast.error("Erro ao sincronizar histórico", { id: toastId });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleCustomerCreated = async (newCustomer: Customer) => {
+
     if (!conv) return;
     
     try {
@@ -656,6 +758,16 @@ export default function ChatPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleSyncHistory} 
+              disabled={syncing}
+              className="gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Sincronizando..." : "Sincronizar"}
+            </Button>
             {!isAssigned && conv.status !== "resolvido" && (
               <Button size="sm" onClick={handleAssume}>Assumir</Button>
             )}

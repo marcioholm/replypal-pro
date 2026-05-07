@@ -256,6 +256,7 @@ export async function syncConversationHistory(phone: string, tenantId: string) {
   if (!url || !key) return { success: false, error: "API não configurada" };
   
   const phoneClean = phone.replace(/\D/g, "");
+  const remoteJid = `${phoneClean}@s.whatsapp.net`;
   
   try {
     // Endpoint correto para histórico completo
@@ -264,14 +265,14 @@ export async function syncConversationHistory(phone: string, tenantId: string) {
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify({
         number: phoneClean,
-        options: { limit: 50 }  // últimas 50 mensagens
+        options: { limit: 100 }  // últimas 100 mensagens
       })
+
     });
     
     if (!res.ok) return { success: false, error: "Erro ao buscar histórico" };
     
     const data = await res.json();
-    // A API pode retornar em diferentes estruturas dependendo da versão
     const messages = data.messages?.records || data.messages || data || [];
     
     return { success: true, messages: Array.isArray(messages) ? messages : [] };
