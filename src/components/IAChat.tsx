@@ -271,7 +271,7 @@ export function IAChatPanel() {
             placeholder="Digite sua dúvida aqui..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-slate-400"
+            className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-slate-400 text-slate-900"
             disabled={isLoading}
           />
           <Button 
