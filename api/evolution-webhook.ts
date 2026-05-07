@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Encontrar ou criar conversa
       let { data: conv, error: convError } = await supabase
         .from('conversas')
-        .select('id')
+        .select('id, tenant_id')
         .eq('client_phone', phone)
         .maybeSingle();
 
@@ -115,7 +115,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           file_size: fileSize,
           duration_seconds: duration,
           external_message_id: key.id,
-          status: isFromMe ? 'sent' : 'delivered'
+          status: isFromMe ? 'sent' : 'delivered',
+          tenant_id: conv.tenant_id
         });
 
       if (msgError) throw msgError;

@@ -87,6 +87,13 @@ export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtim
                 sender: newRecord.sender as "client" | "agent",
                 senderName: newRecord.sender_name || "",
                 timestamp: new Date(newRecord.timestamp),
+                type: newRecord.type,
+                mediaUrl: newRecord.media_url,
+                status: newRecord.status,
+                fileName: newRecord.file_name,
+                mimeType: newRecord.mime_type,
+                fileSize: newRecord.file_size,
+                durationSeconds: newRecord.duration_seconds
               },
             ]);
           }
