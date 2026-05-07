@@ -257,7 +257,8 @@ export default function ChatPage() {
           mime_type: selectedFile.type,
           file_size: selectedFile.size,
           external_message_id: extId,
-          status: 'sent'
+          status: 'sent',
+          tenant_id: user.tenantId
         });
       } else if (audioBlob) {
         mediaUrl = await uploadFile(audioBlob, 'audio.ogg');
@@ -287,7 +288,8 @@ export default function ChatPage() {
           mime_type: 'audio/ogg',
           duration_seconds: recordingTime,
           external_message_id: extId,
-          status: 'sent'
+          status: 'sent',
+          tenant_id: user.tenantId
         });
       } else {
         const res = await sendWhatsAppMessage(conv.clientPhone, messageInput, user.name);
@@ -307,13 +309,15 @@ export default function ChatPage() {
           sender_name: user.name,
           type: 'text',
           external_message_id: extId,
-          status: 'sent'
+          status: 'sent',
+          tenant_id: user.tenantId
         });
       }
 
       await supabase.from("conversas").update({
         last_message: messageInput || (selectedFile ? "[Mídia]" : "[Áudio]"),
-        last_message_time: new Date().toISOString()
+        last_message_time: new Date().toISOString(),
+        tenant_id: user.tenantId
       }).eq("id", id);
 
       setMessageInput("");
