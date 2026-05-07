@@ -1,4 +1,4 @@
-// VERSION: 2026-05-07 03:00 - FORCE FRESH DEPLOY
+// VERSION: 2026-05-07 03:03 - HIGH QUALITY FIX
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
@@ -16,7 +16,8 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
 
     const findBase64 = (obj: any): string | null => {
       if (!obj || typeof obj !== 'object') return null;
-      if (obj.base64 && typeof obj.base64 === 'string') return obj.base64;
+      // Se acharmos uma chave 'base64', verificamos se é grande o suficiente (> 10KB)
+      if (obj.base64 && typeof obj.base64 === 'string' && obj.base64.length > 10000) return obj.base64;
       for (const key in obj) {
         const result = findBase64(obj[key]);
         if (result) return result;
@@ -26,6 +27,7 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
 
     const b64 = findBase64(fullMessage);
     if (b64) {
+      console.log(`Webhook Media: High-quality Base64 found (${b64.length} bytes)`);
       const clean = b64.includes('base64,') ? b64.split('base64,')[1] : b64;
       buffer = Buffer.from(clean, 'base64');
     }
