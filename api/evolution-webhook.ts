@@ -102,24 +102,31 @@ async function downloadAndUploadMedia(
         console.log(`Webhook Media: Trying Strategy 2 (Download) from ${downloadUrl}`);
 
         const response = await fetch(downloadUrl, {
-          headers: { "apikey": evoKey },
-          signal: AbortSignal.timeout(7000), // Reduzido para 7s para evitar kill do Vercel
-        });
-
-        if (response.ok) {
-          const arrayBuffer = await response.arrayBuffer();
-          buffer = Buffer.from(arrayBuffer);
-          if (buffer.length < 100) {
-            console.log(`Webhook Media: Strategy 2 returned suspiciously small buffer (${buffer.length} bytes)`);
-            buffer = null;
-          } else {
-            console.log(`Webhook Media: Strategy 2 success! (${buffer.length} bytes)`);
+    // Estratégia 2: Download direto da Evolution ou WhatsApp
+    if (!buffer) {
+      const fileNameId = mediaPath.split('/').pop()?.split('?')[0] || fileName;
+      const encodedInstance = encodeURIComponent(instance);
+      
+      // Tentar o endereço de mídia pública da Evolution (Plano Z)
+      const evoPublicUrl = `${evoUrl}/public/media/${encodedInstance}/${fileNameId}`;
+      
+      const downloadUrls = [evoPublicUrl, mediaPath];
+      
+      for (const dUrl of downloadUrls) {
+        try {
+          console.log(`Webhook Media: Trying Strategy 2 at ${dUrl}`);
+          const res = await fetch(dUrl, { signal: AbortSignal.timeout(10000) });
+          if (res.ok) {
+            const tempBuffer = Buffer.from(await res.arrayBuffer());
+            if (tempBuffer.length > 500) { // Evitar arquivos vazios ou erros
+              console.log(`Webhook Media: Strategy 2 SUCCESS at ${dUrl}`);
+              buffer = tempBuffer;
+              break;
+            }
           }
-        } else {
-          console.log(`Webhook Media: Strategy 2 failed with status ${response.status}`);
+        } catch (e) {
+          console.log(`Webhook Media: Strategy 2 failed for ${dUrl}`);
         }
-      } catch (err) {
-        console.log(`Webhook Media: Strategy 2 error: ${String(err)}`);
       }
     }
 
