@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import { Play, Pause, Download, Volume2, FastForward } from 'lucide-react';
@@ -27,9 +28,10 @@ export function AudioPlayer({ url, sender }: AudioPlayerProps) {
       container: containerRef.current,
       waveColor: secondaryColor,
       progressColor: primaryColor,
-      cursorColor: primaryColor,
+      cursorColor: 'transparent',
       barWidth: 2,
-      barRadius: 3,
+      barGap: 3,
+      barRadius: 30,
       responsive: true,
       height: 35,
       normalize: true,
@@ -45,7 +47,10 @@ export function AudioPlayer({ url, sender }: AudioPlayerProps) {
 
     ws.on('play', () => setIsPlaying(true));
     ws.on('pause', () => setIsPlaying(false));
-    ws.on('finish', () => setIsPlaying(false));
+    ws.on('finish', () => {
+      setIsPlaying(false);
+      ws.seekTo(0);
+    });
     
     ws.on('audioprocess', () => {
       setCurrentTime(ws.getCurrentTime());
@@ -80,36 +85,40 @@ export function AudioPlayer({ url, sender }: AudioPlayerProps) {
   };
 
   return (
-    <div className={`flex flex-col gap-2 w-full max-w-[300px] p-1 ${sender === 'agent' ? 'text-primary-foreground' : 'text-foreground'}`}>
-      <div className="flex items-center gap-3">
+    <div className={`flex flex-col gap-1 w-full min-w-[240px] max-w-[300px] py-1 ${sender === 'agent' ? 'text-primary-foreground' : 'text-foreground'}`}>
+      <div className="flex items-center gap-2">
         <Button
           variant="ghost"
           size="sm"
           onClick={togglePlay}
-          className={`h-8 w-8 p-0 rounded-full hover:bg-white/10 ${sender === 'agent' ? 'text-white' : 'text-primary'}`}
+          className={`h-10 w-10 p-0 rounded-full hover:bg-white/10 shrink-0 ${sender === 'agent' ? 'text-white' : 'text-primary'}`}
         >
-          {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+          {isPlaying ? (
+            <Pause className="w-6 h-6 fill-current" />
+          ) : (
+            <Play className="w-6 h-6 fill-current ml-1" />
+          )}
         </Button>
         
-        <div ref={containerRef} className="flex-1" />
-        
-        <div className="flex flex-col items-end min-w-[35px]">
-          <span className="text-[10px] opacity-70">
-            {formatSeconds(isPlaying ? currentTime : duration)}
-          </span>
-          <button 
-            onClick={changeSpeed}
-            className={`text-[9px] font-bold px-1 rounded border border-current opacity-70 hover:opacity-100 mt-0.5`}
-          >
-            {speed}x
-          </button>
+        <div className="flex-1 flex flex-col gap-1">
+          <div ref={containerRef} className="w-full" />
+          <div className="flex justify-between items-center px-0.5">
+            <span className="text-[10px] opacity-70 font-medium">
+              {formatSeconds(isPlaying ? currentTime : duration)}
+            </span>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={changeSpeed}
+                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-current opacity-60 hover:opacity-100 transition-all`}
+              >
+                {speed}x
+              </button>
+              <button onClick={downloadAudio} className="opacity-30 hover:opacity-100 transition-opacity p-1">
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-      
-      <div className="flex justify-end gap-2 -mt-1">
-         <button onClick={downloadAudio} className="opacity-40 hover:opacity-100 transition-opacity">
-           <Download className="w-3 h-3" />
-         </button>
       </div>
     </div>
   );
