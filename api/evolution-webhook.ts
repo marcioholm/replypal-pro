@@ -136,14 +136,26 @@ async function downloadAndUploadMedia(
 
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+  console.log("!!! [WEBHOOK] INÍCIO DA REQUISIÇÃO !!!");
+  console.log("MÉTODO:", req.method);
+  console.log("HEADERS:", JSON.stringify(req.headers).substring(0, 200));
 
-  const { event, data } = req.body;
-  if (!event || !data) return res.status(400).json({ error: 'Invalid payload' });
+  if (req.method !== 'POST') {
+    console.log("!!! [WEBHOOK] REJEITADO: NÃO É POST !!!");
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  const { event, data } = req.body || {};
+  console.log("EVENTO RECEBIDO:", event);
+  
+  if (!event || !data) {
+    console.log("!!! [WEBHOOK] PAYLOAD INVÁLIDO OU VAZIO !!!", req.body);
+    return res.status(400).json({ error: 'Invalid payload' });
+  }
 
   try {
     const supabase = await createSupabaseClient();
-    console.log(`Webhook Received: Event=${event}, Phone=${data.key?.remoteJid || 'N/A'}`);
+    console.log(`[WEBHOOK] Supabase inicializado. Processando ${event}...`);
 
     if (event === 'messages.upsert') {
       const msg = data.message || data;
@@ -151,8 +163,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const messageContent = msg.message || data.message;
       const pushName = data.pushName || msg.pushName || '';
       
+      console.log(`[WEBHOOK] Detalhes: Phone=${key?.remoteJid}, fromMe=${key?.fromMe}`);
+      
       if (!key || !messageContent) {
-        console.log('Webhook: No key or messageContent found');
+        console.log('[WEBHOOK] Chave ou conteúdo ausentes');
         return res.status(200).json({ success: true, message: 'No content' });
       }
 
