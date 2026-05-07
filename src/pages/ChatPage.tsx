@@ -58,6 +58,8 @@ export default function ChatPage() {
   
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const conv = store.getConversation(id || "");
@@ -853,13 +855,50 @@ export default function ChatPage() {
                   {filePreview ? (
                     <img src={filePreview} className="w-12 h-12 rounded object-cover" />
                   ) : (
-                    <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center"><FileText className="w-6 h-6 text-primary" /></div>
+                    <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center">
+                      {audioBlob ? (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-primary hover:bg-primary/20"
+                          onClick={() => {
+                            if (!audioPreviewRef.current) {
+                              const url = URL.createObjectURL(audioBlob);
+                              const audio = new Audio(url);
+                              audio.onended = () => setIsPreviewPlaying(false);
+                              audioPreviewRef.current = audio;
+                            }
+                            
+                            if (isPreviewPlaying) {
+                              audioPreviewRef.current.pause();
+                              setIsPreviewPlaying(false);
+                            } else {
+                              audioPreviewRef.current.play();
+                              setIsPreviewPlaying(true);
+                            }
+                          }}
+                        >
+                          {isPreviewPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                        </Button>
+                      ) : (
+                        <FileText className="w-6 h-6 text-primary" />
+                      )}
+                    </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">{selectedFile?.name || 'Gravação de áudio'}</p>
-                    {audioBlob && <p className="text-[10px] text-muted-foreground">{recordingTime}s</p>}
+                    <p className="text-xs font-medium truncate">{selectedFile?.name || (audioBlob ? 'Áudio Gravado' : 'Mídia')}</p>
+                    {audioBlob && <p className="text-[10px] text-muted-foreground">{recordingTime}s - {isPreviewPlaying ? 'Reproduzindo...' : 'Clique para ouvir'}</p>}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => { setSelectedFile(null); setFilePreview(null); clearAudio(); }}>
+                  <Button variant="ghost" size="sm" onClick={() => { 
+                    setSelectedFile(null); 
+                    setFilePreview(null); 
+                    clearAudio(); 
+                    if (audioPreviewRef.current) {
+                      audioPreviewRef.current.pause();
+                      audioPreviewRef.current = null;
+                      setIsPreviewPlaying(false);
+                    }
+                  }}>
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
@@ -898,11 +937,11 @@ export default function ChatPage() {
 
                 <div className="flex-1 relative">
                   {isRecording ? (
-                    <div className="h-10 flex items-center px-4 bg-primary/5 rounded-full border border-primary/20 animate-pulse">
+                    <div className="h-10 flex items-center px-4 bg-primary/5 rounded-full border border-primary/20 animate-pulse w-full">
                       <div className="w-2 h-2 rounded-full bg-red-500 mr-2 animate-ping" />
                       <span className="text-sm font-medium flex-1">Gravando... {recordingTime}s</span>
-                      <Button variant="ghost" size="sm" className="h-7 text-red-500" onClick={cancelRecording}>Cancelar</Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-primary" onClick={() => stopRecording(handleSendAudio)}><Check className="w-4 h-4 mr-1" /> Enviar</Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-red-500 mr-2 hover:bg-red-50" onClick={cancelRecording}>Descartar</Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-primary hover:bg-primary/10" onClick={() => stopRecording()}><StopCircle className="w-4 h-4 mr-1 text-red-500" /> Parar</Button>
                     </div>
                   ) : (
                     <Textarea
