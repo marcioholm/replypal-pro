@@ -46,7 +46,8 @@ export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData 
     status: "ativo",
     origem: "manual",
     nivel_confianca: "alta",
-    data_validade: ""
+    data_validade: "",
+    link_url: ""
   });
 
   const [keywordInput, setKeywordInput] = useState("");
@@ -65,7 +66,8 @@ export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData 
           status: editData.status || "ativo",
           origem: editData.origem || "manual",
           nivel_confianca: editData.nivel_confianca || "alta",
-          data_validade: editData.data_validade ? editData.data_validade.split('T')[0] : ""
+          data_validade: editData.data_validade ? editData.data_validade.split('T')[0] : "",
+          link_url: editData.link_url || ""
         });
       } else {
         setForm({
@@ -78,7 +80,8 @@ export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData 
           status: "ativo",
           origem: "manual",
           nivel_confianca: "alta",
-          data_validade: ""
+          data_validade: "",
+          link_url: ""
         });
       }
     }
@@ -115,6 +118,7 @@ export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData 
         ...form,
         tenant_id: user?.tenantId,
         cliente_id: form.cliente_id === "all" ? null : form.cliente_id,
+        link_url: form.link_url,
         updated_at: new Date().toISOString()
       };
 
@@ -302,6 +306,19 @@ export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData 
                    />
                 </div>
              </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground text-blue-500 italic">Link do Documento (Drive / URL / Download)</Label>
+            <Input 
+              placeholder="https://drive.google.com/..." 
+              value={form.link_url}
+              onChange={e => setForm(p => ({ ...p, link_url: e.target.value }))}
+              className="h-10 bg-blue-500/5 border-blue-500/20"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Se preenchido, a IA poderá enviar este link quando o cliente solicitar o documento.
+            </p>
           </div>
         </div>
 
