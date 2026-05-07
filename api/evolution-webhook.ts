@@ -49,21 +49,25 @@ async function downloadAndUploadMedia(
       buffer = Buffer.from(cleanBase64, 'base64');
     }
 
-    // Estratégia 1: Multi-tentativa em endpoints da Evolution (v1 e v2)
+    // Estratégia 1: Multi-tentativa em endpoints (v1, v2, Nome e ID)
     if (!buffer && evoUrl && evoKey) {
-      const encodedInstance = encodeURIComponent(instance);
+      const instanceId = fullMessage?.instanceId || fullMessage?.data?.instanceId;
+      const identifiers = [instance, instanceId].filter(Boolean);
       const v2Payload = fullMessage.data || fullMessage;
       
-      // Lista de possíveis endpoints da Evolution para Base64
-      const endpoints = [
-        `${evoUrl}/message/convert/toBase64/${encodedInstance}`, // v2 Padrão
-        `${evoUrl}/message/getBase64FromMediaMessage/${encodedInstance}`, // v1 Padrão
-        `${evoUrl}/chat/getBase64FromMediaMessage/${encodedInstance}` // Alternativo
-      ];
+      // Lista expandida de possíveis endpoints
+      const endpoints: string[] = [];
+      for (const id of identifiers) {
+        const encId = encodeURIComponent(id as string);
+        endpoints.push(`${evoUrl}/message/convert/toBase64/${encId}`);
+        endpoints.push(`${evoUrl}/chat/getBase64FromMediaMessage/${encId}`);
+        endpoints.push(`${evoUrl}/message/getBase64FromMediaMessage/${encId}`);
+      }
+
+      console.log(`Webhook Media: Trying ${endpoints.length} endpoint combinations...`);
 
       for (const url of endpoints) {
         try {
-          console.log(`Webhook Media: Trying Strategy 1 at ${url}`);
           const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
@@ -80,10 +84,10 @@ async function downloadAndUploadMedia(
               break;
             }
           } else {
-            console.log(`Webhook Media: Endpoint ${url} failed with status ${res.status}`);
+            console.log(`Webhook Media: Endpoint ${url} failed (${res.status})`);
           }
         } catch (e) {
-          console.log(`Webhook Media: Error calling ${url}: ${String(e)}`);
+          console.log(`Webhook Media: Error at ${url}: ${String(e)}`);
         }
       }
     }
