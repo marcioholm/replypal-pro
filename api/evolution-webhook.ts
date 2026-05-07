@@ -8,6 +8,49 @@ async function createSupabaseClient() {
   return createClient(supabaseUrl, supabaseKey);
 }
 
+async function downloadAndUploadMedia(supabase: any, evolutionUrl: string, apikey: string, mediaPath: string, fileName: string, mimeType: string) {
+  try {
+    // Se a URL já for pública (contém http), tentar usar ela, senão construir a URL da Evolution
+    const downloadUrl = mediaPath.startsWith('http') ? mediaPath : `${evolutionUrl}/public/${mediaPath}`;
+    
+    console.log(`Webhook: Downloading media from ${downloadUrl}`);
+    
+    const fetch = (await import('node-fetch')).default;
+    const response = await fetch(downloadUrl, {
+      headers: { "apikey": apikey }
+    });
+
+    if (!response.ok) {
+      console.error(`Webhook: Failed to download media: ${response.statusText}`);
+      return mediaPath; // Fallback para a URL original
+    }
+
+    const buffer = await response.buffer();
+    const storagePath = `incoming/${Date.now()}_${fileName}`;
+
+    const { data, error } = await supabase.storage
+      .from('chat-media')
+      .upload(storagePath, buffer, {
+        contentType: mimeType,
+        upsert: true
+      });
+
+    if (error) {
+      console.error('Webhook: Supabase upload error:', error);
+      return mediaPath;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('chat-media')
+      .getPublicUrl(storagePath);
+
+    return publicUrl;
+  } catch (err) {
+    console.error('Webhook: Media proxy error:', err);
+    return mediaPath;
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -86,39 +129,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let fileSize = null;
       let duration = null;
 
+      console.log('Webhook: Processing message content keys:', Object.keys(messageContent));
+
       // Suporte para mensagens de texto simples ou estendido
       if (messageContent.conversation || messageContent.extendedTextMessage) {
         type = 'text';
         content = messageContent.conversation || messageContent.extendedTextMessage.text;
       } 
+      // Evolution API settings for media download
+      const evolutionUrl = process.env.VITE_EVOLUTION_URL || "";
+      const evolutionKey = process.env.VITE_EVOLUTION_API_KEY || "";
+
       // Suporte para mídias (Imagem, Vídeo, Áudio, Documento)
       else if (messageContent.imageMessage) {
         type = 'image';
         content = messageContent.imageMessage.caption || '[Imagem]';
-        mediaUrl = messageContent.imageMessage.url;
         mimeType = messageContent.imageMessage.mimetype;
         fileSize = messageContent.imageMessage.fileLength;
+        const originalPath = messageContent.imageMessage.url;
+        mediaUrl = await downloadAndUploadMedia(supabase, evolutionUrl, evolutionKey, originalPath, 'image.jpg', mimeType);
+        console.log('Webhook: Image processed', { mediaUrl });
       } else if (messageContent.videoMessage) {
         type = 'video';
         content = messageContent.videoMessage.caption || '[Vídeo]';
-        mediaUrl = messageContent.videoMessage.url;
         mimeType = messageContent.videoMessage.mimetype;
         fileSize = messageContent.videoMessage.fileLength;
         duration = messageContent.videoMessage.seconds;
+        const originalPath = messageContent.videoMessage.url;
+        mediaUrl = await downloadAndUploadMedia(supabase, evolutionUrl, evolutionKey, originalPath, 'video.mp4', mimeType);
       } else if (messageContent.audioMessage) {
         type = 'audio';
         content = '[Áudio]';
-        mediaUrl = messageContent.audioMessage.url;
         mimeType = messageContent.audioMessage.mimetype;
         fileSize = messageContent.audioMessage.fileLength;
         duration = messageContent.audioMessage.seconds;
+        const originalPath = messageContent.audioMessage.url;
+        mediaUrl = await downloadAndUploadMedia(supabase, evolutionUrl, evolutionKey, originalPath, 'audio.ogg', mimeType);
       } else if (messageContent.documentMessage) {
         type = 'document';
         content = messageContent.documentMessage.title || '[Documento]';
-        mediaUrl = messageContent.documentMessage.url;
         mimeType = messageContent.documentMessage.mimetype;
         fileSize = messageContent.documentMessage.fileLength;
         fileName = messageContent.documentMessage.fileName || messageContent.documentMessage.title;
+        const originalPath = messageContent.documentMessage.url;
+        mediaUrl = await downloadAndUploadMedia(supabase, evolutionUrl, evolutionKey, originalPath, fileName, mimeType);
       } else {
         // Caso seja algum tipo não tratado explicitamente
         console.log('Webhook: Unhandled message type:', Object.keys(messageContent));
