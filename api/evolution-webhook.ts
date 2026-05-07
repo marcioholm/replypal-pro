@@ -14,67 +14,95 @@ async function downloadAndUploadMedia(
   apikey: string,
   mediaPath: string,
   fileName: string,
-  mimeType: string
+  mimeType: string,
+  fullMessage?: any
 ): Promise<string> {
-  // Corrigir: usar variáveis de ambiente sem prefixo VITE_ no servidor
-  const evoUrl = (process.env.EVOLUTION_URL || process.env.VITE_EVOLUTION_URL || evolutionUrl).replace(/\/$/, "");
-  const evoKey = process.env.EVOLUTION_API_KEY || process.env.VITE_EVOLUTION_API_KEY || apikey;
+  const evoUrl = (process.env.EVOLUTION_URL || process.env.VITE_EVOLUTION_URL || evolutionUrl || "").replace(/\/$/, "");
+  const evoKey = process.env.EVOLUTION_API_KEY || process.env.VITE_EVOLUTION_API_KEY || apikey || "";
   const instance = process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI";
+
+  console.log(`Webhook Media: Processing ${fileName} (${mimeType}). Path: ${mediaPath}`);
+  console.log(`Webhook Media: evoUrl: ${evoUrl}, instance: ${instance}`);
 
   try {
     let buffer: Buffer | null = null;
 
     // Estratégia 1: endpoint base64 da Evolution (mais confiável)
-    try {
-      const base64Res = await fetch(`${evoUrl}/message/getBase64FromMediaMessage/${instance}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "apikey": evoKey },
-        body: JSON.stringify({ message: { key: {}, message: {} }, convertToMp4: false }),
-      });
-      // Só usa se retornar base64 válido
-      if (base64Res.ok) {
-        const json = await base64Res.json();
-        if (json.base64) {
-          buffer = Buffer.from(json.base64, 'base64');
+    if (fullMessage) {
+      try {
+        console.log(`Webhook Media: Trying Strategy 1 (Base64)`);
+        const base64Res = await fetch(`${evoUrl}/message/getBase64FromMediaMessage/${instance}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "apikey": evoKey },
+          body: JSON.stringify({ message: fullMessage, convertToMp4: false }),
+        });
+        
+        if (base64Res.ok) {
+          const json = await base64Res.json();
+          if (json.base64) {
+            console.log(`Webhook Media: Strategy 1 success!`);
+            buffer = Buffer.from(json.base64, 'base64');
+          } else {
+            console.log(`Webhook Media: Strategy 1 returned no base64`);
+          }
+        } else {
+          const errText = await base64Res.text();
+          console.log(`Webhook Media: Strategy 1 failed with status ${base64Res.status}: ${errText}`);
         }
+      } catch (err) {
+        console.log(`Webhook Media: Strategy 1 error: ${String(err)}`);
       }
-    } catch { /* tenta próxima estratégia */ }
+    }
 
     // Estratégia 2: download direto da URL com autenticação
     if (!buffer) {
-      const downloadUrl = mediaPath.startsWith("http")
-        ? mediaPath
-        : `${evoUrl}/${mediaPath}`;
+      try {
+        const downloadUrl = mediaPath.startsWith("http")
+          ? mediaPath
+          : `${evoUrl}/public/${mediaPath}`; // Adicionado /public/ que é comum na Evolution
 
-      console.log(`Webhook: Downloading media from ${downloadUrl}`);
+        console.log(`Webhook Media: Trying Strategy 2 (Download) from ${downloadUrl}`);
 
-      const response = await fetch(downloadUrl, {
-        headers: { "apikey": evoKey },
-        signal: AbortSignal.timeout(15000),
-      });
+        const response = await fetch(downloadUrl, {
+          headers: { "apikey": evoKey },
+          signal: AbortSignal.timeout(15000),
+        });
 
-      if (response.ok) {
-        const arrayBuffer = await response.arrayBuffer();
-        buffer = Buffer.from(arrayBuffer);
-        // Arquivo muito pequeno = falhou (retornou JSON de erro)
-        if (buffer.length < 500) buffer = null;
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          buffer = Buffer.from(arrayBuffer);
+          if (buffer.length < 100) {
+            console.log(`Webhook Media: Strategy 2 returned suspiciously small buffer (${buffer.length} bytes)`);
+            buffer = null;
+          } else {
+            console.log(`Webhook Media: Strategy 2 success! (${buffer.length} bytes)`);
+          }
+        } else {
+          console.log(`Webhook Media: Strategy 2 failed with status ${response.status}`);
+        }
+      } catch (err) {
+        console.log(`Webhook Media: Strategy 2 error: ${String(err)}`);
       }
     }
 
     if (!buffer) {
-      console.error(`Webhook: Could not download media, keeping original path`);
+      console.error(`Webhook Media: All download strategies failed for ${mediaPath}`);
       return mediaPath;
     }
 
     const safeFileName = (fileName || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
     const storagePath = `incoming/${Date.now()}_${safeFileName}`;
 
+    console.log(`Webhook Media: Uploading to Supabase bucket 'chat-media' at ${storagePath}`);
     const { error } = await supabase.storage
       .from("chat-media")
-      .upload(storagePath, buffer, { contentType: mimeType || "application/octet-stream", upsert: true });
+      .upload(storagePath, buffer, { 
+        contentType: mimeType || "application/octet-stream", 
+        upsert: true 
+      });
 
     if (error) {
-      console.error("Webhook: Supabase upload error:", error.message);
+      console.error("Webhook Media: Supabase upload error:", error.message);
       return mediaPath;
     }
 
@@ -82,14 +110,15 @@ async function downloadAndUploadMedia(
       .from("chat-media")
       .getPublicUrl(storagePath);
 
-    console.log(`Webhook: Media uploaded successfully: ${publicUrl}`);
+    console.log(`Webhook Media: Success! Public URL: ${publicUrl}`);
     return publicUrl;
 
   } catch (err) {
-    console.error("Webhook: Media download/upload error:", String(err));
+    console.error("Webhook Media: Unexpected error:", String(err));
     return mediaPath;
   }
 }
+
 
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -207,7 +236,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         mimeType = messageContent.imageMessage.mimetype;
         fileSize = messageContent.imageMessage.fileLength;
         const originalPath = messageContent.imageMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'image.jpg', mimeType);
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'image.jpg', mimeType, msg);
       } else if (messageContent.videoMessage) {
         type = 'video';
         content = messageContent.videoMessage.caption || '[Vídeo]';
@@ -215,7 +244,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileSize = messageContent.videoMessage.fileLength;
         duration = messageContent.videoMessage.seconds;
         const originalPath = messageContent.videoMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'video.mp4', mimeType);
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'video.mp4', mimeType, msg);
       } else if (messageContent.audioMessage) {
         type = 'audio';
         content = '[Áudio]';
@@ -223,7 +252,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileSize = messageContent.audioMessage.fileLength;
         duration = messageContent.audioMessage.seconds;
         const originalPath = messageContent.audioMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'audio.ogg', mimeType);
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'audio.ogg', mimeType, msg);
       } else if (messageContent.documentMessage) {
         type = 'document';
         content = messageContent.documentMessage.title || '[Documento]';
@@ -231,14 +260,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fileSize = messageContent.documentMessage.fileLength;
         fileName = messageContent.documentMessage.fileName || messageContent.documentMessage.title;
         const originalPath = messageContent.documentMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, fileName || 'document', mimeType);
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, fileName || 'document', mimeType, msg);
       } else if (messageContent.stickerMessage) {
         // IMPLEMENTAÇÃO 5: Sticker
         type = 'sticker';
         content = '[Sticker]';
         mimeType = messageContent.stickerMessage.mimetype || 'image/webp';
         const originalPath = messageContent.stickerMessage.url;
-        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'sticker.webp', 'image/webp');
+        mediaUrl = await downloadAndUploadMedia(supabase, "", "", originalPath, 'sticker.webp', 'image/webp', msg);
       } else if (messageContent.reactionMessage) {
         // IMPLEMENTAÇÃO 5: Reaction
         const reactionKey = messageContent.reactionMessage.key;
@@ -270,7 +299,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           mimeType = docMsg.mimetype;
           fileSize = docMsg.fileLength;
           fileName = docMsg.fileName || docMsg.title;
-          mediaUrl = await downloadAndUploadMedia(supabase, "", "", docMsg.url, fileName || 'document', mimeType || 'application/octet-stream');
+          mediaUrl = await downloadAndUploadMedia(supabase, "", "", docMsg.url, fileName || 'document', mimeType || 'application/octet-stream', msg);
         }
       } else if (messageContent.pollCreationMessage || messageContent.pollCreationMessageV2 || messageContent.pollCreationMessageV3) {
         // IMPLEMENTAÇÃO 5: Poll
