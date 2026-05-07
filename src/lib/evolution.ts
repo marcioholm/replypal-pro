@@ -247,3 +247,35 @@ export async function markAsRead(phone: string, messageId: string) {
     });
   } catch { /* Silencioso */ }
 }
+
+export async function syncConversationHistory(phone: string, tenantId: string) {
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = EVO_CONFIG.getInstance();
+  
+  if (!url || !key) return { success: false, error: "API não configurada" };
+  
+  const phoneClean = phone.replace(/\D/g, "");
+  
+  try {
+    // Endpoint correto para histórico completo
+    const res = await fetch(`${url.replace(/\/$/, "")}/chat/fetchMessages/${instance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key },
+      body: JSON.stringify({
+        number: phoneClean,
+        options: { limit: 50 }  // últimas 50 mensagens
+      })
+    });
+    
+    if (!res.ok) return { success: false, error: "Erro ao buscar histórico" };
+    
+    const data = await res.json();
+    // A API pode retornar em diferentes estruturas dependendo da versão
+    const messages = data.messages?.records || data.messages || data || [];
+    
+    return { success: true, messages: Array.isArray(messages) ? messages : [] };
+  } catch (err) {
+    return { success: false, error: String(err), messages: [] };
+  }
+}

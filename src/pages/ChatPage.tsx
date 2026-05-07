@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useStore, formatTime, formatDuration, MOCK_TAGS, UserRole, MessageType, ConversationStatus, ClosingReason } from "@/lib/store";
-import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead } from "@/lib/evolution";
+import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead, syncConversationHistory } from "@/lib/evolution";
 import { webhooks } from "@/lib/webhooks";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -146,6 +146,75 @@ export default function ChatPage() {
             details: h.details,
             timestamp: new Date(h.timestamp)
           })));
+        }
+
+        // Sincronizar histórico da Evolution se o banco estiver vazio ou quase vazio
+        const currentConv = conv || storeRef.current.getConversation(id || "");
+        if (dbMsgs && dbMsgs.length < 5 && currentConv?.clientPhone) {
+          const sync = await syncConversationHistory(currentConv.clientPhone, user?.tenantId || "");
+          
+          if (sync.success && sync.messages && sync.messages.length > 0) {
+            const syncMsgs = [];
+            for (const m of sync.messages) {
+              const key = m.key || {};
+              const msgContent = m.message || {};
+              const text = msgContent.conversation 
+                || msgContent.extendedTextMessage?.text 
+                || msgContent.imageMessage?.caption
+                || "";
+              
+              if (!text && !msgContent.audioMessage && !msgContent.imageMessage 
+                  && !msgContent.videoMessage && !msgContent.documentMessage) continue;
+              
+              const type = msgContent.audioMessage ? 'audio'
+                : msgContent.imageMessage ? 'image'
+                : msgContent.videoMessage ? 'video'
+                : msgContent.documentMessage ? 'document'
+                : 'text';
+              
+              syncMsgs.push({
+                conversation_id: id,
+                content: text || `[${type}]`,
+                sender: key.fromMe ? "agent" : "client",
+                sender_name: key.fromMe ? "WhatsApp" : (m.pushName || currentConv.clientPhone),
+                type,
+                timestamp: new Date((m.messageTimestamp || Date.now() / 1000) * 1000).toISOString(),
+                external_message_id: key.id,
+                status: key.fromMe ? "sent" : "delivered",
+                tenant_id: user?.tenantId
+              });
+            }
+
+            if (syncMsgs.length > 0) {
+              await supabase.from("mensagens").upsert(syncMsgs, { onConflict: "external_message_id" });
+              
+              // Recarregar mensagens após sync
+              const { data: refreshed } = await supabase
+                .from("mensagens")
+                .select("*")
+                .eq("conversation_id", id)
+                .order("timestamp", { ascending: true });
+                
+              if (refreshed) {
+                storeRef.current.addDbMessages(refreshed.map(m => ({
+                  id: m.id,
+                  conversationId: m.conversation_id,
+                  content: m.content,
+                  sender: m.sender as "client" | "agent",
+                  senderName: m.sender_name,
+                  timestamp: new Date(m.timestamp),
+                  type: m.type as MessageType,
+                  mediaUrl: m.media_url,
+                  status: m.status,
+                  fileName: m.file_name,
+                  mimeType: m.mime_type,
+                  fileSize: m.file_size,
+                  durationSeconds: m.duration_seconds,
+                  external_message_id: m.external_message_id
+                })));
+              }
+            }
+          }
         }
       } catch (e) {
         console.error("Error loading chat data:", e);
