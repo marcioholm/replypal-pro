@@ -27,6 +27,8 @@ import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { ScheduleMessageDialog } from "@/components/chat/ScheduleMessageDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { CustomerForm } from "@/components/CustomerForm";
+import { Customer } from "@/lib/store";
 
 export default function ChatPage() {
   const { id } = useParams<{ id: string }>();
@@ -45,6 +47,7 @@ export default function ChatPage() {
   const [closeOpen, setCloseOpen] = useState(false);
   const [closingReason, setClosingReason] = useState<ClosingReason>("resolvido");
   const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   
   // Media states
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -450,90 +453,32 @@ export default function ChatPage() {
     toast.success("Nota adicionada");
   };
 
-  const handleAutoCreateCustomer = async () => {
-    if (!conv || !user) return;
-    const toastId = toast.loading("Cadastrando cliente...");
+  const handleAutoCreateCustomer = () => {
+    setShowCreateModal(true);
+  };
+
+  const handleCustomerCreated = async (newCustomer: Customer) => {
+    if (!conv) return;
     
     try {
-      // 1. Criar no DB (deixar o Supabase gerar o UUID)
-      const newCustomerData = {
-        razao_social: conv.clientName,
-        nome_fantasia: conv.clientName,
-        cnpj: `TEMP-${Date.now()}`,
-        responsavel: conv.clientName,
-        whatsapp: conv.clientPhone,
-        telefone: conv.clientPhone, // Corrigido de 'phone' para 'telefone'
-        status: "Onboarding",
-        prioridade: "Média",
-        service_level: "Padrão",
-        tenant_id: user.tenantId
-      };
-
-      const { data: createdCustomer, error: custError } = await supabase
-        .from("clientes")
-        .insert([newCustomerData])
-        .select()
-        .single();
-      
-      if (custError) {
-        console.error("Erro Supabase ao criar cliente:", custError);
-        throw custError;
-      }
-
-      if (!createdCustomer) throw new Error("Falha ao criar registro de cliente");
-
-      // 2. Vincular à conversa no DB
+      // Vincular à conversa no DB
       const { error: convError } = await supabase
         .from("conversas")
-        .update({ customer_id: createdCustomer.id })
+        .update({ customer_id: newCustomer.id })
         .eq("id", id);
       
-      if (convError) {
-        console.error("Erro Supabase ao vincular cliente:", convError);
-        throw convError;
-      }
-
-      // 3. Atualizar Store local
-      store.addDbCustomer({
-        id: createdCustomer.id,
-        tenantId: createdCustomer.tenant_id,
-        razaoSocial: createdCustomer.razao_social,
-        name: createdCustomer.nome_fantasia,
-        cnpj: createdCustomer.cnpj,
-        responsibleName: createdCustomer.responsavel,
-        whatsapp: createdCustomer.whatsapp,
-        phone: createdCustomer.telefone,
-        email: createdCustomer.email || "",
-        city: createdCustomer.cidade || "",
-        state: createdCustomer.estado || "",
-        regime: createdCustomer.regime_tributario as any || "Simples Nacional",
-        naturezaJuridica: createdCustomer.natureza_juridica || "",
-        cnae: createdCustomer.cnae || "",
-        hasEmployees: !!createdCustomer.has_employees,
-        employeeCount: createdCustomer.employee_count || 0,
-        status: createdCustomer.status as any,
-        priority: createdCustomer.prioridade as any,
-        serviceLevel: createdCustomer.service_level as any,
-        preferredChannel: createdCustomer.preferred_channel as any || "WhatsApp",
-        plan: createdCustomer.plan || "Pendente",
-        monthlyValue: createdCustomer.monthly_value || 0,
-        origin: createdCustomer.origin || "WhatsApp Automático",
-        contacts: [],
-        observations: createdCustomer.observations || "Criado via chat",
-        tags: [],
-        documents: [],
-        createdAt: new Date(createdCustomer.created_at)
-      });
+      if (convError) throw convError;
 
       store.addDbConversation({
         ...conv,
-        customerId: createdCustomer.id
+        customerId: newCustomer.id
       });
 
-      toast.success("Cliente cadastrado e vinculado!", { id: toastId });
+      setShowCreateModal(false);
+      toast.success("Cliente vinculado com sucesso!");
     } catch (err) {
-      console.error("Erro ao cadastrar cliente:", err);
-      toast.error("Erro ao cadastrar cliente", { id: toastId });
+      console.error("Erro ao vincular cliente:", err);
+      toast.error("Erro ao vincular cliente");
     }
   };
 
@@ -827,6 +772,47 @@ export default function ChatPage() {
           )}
         </div>
       </div>
+      
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Novo Cliente</DialogTitle>
+          </DialogHeader>
+          <CustomerForm 
+            initialData={{
+              id: "",
+              name: conv?.clientName || "",
+              razaoSocial: conv?.clientName || "",
+              responsibleName: conv?.clientName || "",
+              whatsapp: conv?.clientPhone || "",
+              phone: conv?.clientPhone || "",
+              tenantId: user?.tenantId || "",
+              status: "Onboarding",
+              priority: "Média",
+              serviceLevel: "Padrão",
+              preferredChannel: "WhatsApp",
+              plan: "Pendente",
+              monthlyValue: 0,
+              origin: "WhatsApp",
+              createdAt: new Date(),
+              tags: [],
+              contacts: [],
+              documents: [],
+              observations: "Criado via chat",
+              cnpj: "",
+              email: "",
+              city: "",
+              state: "",
+              regime: "Simples Nacional",
+              naturezaJuridica: "",
+              cnae: "",
+              hasEmployees: false,
+              employeeCount: 0
+            }}
+            onSuccess={handleCustomerCreated}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
