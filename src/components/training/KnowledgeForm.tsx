@@ -147,6 +147,7 @@ export default function KnowledgeForm({ open, onOpenChange, onSuccess, editData 
         tenant_id: user?.tenantId,
         cliente_id: form.cliente_id === "all" ? null : form.cliente_id,
         link_url: form.link_url,
+        data_validade: form.data_validade || null,
         updated_at: new Date().toISOString()
       };
 
