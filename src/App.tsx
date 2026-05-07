@@ -16,17 +16,16 @@ import LoginPage from "@/pages/LoginPage";
 import InboxPage from "@/pages/InboxPage";
 
 // Lazy loading apenas para páginas secundárias
-import { lazy } from "react";
-const ChatPage = lazy(() => import("@/pages/ChatPage"));
-const PipelinePage = lazy(() => import("@/pages/PipelinePage"));
-const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
-const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
-const CustomersPage = lazy(() => import("@/pages/CustomersPage"));
-const CustomerDetailsPage = lazy(() => import("@/pages/CustomerDetailsPage"));
-const CalendarPage = lazy(() => import("@/pages/CalendarPage"));
-const TrainingPage = lazy(() => import("@/pages/TrainingPage"));
-const ScheduledMessagesPage = lazy(() => import("@/pages/ScheduledMessagesPage"));
-const NotFound = lazy(() => import("@/pages/NotFound"));
+import ChatPage from "@/pages/ChatPage";
+import PipelinePage from "@/pages/PipelinePage";
+import DashboardPage from "@/pages/DashboardPage";
+import SettingsPage from "@/pages/SettingsPage";
+import CustomersPage from "@/pages/CustomersPage";
+import CustomerDetailsPage from "@/pages/CustomerDetailsPage";
+import CalendarPage from "@/pages/CalendarPage";
+import TrainingPage from "@/pages/TrainingPage";
+import ScheduledMessagesPage from "@/pages/ScheduledMessagesPage";
+import NotFound from "@/pages/NotFound";
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -158,7 +157,6 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <AppLayout>
-                <Suspense fallback={<LoadingFallback />}>
                   <Routes>
                     <Route path="/" element={<InboxPage />} />
                     <Route path="/chat/:id" element={<ChatPage />} />
@@ -172,7 +170,6 @@ function AppRoutes() {
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
-                </Suspense>
               </AppLayout>
             </ProtectedRoute>
           }
