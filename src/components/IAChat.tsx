@@ -10,6 +10,20 @@ import { useStore } from "@/lib/store";
 import { toast } from "sonner";
 import KnowledgeForm from "@/components/training/KnowledgeForm";
 
+const IA_FALLBACK_RESPONSE = `Entendi sua solicitação.
+
+No momento, não consegui concluir a análise completa automaticamente, mas posso continuar te ajudando.
+
+Você pode me pedir, por exemplo:
+• analisar um cliente específico
+• listar documentos de um cliente
+• verificar dados financeiros
+• comparar períodos
+• identificar pendências
+• resumir a situação geral da base
+
+Tente reformular sua solicitação de forma mais específica que eu sigo a partir disso.`;
+
 interface Message {
   role: "user" | "ia";
   content: string;
@@ -149,7 +163,7 @@ export function IAChatPanel() {
         resData?.resposta ||
         resData?.resposta_final ||
         resData?.message ||
-        "Não foi possível obter resposta da IA.";
+        IA_FALLBACK_RESPONSE;
 
       // Formatar quebras de linha e limpar espaços extras
       const textoIA = String(message).replace(/\\n/g, '\n').trim();
@@ -176,10 +190,10 @@ export function IAChatPanel() {
         ]);
       }
     } catch (error) {
-      console.error("IA Assistant Error:", error);
+      console.error("IA Assistant Error (Console only):", error);
       setMessages((prev) => [
         ...prev,
-        { role: "ia", content: "Não foi possível obter resposta da IA. Verifique sua conexão ou tente novamente." },
+        { role: "ia", content: IA_FALLBACK_RESPONSE },
       ]);
     } finally {
       setIsLoading(false);

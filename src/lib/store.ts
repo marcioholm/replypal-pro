@@ -88,6 +88,7 @@ export interface Conversation {
   tenantId: string;
   tags: string[];
   clientAvatar?: string;
+  isGroup?: boolean;
 }
 
 export interface Message {

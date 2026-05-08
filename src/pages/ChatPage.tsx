@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { 
   Send, Phone, Video, MoreVertical, Search, Paperclip, Smile, Mic, 
-  ChevronLeft, Clock, Zap, MessageSquare, Shield, User, FileText, 
+  ChevronLeft, Clock, Zap, MessageSquare, Shield, User, Users, FileText, 
   Trash2, AlertCircle, RefreshCw, Check, X, Play, StopCircle, Trash,
   ArrowLeft, ArrowRightLeft, StickyNote, Tag, History, CheckCircle2, Plus, Loader2
 } from "lucide-react";
@@ -102,7 +102,9 @@ export default function ChatPage() {
               startedAt: dbConv.started_at ? new Date(dbConv.started_at) : undefined,
               slaDeadline: dbConv.sla_deadline ? new Date(dbConv.sla_deadline) : undefined,
               tags: dbConv.tags || [],
-              clientAvatar: dbConv.client_avatar
+              clientAvatar: dbConv.client_avatar,
+              tenantId: dbConv.tenant_id,
+              isGroup: dbConv.is_group
             });
           }
         }
@@ -757,6 +759,8 @@ export default function ChatPage() {
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shadow-sm border border-primary/20 overflow-hidden">
             {conv.clientAvatar ? (
               <img src={conv.clientAvatar} alt={conv.clientName} className="w-full h-full object-cover" />
+            ) : conv.isGroup ? (
+              <Users className="w-5 h-5" />
             ) : (
               conv.clientName.charAt(0)
             )}

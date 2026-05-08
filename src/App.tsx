@@ -9,7 +9,6 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw, Loader2 } from "lucide-react";
-import { SchedulerInit } from "@/components/SchedulerInit";
 
 // Importação direta das páginas principais para evitar problemas de lazy loading em produção
 import LoginPage from "@/pages/LoginPage";
@@ -189,7 +188,6 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <SchedulerInit />
             <AppRoutes />
           </AuthProvider>
         </BrowserRouter>

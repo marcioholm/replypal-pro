@@ -92,10 +92,13 @@ export default function CalendarPage() {
       return;
     }
 
+    const [year, month, day] = newObligation.deadline.split('-').map(Number);
+    const deadlineDate = new Date(year, month - 1, day);
+
     const obligation: Obligation = {
       id: Math.random().toString(),
       name: newObligation.name,
-      deadline: new Date(newObligation.deadline),
+      deadline: deadlineDate,
       type: newObligation.type,
       description: newObligation.description
     };

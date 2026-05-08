@@ -133,7 +133,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const remoteJid = key?.remoteJid;
       if (!remoteJid || key?.fromMe) return res.status(200).json({ success: true });
 
-      const phone = remoteJid.split('@')[0];
+      const isGroup = remoteJid.endsWith('@g.us');
+      const phone = isGroup ? remoteJid : remoteJid.split('@')[0];
+      
       const DEFAULT_TENANT = '11111111-1111-1111-1111-111111111111';
       // Capturar avatar do cliente se disponível
       const profilePic = data.profilePicUrl || messageContent.profilePicUrl || data.data?.profilePicUrl;
@@ -154,7 +156,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           status: 'novo', 
           last_message_time: new Date().toISOString(), 
           tenant_id: tId,
-          client_avatar: profilePic // Salvar avatar na criação
+          client_avatar: profilePic, // Salvar avatar na criação
+          is_group: isGroup
         }).select().single();
         if (cErr) throw cErr;
         conv = nConv;

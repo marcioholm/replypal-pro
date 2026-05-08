@@ -94,7 +94,8 @@ export default function InboxPage() {
           startedAt: c.started_at ? new Date(c.started_at) : undefined,
           slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
           tenantId: c.tenant_id,
-          tags: c.tags || []
+          tags: c.tags || [],
+          isGroup: c.is_group
         }));
         storeRef.current.addDbConversations(formattedConvs);
       }
@@ -126,7 +127,8 @@ export default function InboxPage() {
             status: c.status || "novo",
             assignedTo: c.assigned_to,
             tenantId: c.tenant_id,
-            tags: c.tags || []
+            tags: c.tags || [],
+            isGroup: c.is_group
           });
         });
       }
@@ -453,6 +455,8 @@ export default function InboxPage() {
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black overflow-hidden">
                       {conv.clientAvatar ? (
                         <img src={conv.clientAvatar} alt={conv.clientName} className="w-full h-full object-cover" />
+                      ) : conv.isGroup ? (
+                        <Users className="w-6 h-6" />
                       ) : (
                         conv.clientName.charAt(0)
                       )}
