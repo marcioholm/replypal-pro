@@ -201,8 +201,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       await supabase.from('mensagens').upsert({
-        conversation_id: conv?.id, content, sender: 'client', sender_name: phone, type, media_url: mediaUrl,
-        mime_type: mimeType, file_name: fileName, external_message_id: key.id, status: 'delivered', tenant_id: tenantId
+        conversation_id: conv?.id, 
+        content, 
+        sender: 'client', 
+        sender_name: pushName || phone, 
+        type, 
+        media_url: mediaUrl,
+        mime_type: mimeType, 
+        file_name: fileName, 
+        external_message_id: key.id, 
+        status: 'delivered', 
+        tenant_id: tenantId
       }, { onConflict: 'external_message_id' });
 
       await supabase.from('conversas').update({ last_message: content, last_message_time: new Date().toISOString() }).eq('id', conv?.id);
