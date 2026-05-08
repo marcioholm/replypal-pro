@@ -758,7 +758,12 @@ export default function ChatPage() {
           </Button>
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shadow-sm border border-primary/20 overflow-hidden">
             {conv.clientAvatar ? (
-              <img src={conv.clientAvatar} alt={conv.clientName} className="w-full h-full object-cover" />
+              <img 
+                src={conv.clientAvatar} 
+                alt={conv.clientName} 
+                className="w-full h-full object-cover" 
+                referrerPolicy="no-referrer"
+              />
             ) : conv.isGroup ? (
               <Users className="w-5 h-5" />
             ) : (
