@@ -25,13 +25,13 @@ export function IAChatButton({ collapsed }: { collapsed: boolean }) {
           ? "bg-[rgba(34,199,169,0.2)] text-[#22C7A9]" 
           : "hover:bg-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.65)] hover:text-white"
       }`}
-      title="Assistente IA"
+      title="Operai - Assistente IA"
     >
       <Sparkles className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${store.isIAChatOpen ? "text-[#22C7A9]" : "text-[rgba(34,199,169,0.6)] group-hover:text-[#22C7A9] group-hover:scale-110"}`} />
       <span className={`text-sm font-medium tracking-tight whitespace-nowrap transition-all duration-300 overflow-hidden ${
         collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
       }`}>
-        Assistente IA
+        Operai
       </span>
       {store.isIAChatOpen && !collapsed && <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-[#22C7A9] animate-pulse" />}
     </button>
@@ -46,7 +46,7 @@ export function IAChatPanel() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { user, tenant } = useAuth();
-  const [companyName, setCompanyName] = useState("Assistente IA");
+  const [companyName, setCompanyName] = useState("Operai");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Detectar se está na página de um cliente para enviar cliente_id
@@ -54,19 +54,51 @@ export function IAChatPanel() {
   const clienteId = (pathParts[1] === "customers" && pathParts[2]) ? pathParts[2] : undefined;
 
   useEffect(() => {
-    if (isOpen && tenant) {
-      const name = tenant.name || "Empresa";
-      setCompanyName(`Assistente ${name}`);
-      setMessages([
-        {
-          role: "ia",
-          content: `Olá! Sou a assistente da **${name}**. Estou pronta para ajudar você com informações de clientes, análise de documentos e honorários. Como posso ser útil agora?`,
-        },
-      ]);
-    } else if (!isOpen) {
-      setMessages([]);
-    }
-  }, [isOpen, tenant]);
+    const loadHistory = async () => {
+      if (isOpen && tenant && user) {
+        setCompanyName(`Operai | ${tenant.name || "IA"}`);
+        
+        try {
+          // Carregar histórico do Supabase
+          const { data, error } = await supabase
+            .from("historico_ia")
+            .select("*")
+            .eq("tenant_id", tenant.id)
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: true })
+            .limit(50);
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            setMessages(data.map(m => ({
+              role: m.role as "user" | "ia",
+              content: m.content
+            })));
+          } else {
+            // Mensagem inicial se não houver histórico
+            setMessages([
+              {
+                role: "ia",
+                content: `Olá! Sou a **Operai**, assistente inteligente da **${tenant.name || 'sua empresa'}**. Estou pronta para ajudar você com informações de clientes, análise de documentos e honorários. Como posso ser útil agora?`,
+              },
+            ]);
+          }
+        } catch (err) {
+          console.error("Erro ao carregar histórico da IA:", err);
+          // Fallback para mensagem inicial
+          setMessages([
+            {
+              role: "ia",
+              content: `Olá! Sou a **Operai**. Como posso ajudar você hoje?`,
+            },
+          ]);
+        }
+      }
+    };
+
+    loadHistory();
+  }, [isOpen, tenant, user]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -119,11 +151,31 @@ export function IAChatPanel() {
       const textoIA = String(message).replace(/\\n/g, '\n').trim();
 
       setMessages((prev) => [...prev, { role: "ia", content: textoIA }]);
+
+      // Salvar histórico no Supabase
+      if (tenant && user) {
+        await supabase.from("historico_ia").insert([
+          {
+            tenant_id: tenant.id,
+            user_id: user.id,
+            role: "user",
+            content: userMessage,
+            cliente_id: clienteId || null
+          },
+          {
+            tenant_id: tenant.id,
+            user_id: user.id,
+            role: "ia",
+            content: textoIA,
+            cliente_id: clienteId || null
+          }
+        ]);
+      }
     } catch (error) {
       console.error("IA Assistant Error:", error);
       setMessages((prev) => [
         ...prev,
-        { role: "ia", content: "Não foi possível obter resposta da IA." },
+        { role: "ia", content: "Não foi possível obter resposta da IA. Verifique sua conexão ou tente novamente." },
       ]);
     } finally {
       setIsLoading(false);
@@ -160,6 +212,7 @@ export function IAChatPanel() {
     setKnowledgeData({
       titulo: userQuestion.length > 40 ? userQuestion.substring(0, 40) + "..." : userQuestion,
       conteudo: msg.content,
+      categoria: "Atendimento", // Categoria padrão para evitar erro de validação
       origem: "conversa",
       nivel_confianca: correction ? "media" : "alta",
       status: "pendente"
