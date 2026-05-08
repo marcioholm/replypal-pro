@@ -15,6 +15,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import AlertsPage from "./AlertsPage";
 
 type WhatsAppStatus = "idle" | "loading" | "qrcode" | "connected";
 
@@ -356,36 +357,45 @@ const handleConnect = async () => {
       <h1 className="text-xl font-semibold">Configurações</h1>
 
       <Tabs defaultValue="empresa" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="perfil" className="flex items-center gap-2 text-xs">
+        <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
+          <TabsTrigger value="perfil" className="flex items-center gap-2 text-xs py-2 px-4">
             <User className="w-3.5 h-3.5" />
             Meu Perfil
           </TabsTrigger>
-          <TabsTrigger value="empresa" className="flex items-center gap-2 text-xs">
+          <TabsTrigger value="empresa" className="flex items-center gap-2 text-xs py-2 px-4">
             <Building2 className="w-3.5 h-3.5" />
             Empresa
           </TabsTrigger>
-          <TabsTrigger value="equipe" className="flex items-center gap-2 text-xs">
+          <TabsTrigger value="equipe" className="flex items-center gap-2 text-xs py-2 px-4">
             <Users className="w-3.5 h-3.5" />
             Equipe
           </TabsTrigger>
-          <TabsTrigger value="whatsapp" className="flex items-center gap-2 text-xs">
+          <TabsTrigger value="whatsapp" className="flex items-center gap-2 text-xs py-2 px-4">
             <Smartphone className="w-3.5 h-3.5" />
             WhatsApp
           </TabsTrigger>
-          <TabsTrigger value="notificacoes" className="flex items-center gap-2 text-xs">
+          <TabsTrigger value="notificacoes" className="flex items-center gap-2 text-xs py-2 px-4">
             <Bell className="w-3.5 h-3.5" />
             Notificações
           </TabsTrigger>
-          <TabsTrigger value="banco" className="flex items-center gap-2 text-xs">
+          <TabsTrigger value="alertas" className="flex items-center gap-2 text-xs py-2 px-4">
+            <Bell className="w-3.5 h-3.5 text-primary" />
+            Alertas
+          </TabsTrigger>
+          <TabsTrigger value="banco" className="flex items-center gap-2 text-xs py-2 px-4">
             <Database className="w-3.5 h-3.5" />
             Banco
           </TabsTrigger>
-          <TabsTrigger value="recibos" className="flex items-center gap-2 text-xs">
+          <TabsTrigger value="recibos" className="flex items-center gap-2 text-xs py-2 px-4">
             <FileText className="w-3.5 h-3.5" />
             Recibos
           </TabsTrigger>
         </TabsList>
+
+        {/* Alertas Inteligentes */}
+        <TabsContent value="alertas">
+          <AlertsPage />
+        </TabsContent>
 
         {/* Perfil do Usuário */}
         <TabsContent value="perfil">

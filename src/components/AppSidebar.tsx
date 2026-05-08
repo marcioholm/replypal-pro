@@ -64,9 +64,9 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           .eq("tenant_id", tenantId);
         
         if (data) {
-          const open = data.filter(c => c.status !== "resolvido").length;
+          const open = data.filter(c => c.status?.toLowerCase() !== "resolvido").length;
           const atRisk = data.filter(c => {
-            if (c.status === "resolvido") return false;
+            if (c.status?.toLowerCase() === "resolvido") return false;
             if (!c.sla_deadline) return false;
             return new Date(c.sla_deadline) < new Date();
           }).length;
