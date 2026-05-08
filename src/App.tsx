@@ -24,6 +24,7 @@ import CustomersPage from "@/pages/CustomersPage";
 import CustomerDetailsPage from "@/pages/CustomerDetailsPage";
 import CalendarPage from "@/pages/CalendarPage";
 import TrainingPage from "@/pages/TrainingPage";
+import AlertsPage from "@/pages/AlertsPage";
 import ScheduledMessagesPage from "@/pages/ScheduledMessagesPage";
 import NotFound from "@/pages/NotFound";
 
@@ -166,6 +167,7 @@ function AppRoutes() {
                     <Route path="/customers" element={<CustomersPage />} />
                     <Route path="/customers/:id" element={<CustomerDetailsPage />} />
                     <Route path="/training" element={<TrainingPage />} />
+                    <Route path="/alerts" element={<AlertsPage />} />
                     <Route path="/scheduled" element={<ScheduledMessagesPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="*" element={<NotFound />} />

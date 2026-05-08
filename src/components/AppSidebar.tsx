@@ -10,7 +10,8 @@ import {
   GraduationCap, 
   Send,
   Building2,
-  ChevronRight
+  ChevronRight,
+  Bell
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -27,6 +28,7 @@ const navItems = [
   { title: "Pipeline", url: "/pipeline", icon: Columns3, badge: "pipeline" },
   { title: "Clientes", url: "/customers", icon: Users, badge: "customers" },
   { title: "Treinamento da IA", url: "/training", icon: GraduationCap, badge: "training" },
+  { title: "Alertas Inteligentes", url: "/alerts", icon: Bell, badge: "alerts" },
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, badge: "dashboard" },
   { title: "Agendamentos", url: "/scheduled", icon: Send, badge: "scheduled" },
   { title: "Calendário Fiscal", url: "/calendar", icon: Calendar, badge: "calendar" },
