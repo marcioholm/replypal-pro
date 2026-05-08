@@ -137,8 +137,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const phone = isGroup ? remoteJid : remoteJid.split('@')[0];
       
       const DEFAULT_TENANT = '11111111-1111-1111-1111-111111111111';
-      // Capturar avatar do cliente se disponível
-      const profilePic = data.profilePicUrl || messageContent.profilePicUrl || data.data?.profilePicUrl;
+      // Capturar avatar do cliente de várias fontes possíveis (v1, v2 e data wrapper)
+      const profilePic = data.profilePicUrl || 
+                        messageContent?.profilePicUrl || 
+                        data.data?.profilePicUrl || 
+                        data.sender?.profilePicUrl;
 
       // 1. Garantir que a conversa existe
       let { data: conv } = await supabase.from('conversas').select('*').eq('client_phone', phone).maybeSingle();
@@ -218,9 +221,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else if (event === 'contacts.upsert' || event === 'contacts.update') {
       const contacts = Array.isArray(data) ? data : [data];
       for (const c of contacts) {
-        const phone = c.id?.split('@')[0] || c.remoteJid?.split('@')[0];
-        const pic = c.profilePicUrl || c.imgUrl;
-        const name = c.pushName || c.name;
+        const remoteJid = c.id || c.remoteJid;
+        if (!remoteJid) continue;
+        
+        const isGrp = remoteJid.endsWith('@g.us');
+        const phone = isGrp ? remoteJid : remoteJid.split('@')[0];
+        
+        const pic = c.profilePicUrl || c.imgUrl || c.data?.profilePicUrl;
+        const name = c.pushName || c.name || c.data?.pushName;
+        
         if (phone && (pic || name)) {
           const upd: any = {};
           if (pic) upd.client_avatar = pic;

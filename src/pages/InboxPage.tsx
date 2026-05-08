@@ -95,7 +95,8 @@ export default function InboxPage() {
           slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
           tenantId: c.tenant_id,
           tags: c.tags || [],
-          isGroup: c.is_group
+          isGroup: c.is_group,
+          clientAvatar: c.client_avatar
         }));
         storeRef.current.addDbConversations(formattedConvs);
       }
@@ -128,7 +129,8 @@ export default function InboxPage() {
             assignedTo: c.assigned_to,
             tenantId: c.tenant_id,
             tags: c.tags || [],
-            isGroup: c.is_group
+            isGroup: c.is_group,
+            clientAvatar: c.client_avatar
           });
         });
       }
