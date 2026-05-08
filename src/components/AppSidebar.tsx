@@ -48,9 +48,14 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const store = useStore();
   const { user, tenant, logout } = useAuth();
   const navigate = useNavigate();
-  
-  const [openCount, setOpenCount] = useState(0);
-  const [atRiskCount, setAtRiskCount] = useState(0);
+
+  // Calcular contagens baseadas na store (sincronizado com a Caixa de Entrada)
+  const openCount = store.conversations.filter(c => c.status?.toLowerCase() !== "resolvido").length;
+  const atRiskCount = store.conversations.filter(c => {
+    if (c.status?.toLowerCase() === "resolvido") return false;
+    const slaStatus = store.getSLAStatus(c);
+    return slaStatus === "estourado" || slaStatus === "em_risco";
+  }).length;
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -60,19 +65,25 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       try {
         const { data } = await supabase
           .from("conversas")
-          .select("status,sla_deadline")
-          .eq("tenant_id", tenantId);
+          .select("*") // Buscar tudo para garantir que a store tenha os dados se estiver vazia
+          .eq("tenant_id", tenantId)
+          .neq("status", "resolvido");
         
         if (data) {
-          const open = data.filter(c => c.status?.toLowerCase() !== "resolvido").length;
-          const atRisk = data.filter(c => {
-            if (c.status?.toLowerCase() === "resolvido") return false;
-            if (!c.sla_deadline) return false;
-            return new Date(c.sla_deadline) < new Date();
-          }).length;
-          
-          setOpenCount(open);
-          setAtRiskCount(atRisk);
+          // Opcional: atualizar a store se ela estiver vazia
+          if (store.conversations.length === 0 && data.length > 0) {
+            store.addDbConversations(data.map(c => ({
+              id: c.id,
+              clientName: c.client_name || "Cliente",
+              clientPhone: c.client_phone || "",
+              lastMessage: c.last_message || "",
+              lastMessageTime: new Date(c.last_message_time || Date.now()),
+              status: c.status,
+              tenantId: c.tenant_id,
+              slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
+              tags: c.tags || []
+            })));
+          }
         }
       } catch (err) {
         console.error("Error fetching counts:", err);
@@ -80,9 +91,9 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     };
 
     fetchCounts();
-    const interval = setInterval(fetchCounts, 5000);
+    const interval = setInterval(fetchCounts, 10000); // Aumentado para 10s já que a store sincroniza em tempo real
     return () => clearInterval(interval);
-  }, [user?.tenantId]);
+  }, [user?.tenantId, store.conversations.length]);
 
   const handleLogout = () => {
     logout();
