@@ -49,9 +49,13 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const { user, tenant, logout } = useAuth();
   const navigate = useNavigate();
 
-  // Calcular contagens baseadas na store (sincronizado com a Caixa de Entrada)
-  const openCount = store.conversations.filter(c => c.status?.toLowerCase() !== "resolvido").length;
+  // Calcular contagens baseadas na store (apenas conversas atribuídas ao usuário logado)
+  const openCount = store.conversations.filter(c => 
+    c.assignedTo === user?.id && 
+    c.status?.toLowerCase() !== "resolvido"
+  ).length;
   const atRiskCount = store.conversations.filter(c => {
+    if (c.assignedTo !== user?.id) return false;
     if (c.status?.toLowerCase() === "resolvido") return false;
     const slaStatus = store.getSLAStatus(c);
     return slaStatus === "estourado" || slaStatus === "em_risco";
