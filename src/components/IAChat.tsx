@@ -27,7 +27,11 @@ export function IAChatButton({ collapsed }: { collapsed: boolean }) {
       }`}
       title="Operai - Assistente IA"
     >
-      <Sparkles className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${store.isIAChatOpen ? "text-[#22C7A9]" : "text-[rgba(34,199,169,0.6)] group-hover:text-[#22C7A9] group-hover:scale-110"}`} />
+      <img 
+        src="/operai-icon.png" 
+        alt="Operai" 
+        className={`w-6 h-6 flex-shrink-0 transition-transform duration-300 ${store.isIAChatOpen ? "scale-110" : "opacity-70 group-hover:opacity-100 group-hover:scale-110"}`} 
+      />
       <span className={`text-sm font-medium tracking-tight whitespace-nowrap transition-all duration-300 overflow-hidden ${
         collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
       }`}>
@@ -80,7 +84,7 @@ export function IAChatPanel() {
             setMessages([
               {
                 role: "ia",
-                content: `Olá! Sou a **Operai**, assistente inteligente da **${tenant.name || 'sua empresa'}**. Estou pronta para ajudar você com informações de clientes, análise de documentos e honorários. Como posso ser útil agora?`,
+                content: `Olá! Sou a **Operai**, assistente inteligente da **${tenant.name || 'sua empresa'}**. Como posso ajudar você hoje?`,
               },
             ]);
           }
@@ -242,8 +246,8 @@ export function IAChatPanel() {
       {/* Premium Header */}
       <div className="flex items-center justify-between p-5 bg-gradient-to-r from-sidebar-primary to-sidebar-primary/80 text-white shadow-md">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-white/10 rounded-lg backdrop-blur-sm">
-            <Bot className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 rounded-lg bg-white p-1 flex items-center justify-center shadow-inner">
+            <img src="/operai-icon.png" alt="Operai" className="w-full h-full object-contain" />
           </div>
           <div>
             <h2 className="text-sm font-bold leading-tight">✦ {companyName}</h2>
@@ -284,9 +288,16 @@ export function IAChatPanel() {
               </div>
               
               <div className="flex items-center justify-between w-full mt-1.5 px-1">
-                <span className="text-[10px] text-slate-400">
-                  {msg.role === "user" ? "Você" : companyName}
-                </span>
+                <div className="flex items-center gap-2">
+                  {msg.role === "ia" && (
+                    <div className="w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200">
+                      <img src="/operai-icon.png" alt="O" className="w-full h-full object-contain" />
+                    </div>
+                  )}
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {msg.role === "user" ? "Você" : companyName}
+                  </span>
+                </div>
                 
                 {msg.role === "ia" && i > 0 && (
                   <div className="flex items-center gap-2">

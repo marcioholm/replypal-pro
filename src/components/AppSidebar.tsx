@@ -145,7 +145,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                     border: "1px solid hsl(var(--primary)/0.2)",
                   }}
                 >
-                  <img src="/logo.png" alt="Operai" className="w-10 h-10 object-contain" />
+                  <img src="/operai-logo.png" alt="Operai" className="w-10 h-10 object-contain" />
                 </div>
               <div className={cn(
                 "flex flex-col overflow-hidden transition-all duration-300 ease-out",

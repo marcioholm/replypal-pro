@@ -113,7 +113,7 @@ export default function LoginPage() {
         <div className="relative z-10 w-full max-w-2xl px-8 flex flex-col justify-between h-full py-12">
           <div className="flex items-center gap-3">
             <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-lg shadow-emerald-500/10 border border-emerald-400/20">
-              <img src="/logo.png" alt="Operai" className="w-12 h-12 object-contain" />
+              <img src="/operai-logo.png" alt="Operai" className="w-12 h-12 object-contain" />
             </div>
             <div className="flex flex-col">
               <span className="text-3xl font-bold text-white tracking-tight drop-shadow-md">
@@ -146,7 +146,7 @@ export default function LoginPage() {
         <div className="flex items-center justify-center lg:hidden">
           <div className="flex items-center gap-2">
             <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shadow-lg shadow-emerald-500/10 border border-emerald-400/20">
-              <img src="/logo.png" alt="Operai" className="w-9 h-9 object-contain" />
+              <img src="/operai-logo.png" alt="Operai" className="w-9 h-9 object-contain" />
             </div>
             <div className="flex flex-col">
               <span className="text-xl font-bold text-slate-800 tracking-tight">
