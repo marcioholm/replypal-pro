@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Trash2, Building, BookOpen, Users, Headphones, DollarSign, FileText, Badge, Upload, Download, Table, X, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Building, BookOpen, Users, Headphones, DollarSign, FileText, Badge, Upload, Download, Table, X, CheckCircle2, AlertTriangle, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
