@@ -156,10 +156,19 @@ export default function DailyReportPage() {
 
   const handleSave = async () => {
     if (!user?.tenantId) return;
-    const activeNumbers = numerosDestino.filter(n => n.ativo && n.numero.replace(/\D/g, "").length >= 8);
-    if (ativo && activeNumbers.length === 0) {
-      toast.error("Adicione pelo menos um número válido e ativo.");
-      return;
+    
+    const activeNumbers = numerosDestino.filter(n => n.ativo);
+    const validNumbers = activeNumbers.filter(n => n.numero.replace(/\D/g, "").length >= 10);
+
+    if (ativo) {
+      if (activeNumbers.length === 0) {
+        toast.error("Ative pelo menos um número para receber o relatório.");
+        return;
+      }
+      if (validNumbers.length === 0) {
+        toast.error("O número deve ter pelo menos 10 dígitos (DDD + Número).");
+        return;
+      }
     }
 
     setSaving(true);
@@ -386,26 +395,24 @@ export default function DailyReportPage() {
                         setNumerosDestino(newNums);
                       }} className="h-10 rounded-xl bg-background/50 border-border/40" />
                     </div>
-                    <div className="md:col-span-3 flex items-end justify-end gap-2">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={() => {
-                              const newNums = [...numerosDestino];
-                              newNums[index].ativo = !newNums[index].ativo;
-                              setNumerosDestino(newNums);
-                            }} className={cn("rounded-xl transition-all", item.ativo ? "text-green-500 bg-green-500/10" : "text-muted-foreground/40 bg-muted/10")}>
-                              <CheckCircle2 className="w-4 h-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent><p className="text-[10px]">{item.ativo ? "Ativo" : "Pausado"}</p></TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                    <div className="md:col-span-3 flex items-end justify-end gap-3">
+                      <div className="flex flex-col items-center gap-1">
+                        <Label className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground/60">Ativo</Label>
+                        <Switch 
+                          checked={item.ativo}
+                          onCheckedChange={(val) => {
+                            const newNums = [...numerosDestino];
+                            newNums[index].ativo = val;
+                            setNumerosDestino(newNums);
+                          }}
+                          className="data-[state=checked]:bg-green-500 scale-90"
+                        />
+                      </div>
                       <Button variant="ghost" size="icon" onClick={() => {
                         const newNums = [...numerosDestino];
                         newNums.splice(index, 1);
                         setNumerosDestino(newNums);
-                      }} className="rounded-xl text-red-400 hover:bg-red-500/10 transition-all">
+                      }} className="rounded-xl text-red-400 hover:bg-red-500/10 transition-all h-10 w-10">
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
