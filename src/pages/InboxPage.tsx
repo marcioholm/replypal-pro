@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { useNotification } from "@/hooks/useNotifications";
 import { toast } from "sonner";
 
 type Filter = "todas" | "minhas" | "pendentes" | "fila";
@@ -203,36 +204,22 @@ export default function InboxPage() {
     }
   }, []);
 
-  // IMPLEMENTAÇÃO 1.2: Canal Realtime SEPARADO do fetchData
+  const { notify } = useNotification();
+
+  // IMPLEMENTAÇÃO 1.2: Canal Realtime UNIFICADO
+  useRealtimeChat({
+    tenantId: user?.tenantId,
+    userId: user?.id,
+    enabled: true,
+    notify: notify
+  });
+
+  // useEffect para quando o FILTRO muda ou o tenantId inicializa
   useEffect(() => {
-    const tenantId = user?.tenantId;
-    if (!tenantId || tenantId.length < 5) return;
-
-    // Primeiro fetch inicial
-    fetchData();
-
-    const channel = supabase
-      .channel(`inbox-conversas-${tenantId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'conversas',
-          filter: `tenant_id=eq.${tenantId}`
-        },
-        () => {
-          fetchData();
-          playNewMessage();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-    // IMPORTANTE: fetchData NÃO está aqui — só tenantId e playNewMessage
-  }, [user?.tenantId, playNewMessage]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (user?.tenantId) {
+      fetchData();
+    }
+  }, [filter, user?.tenantId, fetchData]);
 
   // useEffect separado para quando o FILTRO muda (sem criar novo canal)
   useEffect(() => {
