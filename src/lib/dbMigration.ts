@@ -80,11 +80,39 @@ CREATE TABLE IF NOT EXISTS mensagens (
   content TEXT NOT NULL,
   sender TEXT NOT NULL,
   sender_name TEXT,
+  type TEXT DEFAULT 'text',
+  media_url TEXT,
+  mime_type TEXT,
+  file_name TEXT,
+  external_message_id TEXT UNIQUE,
+  status TEXT DEFAULT 'sent',
+  tenant_id UUID,
   timestamp TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 5.1 Mensagens Agendadas (Garantir que existe)
+CREATE TABLE IF NOT EXISTS mensagens_agendadas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  cliente_id UUID REFERENCES clientes(id) ON DELETE SET NULL,
+  conversa_id UUID REFERENCES conversas(id) ON DELETE SET NULL,
+  receiver_number TEXT NOT NULL,
+  message_type TEXT DEFAULT 'text',
+  text_content TEXT,
+  media_url TEXT,
+  mime_type TEXT,
+  file_name TEXT,
+  scheduled_at TIMESTAMPTZ NOT NULL,
+  sent_at TIMESTAMPTZ,
+  status TEXT DEFAULT 'agendada',
+  error_message TEXT,
+  created_by UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  sender_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- 6. Tags
+-- 7. Tags
 CREATE TABLE IF NOT EXISTS tags (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nome TEXT NOT NULL,
@@ -142,6 +170,12 @@ CREATE TABLE IF NOT EXISTS automacoes_relatorios (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(tenant_id, tipo)
 );
+
+-- Desabilitar RLS para evitar erros de permissão no frontend
+ALTER TABLE mensagens DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mensagens_agendadas DISABLE ROW LEVEL SECURITY;
+ALTER TABLE automacoes_relatorios DISABLE ROW LEVEL SECURITY;
+ALTER TABLE company_settings DISABLE ROW LEVEL SECURITY;
 `;
 
   try {

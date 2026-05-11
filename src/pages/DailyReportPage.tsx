@@ -169,9 +169,11 @@ export default function DailyReportPage() {
 
       toast.success("Configurações salvas com sucesso!");
       fetchConfig();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao salvar:", err);
-      toast.error("Erro ao salvar configurações.");
+      toast.error("Erro ao salvar configurações", {
+        description: err.message || "Verifique sua conexão ou permissões."
+      });
     } finally {
       setSaving(false);
     }

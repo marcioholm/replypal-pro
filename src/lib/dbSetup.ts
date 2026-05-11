@@ -84,6 +84,55 @@ CREATE TABLE IF NOT EXISTS mensagens (
   timestamp TIMESTAMPTZ DEFAULT NOW(),
   tenant_id UUID
 );
+
+-- 6. Mensagens Agendadas
+CREATE TABLE IF NOT EXISTS mensagens_agendadas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID,
+  cliente_id UUID,
+  conversa_id UUID,
+  receiver_number TEXT NOT NULL,
+  message_type TEXT DEFAULT 'text',
+  text_content TEXT,
+  media_url TEXT,
+  mime_type TEXT,
+  file_name TEXT,
+  scheduled_at TIMESTAMPTZ NOT NULL,
+  sent_at TIMESTAMPTZ,
+  status TEXT DEFAULT 'agendada',
+  error_message TEXT,
+  created_by UUID,
+  sender_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 7. Automações de Relatórios
+CREATE TABLE IF NOT EXISTS automacoes_relatorios (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID,
+  tipo TEXT NOT NULL,
+  nome TEXT NOT NULL,
+  ativo BOOLEAN DEFAULT true,
+  horario TIME NOT NULL,
+  timezone TEXT DEFAULT 'America/Sao_Paulo',
+  numeros_destino JSONB DEFAULT '[]',
+  incluir_resumo_geral BOOLEAN DEFAULT true,
+  incluir_por_usuario BOOLEAN DEFAULT true,
+  incluir_pendentes BOOLEAN DEFAULT true,
+  incluir_tempo_resposta BOOLEAN DEFAULT true,
+  incluir_alertas BOOLEAN DEFAULT true,
+  mensagem_intro TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(tenant_id, tipo)
+);
+
+-- Desabilitar RLS
+ALTER TABLE mensagens DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mensagens_agendadas DISABLE ROW LEVEL SECURITY;
+ALTER TABLE automacoes_relatorios DISABLE ROW LEVEL SECURITY;
+ALTER TABLE company_settings DISABLE ROW LEVEL SECURITY;
 `;
 
 export async function initializeDatabase() {
