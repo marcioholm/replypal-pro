@@ -407,10 +407,6 @@ const handleConnect = async () => {
             <Bell className="w-3.5 h-3.5 text-primary" />
             Alertas
           </TabsTrigger>
-          <TabsTrigger value="banco" className="flex items-center gap-2 text-xs py-2 px-4">
-            <Database className="w-3.5 h-3.5" />
-            Banco
-          </TabsTrigger>
           <TabsTrigger value="recibos" className="flex items-center gap-2 text-xs py-2 px-4">
             <FileText className="w-3.5 h-3.5" />
             Recibos
@@ -637,130 +633,192 @@ const handleConnect = async () => {
 
         {/* Equipe */}
         <TabsContent value="equipe">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium">Membros da Equipe</CardTitle>
-              <Button size="sm" variant="outline" onClick={() => setShowAddMember(!showAddMember)}>
-                <Plus className="w-3.5 h-3.5 mr-1.5" />
-                Adicionar
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {showAddMember && (
-                <div className="p-4 rounded-lg border bg-muted/30 space-y-3 animate-fade-in">
-                  <p className="text-xs font-medium">Novo membro</p>
-                  <div className="grid sm:grid-cols-4 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-[10px]">Nome</Label>
-                      <Input
-                        placeholder="Nome completo"
-                        value={newMember.name}
-                        onChange={(e) => setNewMember((p) => ({ ...p, name: e.target.value }))}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px]">E-mail</Label>
-                      <Input
-                        type="email"
-                        placeholder="email@empresa.com"
-                        value={newMember.email}
-                        onChange={(e) => setNewMember((p) => ({ ...p, email: e.target.value }))}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px]">Senha</Label>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        value={newMember.password}
-                        onChange={(e) => setNewMember((p) => ({ ...p, password: e.target.value }))}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px]">WhatsApp (opcional)</Label>
-                      <Input
-                        placeholder="+55 11 9..."
-                        value={newMember.whatsapp}
-                        onChange={(e) => setNewMember((p) => ({ ...p, whatsapp: e.target.value }))}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px]">Função</Label>
-                      <Select value={newMember.role} onValueChange={(v) => setNewMember((p) => ({ ...p, role: v as UserRole }))}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="admin">Administrador</SelectItem>
-                          <SelectItem value="supervisor">Supervisor</SelectItem>
-                          <SelectItem value="atendente">Atendente</SelectItem>
-                          <SelectItem value="recepcionista">Recepcionista</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={handleAddMember}>Adicionar</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setShowAddMember(false)}>Cancelar</Button>
-                  </div>
-                </div>
-              )}
+          <Tabs defaultValue="membros" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-2 h-9">
+              <TabsTrigger value="membros" className="text-xs">Membros</TabsTrigger>
+              <TabsTrigger value="autonomia" className="text-xs">Autonomia e Cargos</TabsTrigger>
+            </TabsList>
 
-              <div className="space-y-2">
-                {teamMembers.map((m) => (
-                  <div key={m.id} className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
-                    <div className="relative group">
-                      <Avatar className="w-8 h-8 flex-shrink-0">
-                        <AvatarImage src={m.avatar} />
-                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-semibold">
-                          {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <label 
-                        className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity"
-                        title="Trocar foto"
-                      >
-                        <Upload className="w-3 h-3 text-white" />
-                        <input 
-                          type="file" 
-                          className="hidden" 
-                          accept="image/*"
-                          onChange={(e) => handleUpdateAvatar(e, m.id)} 
-                        />
-                      </label>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium">{m.name}</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-[10px] text-muted-foreground">{m.email}</p>
-                        {m.whatsapp && (
-                          <>
-                            <span className="text-[10px] text-muted-foreground/30">•</span>
-                            <p className="text-[10px] text-muted-foreground">{m.whatsapp}</p>
-                          </>
-                        )}
+            <TabsContent value="membros">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-sm font-medium">Membros da Equipe</CardTitle>
+                  <Button size="sm" variant="outline" onClick={() => setShowAddMember(!showAddMember)}>
+                    <Plus className="w-3.5 h-3.5 mr-1.5" />
+                    Adicionar
+                  </Button>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {showAddMember && (
+                    <div className="p-4 rounded-lg border bg-muted/30 space-y-3 animate-fade-in">
+                      <p className="text-xs font-medium">Novo membro</p>
+                      <div className="grid sm:grid-cols-4 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Nome</Label>
+                          <Input
+                            placeholder="Nome completo"
+                            value={newMember.name}
+                            onChange={(e) => setNewMember((p) => ({ ...p, name: e.target.value }))}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">E-mail</Label>
+                          <Input
+                            type="email"
+                            placeholder="email@empresa.com"
+                            value={newMember.email}
+                            onChange={(e) => setNewMember((p) => ({ ...p, email: e.target.value }))}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Senha</Label>
+                          <Input
+                            type="password"
+                            placeholder="••••••••"
+                            value={newMember.password}
+                            onChange={(e) => setNewMember((p) => ({ ...p, password: e.target.value }))}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">WhatsApp (opcional)</Label>
+                          <Input
+                            placeholder="+55 11 9..."
+                            value={newMember.whatsapp}
+                            onChange={(e) => setNewMember((p) => ({ ...p, whatsapp: e.target.value }))}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Função</Label>
+                          <Select value={newMember.role} onValueChange={(v) => setNewMember((p) => ({ ...p, role: v as UserRole }))}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="admin">Administrador</SelectItem>
+                              <SelectItem value="supervisor">Supervisor</SelectItem>
+                              <SelectItem value="atendente">Atendente</SelectItem>
+                              <SelectItem value="recepcionista">Recepcionista</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleAddMember}>Adicionar</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setShowAddMember(false)}>Cancelar</Button>
                       </div>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">
-                      {roleLabels[m.role]}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleRemoveMember(m.id)}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                  )}
+
+                  <div className="space-y-2">
+                    {teamMembers.map((m) => (
+                      <div key={m.id} className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
+                        <div className="relative group">
+                          <Avatar className="w-8 h-8 flex-shrink-0">
+                            <AvatarImage src={m.avatar} />
+                            <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-semibold">
+                              {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <label 
+                            className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity"
+                            title="Trocar foto"
+                          >
+                            <Upload className="w-3 h-3 text-white" />
+                            <input 
+                              type="file" 
+                              className="hidden" 
+                              accept="image/*"
+                              onChange={(e) => handleUpdateAvatar(e, m.id)} 
+                            />
+                          </label>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium">{m.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-[10px] text-muted-foreground">{m.email}</p>
+                            {m.whatsapp && (
+                              <>
+                                <span className="text-[10px] text-muted-foreground/30">•</span>
+                                <p className="text-[10px] text-muted-foreground">{m.whatsapp}</p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">
+                          {roleLabels[m.role]}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleRemoveMember(m.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="autonomia">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium">Hierarquia e Permissões por Cargo</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {["supervisor", "atendente", "recepcionista"].map((role) => (
+                    <div key={role} className="p-4 rounded-xl border space-y-4">
+                      <div className="flex items-center justify-between border-b pb-2">
+                        <h4 className="text-sm font-bold capitalize text-primary">{role}</h4>
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Nível de Autonomia</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
+                          <div className="space-y-0.5">
+                            <Label className="text-xs">Ver Relatórios (Dashboard)</Label>
+                            <p className="text-[10px] text-muted-foreground">Acesso ao painel de métricas.</p>
+                          </div>
+                          <Switch defaultChecked={role !== "recepcionista"} />
+                        </div>
+                        
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
+                          <div className="space-y-0.5">
+                            <Label className="text-xs">Deletar Mensagens</Label>
+                            <p className="text-[10px] text-muted-foreground">Apagar conteúdo enviado.</p>
+                          </div>
+                          <Switch defaultChecked={role === "supervisor"} />
+                        </div>
+
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
+                          <div className="space-y-0.5">
+                            <Label className="text-xs">Transferir Conversas</Label>
+                            <p className="text-[10px] text-muted-foreground">Mudar responsável do chat.</p>
+                          </div>
+                          <Switch defaultChecked={true} />
+                        </div>
+
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
+                          <div className="space-y-0.5">
+                            <Label className="text-xs">Gerenciar Equipe</Label>
+                            <p className="text-[10px] text-muted-foreground">Adicionar/remover membros.</p>
+                          </div>
+                          <Switch defaultChecked={role === "supervisor"} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <Button className="w-full">Salvar Configurações de Autonomia</Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         {/* WhatsApp / Evolution */}
@@ -1043,205 +1101,6 @@ const handleConnect = async () => {
         {/* Recibos */}
         <TabsContent value="recibos">
           <ReciboGenerator />
-        </TabsContent>
-
-        {/* Banco de Dados */}
-        <TabsContent value="banco">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Banco de Dados Supabase</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="flex items-center gap-3 p-4 rounded-lg border">
-                <Database className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-xs font-medium">Conexão com Supabase</p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {dbStatus === "idle" ? "Clique em verificar para testar" : 
-                    dbStatus === "checking" ? "Verificando..." : 
-                    dbStatus === "ready" ? "Conectado!" : "Erro de conexão"}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    setDbStatus("checking");
-                    try {
-                      const { data, error } = await supabase.from("tenants").select("id").limit(1);
-                      if (error) throw error;
-                      setDbTables(["tenants", "usuarios", "clientes", "conversas", "mensagens", "tags", "historico", "company_settings", "recibo_contador"]);
-                      setDbStatus("ready");
-                      toast.success("Banco conectado!");
-                    } catch (err) {
-                      const error = err as Error;
-                      setDbStatus("error");
-                      console.error(error);
-                    }
-                  }}
-                  disabled={dbStatus === "checking"}
-                >
-                  {dbStatus === "checking" ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                </Button>
-              </div>
-
-              {dbTables.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium">Tabelas encontradas:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {dbTables.map((table) => (
-                      <span key={table} className="px-2 py-1 rounded-full bg-green-500/10 text-green-500 text-xs">
-                        {table}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {dbStatus === "error" && (
-                <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-destructive mt-0.5" />
-                    <div>
-                      <p className="text-xs font-medium text-destructive">Tabelas não existem</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        Execute o SQL abaixo no Supabase SQL Editor para criar as tabelas.
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => {
-                          const sql = `
-
--- Execute no Supabase SQL Editor: https://supabase.com/dashboard/project/xvvgjeccncfylvvbjgwj/sql
-
--- 1. Usuarios
-CREATE TABLE IF NOT EXISTS usuarios (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT UNIQUE NOT NULL,
-  nome TEXT NOT NULL,
-  role TEXT DEFAULT 'atendente',
-  tenant_id UUID,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 2. Tenants  
-CREATE TABLE IF NOT EXISTS tenants (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  nome TEXT NOT NULL,
-  subdomain TEXT UNIQUE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 3. Clientes
-CREATE TABLE IF NOT EXISTS clientes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  razao_social TEXT,
-  nome_fantasia TEXT NOT NULL,
-  cnpj TEXT,
-  responsavel TEXT,
-  whatsapp TEXT,
-  telefone TEXT,
-  email TEXT,
-  cidade TEXT,
-  estado TEXT,
-  status TEXT DEFAULT 'Onboarding',
-  prioridade TEXT DEFAULT 'Média',
-  service_level TEXT DEFAULT 'Padrão',
-  preferred_channel TEXT DEFAULT 'WhatsApp',
-  monthly_value NUMERIC(10,2) DEFAULT 0,
-  financial_status TEXT DEFAULT 'Atenção',
-  tenant_id UUID,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 4. Conversas
-CREATE TABLE IF NOT EXISTS conversas (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_name TEXT NOT NULL,
-  client_phone TEXT NOT NULL,
-  customer_id UUID,
-  last_message TEXT,
-  last_message_time TIMESTAMPTZ DEFAULT NOW(),
-  status TEXT DEFAULT 'novo',
-  assigned_to UUID,
-  tenant_id UUID,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 5. Mensagens
-CREATE TABLE IF NOT EXISTS mensagens (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  conversation_id UUID,
-  content TEXT NOT NULL,
-  sender TEXT NOT NULL,
-  sender_name TEXT,
-  timestamp TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 6. Tags
-CREATE TABLE IF NOT EXISTS tags (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  nome TEXT NOT NULL,
-  cor TEXT,
-  tenant_id UUID,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 7. Historico
-CREATE TABLE IF NOT EXISTS historico (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  conversation_id UUID,
-  customer_id UUID,
-  action TEXT NOT NULL,
-  user_id UUID,
-  user_name TEXT,
-  timestamp TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 8. Company Settings
-CREATE TABLE IF NOT EXISTS company_settings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID UNIQUE,
-  nome TEXT,
-  cnpj TEXT,
-  evolution_url TEXT,
-  evolution_api_key TEXT,
-  instance_name TEXT DEFAULT 'replypal',
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 9. Contador de Recibos
-CREATE TABLE IF NOT EXISTS recibo_contador (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID UNIQUE,
-  contador INTEGER DEFAULT 0,
-  ano INTEGER DEFAULT EXTRACT(YEAR FROM CURRENT_DATE)::int,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Dados Iniciais
-INSERT INTO tenants (id, nome, subdomain) VALUES 
-  ('11111111-1111-1111-1111-111111111111', 'ReplyPal Pro', 'replypal')
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO usuarios (id, email, nome, role, tenant_id) VALUES 
-  ('11111111-1111-1111-1111-111111111111', 'carlos@replypal.com', 'Carlos Silva', 'admin', '11111111-1111-1111-1111-111111111111')
-ON CONFLICT (id) DO NOTHING;
-`;
-                          navigator.clipboard.writeText(sql);
-                          toast.success("SQL copiado! Agora cole no Supabase SQL Editor.");
-                        }}
-                      >
-                        Copiar SQL
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>

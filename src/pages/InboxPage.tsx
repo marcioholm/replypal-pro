@@ -34,7 +34,19 @@ export default function InboxPage() {
   const [prevConversationCount, setPrevConversationCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [showSidebar, setShowSidebar] = useState(() => {
+    const saved = localStorage.getItem("replypal_show_sidebar");
+    return saved !== null ? saved === "true" : true;
+  });
   const conversationsRef = useRef<{ id: string }[]>([]);
+
+  const toggleSidebar = () => {
+    setShowSidebar(prev => {
+      const next = !prev;
+      localStorage.setItem("replypal_show_sidebar", String(next));
+      return next;
+    });
+  };
 
   // 1. Helpers e FetchData
   const fetchData = useCallback(async () => {
@@ -358,6 +370,14 @@ export default function InboxPage() {
             <Button
               variant="ghost"
               size="icon"
+              onClick={toggleSidebar}
+              className={cn("h-9 w-9 rounded-xl", !showSidebar && "bg-primary/10 text-primary")}
+            >
+              <Keyboard className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={toggleSound}
               className="h-9 w-9 rounded-xl"
             >
@@ -597,7 +617,8 @@ export default function InboxPage() {
         )}
       </div>
 
-      <div className="hidden xl:flex w-80 bg-white/40 dark:bg-[#021B1A]/40 backdrop-blur-md flex-col">
+      {showSidebar && (
+        <div className="hidden xl:flex w-80 bg-white/40 dark:bg-[#021B1A]/40 backdrop-blur-md flex-col animate-in slide-in-from-right duration-300">
         <div className="p-6 border-b border-border/40">
           <h3 className="font-bold text-foreground">Acesso Rápido</h3>
           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Atalhos do teclado</p>
@@ -633,7 +654,7 @@ export default function InboxPage() {
             </p>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
