@@ -122,13 +122,25 @@ CREATE TABLE IF NOT EXISTS company_settings (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 9. Contador de Recibos
-CREATE TABLE IF NOT EXISTS recibo_contador (
+-- 10. Automações de Relatórios
+CREATE TABLE IF NOT EXISTS automacoes_relatorios (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID UNIQUE,
-  contador INTEGER DEFAULT 0,
-  ano INTEGER DEFAULT EXTRACT(YEAR FROM CURRENT_DATE)::int,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  tipo TEXT NOT NULL,
+  nome TEXT NOT NULL,
+  ativo BOOLEAN DEFAULT true,
+  horario TIME NOT NULL,
+  timezone TEXT DEFAULT 'America/Sao_Paulo',
+  numeros_destino JSONB DEFAULT '[]',
+  incluir_resumo_geral BOOLEAN DEFAULT true,
+  incluir_por_usuario BOOLEAN DEFAULT true,
+  incluir_pendentes BOOLEAN DEFAULT true,
+  incluir_tempo_resposta BOOLEAN DEFAULT true,
+  incluir_alertas BOOLEAN DEFAULT true,
+  mensagem_intro TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(tenant_id, tipo)
 );
 `;
 

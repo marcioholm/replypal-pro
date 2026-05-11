@@ -17,6 +17,7 @@ import { fetchQRCode, logoutInstance, updateEvolutionConfig } from "@/lib/evolut
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AlertsPage from "./AlertsPage";
+import DailyReportPage from "./DailyReportPage";
 
 type WhatsAppStatus = "idle" | "loading" | "qrcode" | "connected";
 
@@ -439,11 +440,20 @@ const handleConnect = async () => {
             <FileText className="w-3.5 h-3.5" />
             Recibos
           </TabsTrigger>
+          <TabsTrigger value="relatorios" className="flex items-center gap-2 text-xs py-2 px-4">
+            <FileText className="w-3.5 h-3.5" />
+            Relatórios
+          </TabsTrigger>
         </TabsList>
 
         {/* Alertas Inteligentes */}
         <TabsContent value="alertas">
           <AlertsPage />
+        </TabsContent>
+
+        {/* Relatórios */}
+        <TabsContent value="relatorios">
+          <DailyReportPage />
         </TabsContent>
 
         {/* Perfil do Usuário */}

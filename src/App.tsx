@@ -26,6 +26,7 @@ import CalendarPage from "@/pages/CalendarPage";
 import TrainingPage from "@/pages/TrainingPage";
 import AlertsPage from "@/pages/AlertsPage";
 import ScheduledMessagesPage from "@/pages/ScheduledMessagesPage";
+import DailyReportPage from "@/pages/DailyReportPage";
 import NotFound from "@/pages/NotFound";
 
 interface ErrorBoundaryState {
@@ -174,6 +175,7 @@ function AppRoutes() {
                     <Route path="/alerts" element={<AlertsPage />} />
                     <Route path="/scheduled" element={<ScheduledMessagesPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/settings/reports/daily" element={<DailyReportPage />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
               </AppLayout>
