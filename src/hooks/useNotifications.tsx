@@ -66,8 +66,12 @@ export function NotificationProvider({ children, currentUser, userRole }: { chil
 
     toast(title, {
       description: body,
-      duration: 5000,
-      style: { cursor: "pointer" },
+      duration: 6000,
+      icon: type === "new" ? "🆕" : "💬",
+      action: {
+        label: "Abrir Chat",
+        onClick: () => console.log("Abrir chat acionado"),
+      },
     });
   }, [config]);
 
