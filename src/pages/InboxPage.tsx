@@ -246,7 +246,8 @@ export default function InboxPage() {
     try {
       await supabase.from('conversas').update({ 
         assigned_to: userId,
-        status: 'em_atendimento'
+        status: 'em_atendimento',
+        started_at: new Date().toISOString()
       }).eq('id', convId);
       
       await supabase.from('historico').insert({

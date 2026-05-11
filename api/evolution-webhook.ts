@@ -177,14 +177,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const { data: tCfg } = await supabase.from('tenants').select('id').eq('evolution_instance', instName).maybeSingle();
           if (tCfg) tId = tCfg.id;
         }
+        const now = new Date();
+        const slaDeadline = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 horas de SLA por padrão
+
         const { data: nConv, error: cErr } = await supabase.from('conversas').insert({
           client_name: pushName || phone, 
           client_phone: phone, 
           status: 'novo', 
-          last_message_time: new Date().toISOString(), 
+          last_message_time: now.toISOString(), 
           tenant_id: tId,
-          client_avatar: profilePic, // Salvar avatar na criação
-          is_group: isGroup
+          client_avatar: profilePic, 
+          is_group: isGroup,
+          sla_deadline: slaDeadline.toISOString()
         }).select().single();
         if (cErr) throw cErr;
         conv = nConv;
