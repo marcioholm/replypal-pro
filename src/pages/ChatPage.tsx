@@ -486,8 +486,9 @@ export default function ChatPage() {
   }, [id, conv?.id, conv?.status, messages.length]);
 
 
-  const handleSchedule = async (scheduledAt: Date) => {
-    if (!messageInput.trim() && !selectedFile) {
+  const handleSchedule = async (scheduledAt: Date, customMessage?: string) => {
+    const finalMessage = customMessage || messageInput;
+    if (!finalMessage.trim() && !selectedFile) {
       toast.error("Adicione uma mensagem para agendar");
       return;
     }
@@ -507,11 +508,11 @@ export default function ChatPage() {
         .from('mensagens_agendadas')
         .insert({
           tenant_id: user?.tenantId,
-          cliente_id: conv?.customerId,
+          cliente_id: conv?.customerId || null, // Garantir que pode ser null
           conversa_id: conv?.id,
           receiver_number: conv?.clientPhone,
           message_type: type,
-          text_content: messageInput,
+          text_content: finalMessage,
           media_url: mediaUrl,
           mime_type: selectedFile?.type,
           file_name: selectedFile?.name,
@@ -527,8 +528,9 @@ export default function ChatPage() {
       setMessageInput("");
       setSelectedFile(null);
       setFilePreview(null);
-    } catch (err) {
-      toast.error("Erro ao agendar");
+    } catch (err: any) {
+      console.error("Erro ao agendar:", err);
+      toast.error(`Erro ao agendar: ${err.message || "Verifique os dados"}`);
     }
   };
 
@@ -933,11 +935,15 @@ export default function ChatPage() {
                   <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="text-muted-foreground hover:text-primary">
                     <Paperclip className="w-5 h-5" />
                   </Button>
-                  <ScheduleMessageDialog onSchedule={handleSchedule} trigger={
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-                      <Clock className="w-5 h-5" />
-                    </Button>
-                  } />
+                  <ScheduleMessageDialog 
+                    initialMessage={messageInput}
+                    onSchedule={handleSchedule} 
+                    trigger={
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                        <Clock className="w-5 h-5" />
+                      </Button>
+                    } 
+                  />
                   <Popover open={showQuickReplies} onOpenChange={setShowQuickReplies}>
                     <PopoverTrigger asChild>
                       <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">

@@ -9,26 +9,33 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface ScheduleMessageDialogProps {
-  onSchedule: (date: Date) => void;
+  onSchedule: (date: Date, customMessage?: string) => void;
   trigger?: React.ReactNode;
+  initialMessage?: string;
 }
 
-export function ScheduleMessageDialog({ onSchedule, trigger }: ScheduleMessageDialogProps) {
+export function ScheduleMessageDialog({ onSchedule, trigger, initialMessage = "" }: ScheduleMessageDialogProps) {
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState("12:00");
+  const [message, setMessage] = useState(initialMessage);
   const [open, setOpen] = useState(false);
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) setMessage(initialMessage);
+    setOpen(isOpen);
+  };
+
   const handleConfirm = () => {
-    if (!date) return;
+    if (!date || !message.trim()) return;
     const [hours, minutes] = time.split(':');
     const scheduledDate = new Date(date);
     scheduledDate.setHours(parseInt(hours), parseInt(minutes));
-    onSchedule(scheduledDate);
+    onSchedule(scheduledDate, message);
     setOpen(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {trigger || <Button variant="outline" size="sm">Agendar</Button>}
       </DialogTrigger>
@@ -37,6 +44,15 @@ export function ScheduleMessageDialog({ onSchedule, trigger }: ScheduleMessageDi
           <DialogTitle>Agendar Mensagem</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Mensagem</label>
+            <textarea 
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Digite a mensagem que deseja agendar..."
+              className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+            />
+          </div>
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">Data</label>
             <Popover>
@@ -67,7 +83,6 @@ export function ScheduleMessageDialog({ onSchedule, trigger }: ScheduleMessageDi
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">Horário</label>
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-muted-foreground" />
               <input 
                 type="time" 
                 value={time}
@@ -78,7 +93,7 @@ export function ScheduleMessageDialog({ onSchedule, trigger }: ScheduleMessageDi
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handleConfirm} disabled={!date} className="w-full">
+          <Button onClick={handleConfirm} disabled={!date || !message.trim()} className="w-full h-12 text-base">
             <Send className="w-4 h-4 mr-2" />
             Confirmar Agendamento
           </Button>
