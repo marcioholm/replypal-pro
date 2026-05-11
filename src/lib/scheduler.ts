@@ -44,11 +44,19 @@ export async function processScheduledMessages() {
         // Se for uma conversa ativa, adicionar a mensagem na tabela de mensagens também
         if (msg.conversa_id) {
           const extId = result.data?.key?.id;
+          
+          // Buscar nome do criador se não tiver no agendamento
+          let senderName = msg.sender_name || 'Agendador';
+          if (!msg.sender_name && msg.created_by) {
+            const { data: userData } = await supabase.from('usuarios').select('nome').eq('id', msg.created_by).maybeSingle();
+            if (userData) senderName = userData.nome;
+          }
+
           await supabase.from('mensagens').insert({
             conversation_id: msg.conversa_id,
             content: msg.text_content || `[Arquivo: ${msg.file_name}]`,
             sender: 'agent',
-            sender_name: msg.sender_name || 'Agendador',
+            sender_name: senderName,
             type: msg.message_type,
             media_url: msg.media_url,
             mime_type: msg.mime_type,

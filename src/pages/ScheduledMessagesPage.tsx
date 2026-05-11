@@ -23,7 +23,12 @@ export default function ScheduledMessagesPage() {
     try {
       const { data, error } = await supabase
         .from('mensagens_agendadas')
-        .select('*')
+        .select(`
+          *,
+          usuarios!created_by (
+            nome
+          )
+        `)
         .order('scheduled_at', { ascending: true });
       
       if (error) throw error;
@@ -44,7 +49,7 @@ export default function ScheduledMessagesPage() {
         createdBy: m.created_by,
         sentAt: m.sent_at ? new Date(m.sent_at) : undefined,
         errorMessage: m.error_message,
-        senderName: m.sender_name,
+        senderName: m.sender_name || m.usuarios?.nome,
         createdAt: new Date(m.created_at),
         updatedAt: new Date(m.updated_at)
       })));
