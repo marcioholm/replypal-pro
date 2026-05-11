@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export type NotificationTarget = "all" | "responsible" | "manager";
 
@@ -38,13 +41,14 @@ function setNotificationConfig(config: NotificationConfig) {
 interface NotificationContextType {
   config: NotificationConfig;
   updateConfig: (config: Partial<NotificationConfig>) => void;
-  notify: (title: string, body: string, type: "new" | "assigned") => void;
+  notify: (title: string, body: string, type: "new" | "assigned", conversationId?: string) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
 
 export function NotificationProvider({ children, currentUser, userRole }: { children: ReactNode; currentUser: { id: string; name: string; role: string }; userRole: "admin" | "supervisor" | "atendente" }) {
   const [config, setConfig] = useState<NotificationConfig>(getNotificationConfig);
+  const navigate = useNavigate();
 
   const updateConfig = useCallback((newConfig: Partial<NotificationConfig>) => {
     setConfig((prev) => {
@@ -54,7 +58,7 @@ export function NotificationProvider({ children, currentUser, userRole }: { chil
     });
   }, []);
 
-  const notify = useCallback((title: string, body: string, type: "new" | "assigned") => {
+  const notify = useCallback((title: string, body: string, type: "new" | "assigned", conversationId?: string) => {
     if (!config.enabled) return;
 
     if (type === "new" && !config.notifyNewConversations) return;
@@ -64,14 +68,35 @@ export function NotificationProvider({ children, currentUser, userRole }: { chil
       new Notification(title, { body, icon: "/favicon.ico" });
     }
 
-    toast(title, {
-      description: body,
+    toast.custom((t) => (
+      <div 
+        className={cn(
+          "flex items-center gap-3 p-4 bg-white dark:bg-[#021B1A] border-2 border-primary/20 rounded-2xl shadow-2xl animate-in slide-in-from-right-5 duration-300",
+          t.visible ? "opacity-100" : "opacity-0"
+        )}
+        onClick={() => {
+          if (conversationId) navigate(`/chat/${conversationId}`);
+          toast.dismiss(t.id);
+        }}
+      >
+        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xl shrink-0">
+          {type === "new" ? "📩" : "💬"}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-black text-foreground truncate">{title}</p>
+          <p className="text-xs text-muted-foreground line-clamp-2 leading-tight">{body}</p>
+        </div>
+        <Button 
+          size="sm" 
+          variant="ghost" 
+          className="h-8 px-2 text-[10px] font-black uppercase tracking-tighter text-primary hover:bg-primary/5"
+        >
+          Ver
+        </Button>
+      </div>
+    ), {
       duration: 6000,
-      icon: type === "new" ? "🆕" : "💬",
-      action: {
-        label: "Abrir Chat",
-        onClick: () => console.log("Abrir chat acionado"),
-      },
+      id: conversationId || title, // Agrupar por conversa para não inundar a tela
     });
   }, [config]);
 

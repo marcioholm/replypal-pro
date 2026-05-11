@@ -6,7 +6,7 @@ interface UseRealtimeOptions {
   tenantId?: string;
   userId?: string;
   enabled?: boolean;
-  notify?: (title: string, body: string, type: "new" | "assigned") => void;
+  notify?: (title: string, body: string, type: "new" | "assigned", conversationId?: string) => void;
 }
 
 export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: UseRealtimeOptions) {
@@ -42,7 +42,7 @@ export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: Us
             });
 
             if (notify) {
-              notify("Nova Conversa", `${newRecord.client_name} iniciou um chat`, "new");
+              notify("Nova Conversa", `${newRecord.client_name} iniciou um chat`, "new", newRecord.id);
             }
 
             storeRef.current.addDbConversation({
@@ -62,7 +62,7 @@ export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: Us
           } else if (eventType === "UPDATE" && newRecord) {
             // Se mudou para mim, notificar
             if (newRecord.assigned_to === userId && oldRecord?.assigned_to !== userId && notify) {
-              notify("Conversa Atribuída", `Você agora é o responsável por ${newRecord.client_name}`, "assigned");
+              notify("Conversa Atribuída", `Você agora é o responsável por ${newRecord.client_name}`, "assigned", newRecord.id);
             }
             storeRef.current.addDbConversation({
               id: newRecord.id,
@@ -110,7 +110,7 @@ export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: Us
 
             if (notify) {
               const body = newRecord.type === "text" ? newRecord.content : `Nova mídia: ${newRecord.type}`;
-              notify(newRecord.sender_name || "Cliente", body, "assigned");
+              notify(newRecord.sender_name || "Cliente", body, "assigned", newRecord.conversation_id);
             }
           }
 
