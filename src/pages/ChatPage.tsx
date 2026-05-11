@@ -518,8 +518,7 @@ export default function ChatPage() {
           file_name: selectedFile?.name,
           scheduled_at: scheduledAt.toISOString(),
           status: 'agendada',
-          created_by: user?.id,
-          sender_name: user?.name
+          created_by: user?.id
         });
 
       if (error) throw error;
