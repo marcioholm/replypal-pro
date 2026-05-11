@@ -332,7 +332,7 @@ export default function DashboardPage() {
                     <div key={anniv.id} className="flex items-center justify-between p-3 rounded-xl bg-background border border-border/40 hover:border-primary/30 transition-all group">
                        <div className="flex gap-3 items-center">
                           <div className="w-10 h-10 rounded-lg bg-primary/5 flex flex-col items-center justify-center border border-primary/10 group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0">
-                             <span className="text-[8px] font-bold uppercase leading-none">Abr</span>
+                             <span className="text-[8px] font-bold uppercase leading-none">{new Date().toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}</span>
                              <span className="text-sm font-black italic">{anniv.day}</span>
                           </div>
                           <div className="min-w-0">
@@ -357,7 +357,7 @@ export default function DashboardPage() {
                     <div key={anniv.id} className="flex items-center justify-between p-3 rounded-xl bg-background border border-border/40 hover:border-success/30 transition-all group">
                        <div className="flex gap-3 items-center">
                           <div className="w-10 h-10 rounded-lg bg-success/5 flex flex-col items-center justify-center border border-success/10 group-hover:bg-success group-hover:text-success-foreground transition-colors shrink-0">
-                             <span className="text-[8px] font-bold uppercase leading-none">Abr</span>
+                             <span className="text-[8px] font-bold uppercase leading-none">{new Date().toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}</span>
                              <span className="text-sm font-black italic">{anniv.day}</span>
                           </div>
                           <div className="min-w-0">

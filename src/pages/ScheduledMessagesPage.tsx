@@ -44,6 +44,7 @@ export default function ScheduledMessagesPage() {
         createdBy: m.created_by,
         sentAt: m.sent_at ? new Date(m.sent_at) : undefined,
         errorMessage: m.error_message,
+        senderName: m.sender_name,
         createdAt: new Date(m.created_at),
         updatedAt: new Date(m.updated_at)
       })));
@@ -109,7 +110,7 @@ export default function ScheduledMessagesPage() {
                 {msg.status.toUpperCase()}
               </Badge>
               <span className="text-[10px] text-muted-foreground">
-                Para: {msg.receiverNumber}
+                Para: {msg.receiverNumber} • Agendado por: {msg.senderName || 'Sistema'}
               </span>
             </div>
             

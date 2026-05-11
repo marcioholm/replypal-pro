@@ -209,6 +209,42 @@ export async function checkConnection() {
   }
 }
 
+export async function fetchQRCode() {
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = EVO_CONFIG.getInstance();
+  
+  if (!url || !key) return { success: false, error: "API não configurada" };
+  
+  try {
+    const res = await fetch(`${getApiUrl()}/instance/connect/${instance}`, {
+      headers: { "apikey": key }
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      return { success: true, code: data.base64 || data.code || data.qrcode?.base64 };
+    }
+    return { success: false, error: "Instância já conectada ou erro na API" };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+export async function logoutInstance() {
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = EVO_CONFIG.getInstance();
+  if (!url || !key) return;
+  try {
+    await fetch(`${getApiUrl()}/instance/logout/${instance}`, {
+      method: "DELETE",
+      headers: { "apikey": key }
+    });
+    localStorage.removeItem("wa_connection_cache");
+  } catch {}
+}
+
 // IMPLEMENTAÇÃO 10: sendTypingStatus
 export async function sendTypingStatus(phone: string, typing: boolean) {
   const url = EVO_CONFIG.getUrl();

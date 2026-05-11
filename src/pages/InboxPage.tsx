@@ -480,9 +480,18 @@ export default function InboxPage() {
                         {formatRelativeTime(conv.lastMessageTime)}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate line-clamp-1 italic">
-                      {conv.lastMessage || "Sem mensagens"}
-                    </p>
+                    {conv.isTyping ? (
+                      <p className="text-xs text-primary font-bold animate-pulse flex items-center gap-1">
+                        <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                        <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                        <span className="w-1 h-1 bg-primary rounded-full animate-bounce"></span>
+                        digitando...
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground truncate line-clamp-1 italic">
+                        {conv.lastMessage || "Sem mensagens"}
+                      </p>
+                    )}
                     
                     <div className="flex items-center gap-2 mt-2">
                       <span className={cn(

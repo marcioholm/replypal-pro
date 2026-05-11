@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw, Loader2 } from "lucide-react";
+import { NotificationProvider } from "@/hooks/useNotifications";
 
 // Importação direta das páginas principais para evitar problemas de lazy loading em produção
 import LoginPage from "@/pages/LoginPage";
@@ -145,7 +146,11 @@ function AppRoutes() {
 
   return (
     <AppErrorBoundary>
-      <Routes>
+      <NotificationProvider 
+        currentUser={{ id: user?.id || '', name: user?.name || '', role: user?.role || '' }} 
+        userRole={currentRole}
+      >
+        <Routes>
         <Route
           path="/login"
           element={
@@ -175,7 +180,8 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-      </Routes>
+        </Routes>
+      </NotificationProvider>
     </AppErrorBoundary>
   );
 }
@@ -185,7 +191,7 @@ const App = () => (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <TooltipProvider>
         <Toaster />
-        <Sonner />
+        <Sonner position="bottom-right" />
         <BrowserRouter>
           <AuthProvider>
             <AppRoutes />

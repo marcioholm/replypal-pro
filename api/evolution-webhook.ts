@@ -125,7 +125,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const evoUrl = (process.env.EVOLUTION_URL || "").replace(/\/$/, "");
     const evoKey = process.env.EVOLUTION_API_KEY || "";
 
-    if (event === 'messages.upsert') {
+    // Normalizar o evento para suportar diferentes versões da Evolution API
+    const normalizedEvent = event.toLowerCase().replace(/_/g, '.');
+
+    if (normalizedEvent === 'messages.upsert') {
       const msg = data.message || data;
       const key = msg.key || data.key;
       const messageContent = msg.message || data.message;
@@ -214,9 +217,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         tenant_id: tenantId
       }, { onConflict: 'external_message_id' });
 
-      await supabase.from('conversas').update({ last_message: content, last_message_time: new Date().toISOString() }).eq('id', conv?.id);
+      const updatePayload: any = { 
+        last_message: content, 
+        last_message_time: new Date().toISOString() 
+      };
+      
+      // Se a conversa estava encerrada (resolvido), ela volta para a fila como 'novo'
+      // e removemos o atendente anterior para que qualquer um possa assumir
+      if (conv?.status === 'resolvido') {
+        updatePayload.status = 'novo';
+        updatePayload.assigned_to = null;
+      }
 
-    } else if (event === 'messages.update') {
+      await supabase.from('conversas').update(updatePayload).eq('id', conv?.id);
+
+    } else if (normalizedEvent === 'messages.update') {
       const updates = Array.isArray(data) ? data : [data];
       for (const u of updates) {
         const k = u.key || u.update?.key;
@@ -227,7 +242,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (s === 'READ' || s === 4 || s === 'PLAYED' || s === 5) dbS = 'read';
         await supabase.from('mensagens').update({ status: dbS }).eq('external_message_id', k.id);
       }
-    } else if (event === 'contacts.upsert' || event === 'contacts.update') {
+    } else if (normalizedEvent === 'contacts.upsert' || normalizedEvent === 'contacts.update') {
       const contacts = Array.isArray(data) ? data : [data];
       for (const c of contacts) {
         const remoteJid = c.id || c.remoteJid;
@@ -245,6 +260,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (name) upd.client_name = name;
           await supabase.from('conversas').update(upd).eq('client_phone', phone);
         }
+      }
+    } else if (normalizedEvent === 'presence.update') {
+      const presences = data.presences || {};
+      for (const jid in presences) {
+        const presence = presences[jid];
+        const isTyping = presence.lastKnownPresence === 'composing';
+        const phone = jid.split('@')[0];
+        await supabase.from('conversas').update({ is_typing: isTyping }).eq('client_phone', phone);
       }
     }
     return res.status(200).json({ success: true });

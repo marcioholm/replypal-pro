@@ -100,7 +100,7 @@ export async function initializeDatabase() {
     // 2. Usuarios
     const { error: uError } = await supabase.from("usuarios").upsert([
       {
-        id: 'c1111111-1111-1111-1111-111111111111',
+        id: '11111111-1111-1111-1111-111111111111',
         email: 'carlos@sasaki.com',
         nome: 'Carlos Silva',
         role: 'admin',
@@ -112,7 +112,8 @@ export async function initializeDatabase() {
     ]);
     if (uError) console.error("Erro no upsert usuarios:", uError.message);
 
-    // 3. Clientes
+    // 3. Clientes (Removido para produção)
+    /*
     const { error: cError } = await supabase.from("clientes").upsert({
       id: '33333333-3333-3333-3333-333333333333',
       nome_fantasia: 'A A MAIA DA SILVA',
@@ -120,6 +121,7 @@ export async function initializeDatabase() {
       tenant_id: tenantId
     });
     if (cError) console.error("Erro no upsert clientes:", cError.message);
+    */
 
     return { success: true };
   } catch (err) {

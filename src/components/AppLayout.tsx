@@ -5,6 +5,7 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+import { NotificationManager } from "@/components/NotificationManager";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -19,6 +20,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   
   return (
     <div className="min-h-screen w-full">
+      <NotificationManager />
       <div className="relative">
         <AppSidebar 
           collapsed={sidebarCollapsed} 

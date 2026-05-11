@@ -43,13 +43,17 @@ export async function processScheduledMessages() {
           
         // Se for uma conversa ativa, adicionar a mensagem na tabela de mensagens também
         if (msg.conversa_id) {
+          const extId = result.data?.key?.id;
           await supabase.from('mensagens').insert({
             conversation_id: msg.conversa_id,
             content: msg.text_content || `[Arquivo: ${msg.file_name}]`,
             sender: 'agent',
+            sender_name: msg.sender_name || 'Agendador',
             type: msg.message_type,
             media_url: msg.media_url,
             mime_type: msg.mime_type,
+            external_message_id: extId,
+            status: 'sent',
             tenant_id: msg.tenant_id
           });
 

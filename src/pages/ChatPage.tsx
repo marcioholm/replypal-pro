@@ -272,13 +272,13 @@ export default function ChatPage() {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => setFilePreview(e.target?.result as string);
-        reader.readAsDataURL(file);
-      } else {
-        setFilePreview(null);
+      // Limpar preview anterior se existir
+      if (filePreview && filePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(filePreview);
       }
+      
+      const url = URL.createObjectURL(file);
+      setFilePreview(url);
     }
   };
 
@@ -517,7 +517,8 @@ export default function ChatPage() {
           file_name: selectedFile?.name,
           scheduled_at: scheduledAt.toISOString(),
           status: 'agendada',
-          created_by: user?.id
+          created_by: user?.id,
+          sender_name: user?.name
         });
 
       if (error) throw error;
@@ -773,8 +774,19 @@ export default function ChatPage() {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate">{conv.clientName}</p>
             <div className="flex items-center gap-2">
-              <StatusBadge status={conv.status} />
-              <SLABadge slaStatus={slaStatus} />
+              {conv.isTyping ? (
+                <span className="text-xs text-primary font-medium animate-pulse flex items-center gap-1">
+                  <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                  <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                  <span className="w-1 h-1 bg-primary rounded-full animate-bounce"></span>
+                  digitando...
+                </span>
+              ) : (
+                <>
+                  <StatusBadge status={conv.status} />
+                  <SLABadge slaStatus={slaStatus} />
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -861,11 +873,13 @@ export default function ChatPage() {
             <div className="flex flex-col gap-2">
               {(selectedFile || audioBlob) && (
                 <div className="flex items-center gap-3 p-2 bg-primary/5 border rounded-lg animate-in slide-in-from-bottom-2">
-                  {filePreview ? (
-                    <img src={filePreview} className="w-12 h-12 rounded object-cover" />
+                  {selectedFile?.type.startsWith('image/') ? (
+                    <img src={filePreview || ''} className="w-14 h-14 rounded-xl object-cover border border-primary/20 shadow-sm" />
                   ) : (
-                    <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center">
-                      {audioBlob ? (
+                    <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
+                      {selectedFile?.type.startsWith('video/') ? (
+                        <PlayCircle className="w-7 h-7 text-primary" />
+                      ) : audioBlob ? (
                         <Button 
                           variant="ghost" 
                           size="icon" 
@@ -890,7 +904,7 @@ export default function ChatPage() {
                           {isPreviewPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
                         </Button>
                       ) : (
-                        <FileText className="w-6 h-6 text-primary" />
+                        <FileText className="w-7 h-7 text-primary" />
                       )}
                     </div>
                   )}

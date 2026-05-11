@@ -19,6 +19,7 @@ import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { IAChatButton } from "./IAChat";
+import { NewChatDialog } from "./chat/NewChatDialog";
 import { supabase } from "@/lib/supabase";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -200,6 +201,10 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                   )}
                 </div>
               </div>
+            </div>
+
+            <div className="px-4 py-2">
+              <NewChatDialog collapsed={collapsed} />
             </div>
 
             <div className="flex-1 px-4 overflow-y-auto overflow-x-hidden scrollbar-thin">

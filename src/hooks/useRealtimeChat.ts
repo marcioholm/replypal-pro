@@ -48,6 +48,7 @@ export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtim
               startedAt: newRecord.started_at ? new Date(newRecord.started_at) : undefined,
               slaDeadline: newRecord.sla_deadline ? new Date(newRecord.sla_deadline) : undefined,
               tenantId: newRecord.tenant_id,
+              isTyping: newRecord.is_typing,
             });
           } else if (eventType === "UPDATE" && newRecord) {
             storeRef.current.addDbConversation({
@@ -62,6 +63,7 @@ export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtim
               startedAt: newRecord.started_at ? new Date(newRecord.started_at) : undefined,
               slaDeadline: newRecord.sla_deadline ? new Date(newRecord.sla_deadline) : undefined,
               tenantId: newRecord.tenant_id,
+              isTyping: newRecord.is_typing,
             });
           } else if (eventType === "DELETE" && oldRecord) {
             // Remover conversa

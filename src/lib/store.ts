@@ -89,6 +89,7 @@ export interface Conversation {
   tags: string[];
   clientAvatar?: string;
   isGroup?: boolean;
+  isTyping?: boolean;
 }
 
 export interface Message {
@@ -124,6 +125,7 @@ export interface ScheduledMessage {
   createdBy: string;
   sentAt?: Date;
   errorMessage?: string;
+  senderName?: string;
   createdAt: Date;
   updatedAt: Date;
 }

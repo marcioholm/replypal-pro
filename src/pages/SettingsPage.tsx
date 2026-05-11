@@ -13,6 +13,7 @@ import ReciboGenerator from "@/components/settings/ReciboGenerator";
 import { getNotificationConfig, setNotificationConfig } from "@/hooks/useNotifications";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
+import { fetchQRCode, logoutInstance } from "@/lib/evolution";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AlertsPage from "./AlertsPage";
@@ -332,17 +333,41 @@ const handleConnect = async () => {
     reader.readAsDataURL(file);
   };
 
-  const handleConnectEvolution = () => {
-    if (!evolutionUrl || !evolutionKey) {
-      toast.error("Preencha a URL e a API Key da Evolution.");
+  const handleConnectEvolution = async () => {
+    if (!evolutionUrl || !evolutionKey || !instanceName) {
+      toast.error("Preencha todos os campos da Evolution.");
       return;
     }
+    
+    setWaStatus("loading");
     setShowQr(true);
-    // Simulate QR generation
-    setTimeout(() => {
-      setQrConnected(true);
-      toast.success("WhatsApp conectado com sucesso!");
-    }, 4000);
+    setQrCodeImage(null);
+
+    const res = await fetchQRCode();
+    if (res.success && res.code) {
+      setWaStatus("qrcode");
+      // Se o código for base64 (começa com data:image)
+      if (res.code.startsWith('data:image')) {
+        setQrCodeImage(res.code);
+      } else {
+        // Se for string pura, gera o QR
+        setQrCodeImage(`https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(res.code)}`);
+      }
+      startPolling();
+    } else {
+      setWaStatus("idle");
+      toast.error(res.error || "Erro ao gerar QR Code. Verifique se a instância está aberta.");
+    }
+  };
+
+  const handleFullLogout = async () => {
+    if (!confirm("Tem certeza que deseja desconectar e sair do WhatsApp?")) return;
+    toast.info("Desconectando...");
+    await logoutInstance();
+    setWaStatus("idle");
+    setWaConnection(null);
+    setQrCodeImage(null);
+    toast.success("Desconectado com sucesso!");
   };
 
   const roleLabels: Record<UserRole, string> = {
@@ -786,78 +811,106 @@ const handleConnect = async () => {
                 </div>
               </div>
 
-              {/* Botão principal de conexão */}
+              {/* Estado: IDLE */}
               {waStatus === "idle" && (
-                <div className="flex flex-col items-center gap-3">
-                  <Button onClick={handleConnect} className="w-full sm:w-auto" size="lg">
-                    <Smartphone className="w-5 h-5 mr-2" />
-                    Conectar WhatsApp
-                  </Button>
-                  
-                  <Button variant="outline" onClick={() => {
-                      let panelUrl = evolutionUrl.trim();
-                      if (!panelUrl.startsWith("http")) panelUrl = "https://" + panelUrl;
-                      window.open(panelUrl + "/#/instance/" + instanceName + "/connect", "_blank");
-                    }}>
-                    <Smartphone className="w-4 h-4 mr-2" />
-                    Abrir QR Code
-                  </Button>
-                  
-                  {evolutionUrl && (
-                    <p className="text-[10px] text-muted-foreground">Clique em Conectar ou Abra QR Code</p>
-                  )}
+                <div className="flex flex-col items-center gap-4 py-8">
+                  <div className="p-12 rounded-full bg-primary/5 border border-primary/10 mb-2">
+                    <Smartphone className="w-12 h-12 text-primary opacity-50" />
+                  </div>
+                  <div className="text-center space-y-1 mb-4">
+                    <p className="text-sm font-bold">WhatsApp não conectado</p>
+                    <p className="text-xs text-muted-foreground">Gere um QR Code para vincular seu aparelho e começar a atender.</p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <Button onClick={handleConnectEvolution} className="h-12 px-8 rounded-2xl shadow-xl shadow-primary/20" size="lg">
+                      <QrCode className="w-5 h-5 mr-2" />
+                      Gerar QR Code
+                    </Button>
+                    
+                    <Button variant="outline" className="h-12 rounded-2xl" onClick={() => {
+                        let panelUrl = evolutionUrl.trim();
+                        if (!panelUrl) return toast.error("Configure a URL primeiro");
+                        if (!panelUrl.startsWith("http")) panelUrl = "https://" + panelUrl;
+                        window.open(panelUrl, "_blank");
+                      }}>
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Painel Evolution
+                    </Button>
+                  </div>
                 </div>
               )}
 
               {/* Estado: Loading */}
               {waStatus === "loading" && (
-                <div className="flex items-center justify-center gap-2 p-8 rounded-lg border bg-muted/30">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="text-sm">Criando instância...</span>
+                <div className="flex flex-col items-center justify-center gap-4 p-12 rounded-2xl border bg-muted/30">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <div className="text-center">
+                    <p className="text-sm font-bold">Solicitando QR Code...</p>
+                    <p className="text-xs text-muted-foreground">Isso pode levar alguns segundos.</p>
+                  </div>
                 </div>
               )}
 
               {/* Estado: QR Code */}
               {waStatus === "qrcode" && qrCodeImage && (
-                <div className="animate-fade-in flex flex-col items-center gap-4 p-6 rounded-lg border bg-muted/30">
-                  <img
-                    src={`data:image/png;base64,${qrCodeImage}`}
-                    alt="QR Code"
-                    className="w-48 h-48 object-contain bg-white p-2 rounded-lg"
-                  />
-                  <div className="text-center">
-                    <p className="text-xs font-medium">Escaneie o QR Code com o WhatsApp</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">Abra o WhatsApp &gt; Aparelhos conectados &gt; Conectar</p>
-                    <div className="flex items-center justify-center gap-2 mt-3">
-                      <div className={`w-2 h-2 rounded-full ${countdown > 0 ? "bg-warning animate-pulse" : "bg-destructive"}`} />
-                      <span className="text-[11px] text-muted-foreground">
-                        {countdown > 0 ? `Aguardando conexão... (${countdown}s)` : "QR Code expirado, tente novamente"}
+                <div className="animate-fade-in flex flex-col items-center gap-6 p-8 rounded-2xl border bg-muted/30">
+                  <div className="relative group">
+                    <img
+                      src={qrCodeImage}
+                      alt="QR Code"
+                      className="w-56 h-56 object-contain bg-white p-4 rounded-2xl shadow-xl border border-border/50"
+                    />
+                    <div className="absolute inset-0 bg-white/80 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all rounded-2xl backdrop-blur-sm">
+                       <Button variant="primary" size="sm" onClick={handleConnectEvolution} className="rounded-xl">
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Regerar QR
+                       </Button>
+                    </div>
+                  </div>
+                  <div className="text-center space-y-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-black uppercase tracking-widest">Escaneie o código</p>
+                      <p className="text-xs text-muted-foreground">Abra o WhatsApp {">"} Aparelhos conectados {">"} Conectar</p>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 p-2 bg-background/50 rounded-xl border border-border/50">
+                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        Aguardando leitura...
                       </span>
                     </div>
                   </div>
+                  <Button variant="ghost" size="sm" onClick={() => setWaStatus("idle")} className="text-muted-foreground">
+                    Cancelar
+                  </Button>
                 </div>
               )}
 
               {/* Estado: Connected */}
               {waStatus === "connected" && (
-                <div className="animate-fade-in flex flex-col items-center gap-4 p-6 rounded-lg border border-green-500/30 bg-green-500/5">
-                  <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                    <CheckCircle2 className="w-6 h-6 text-green-500" />
+                <div className="animate-fade-in flex flex-col items-center gap-6 p-8 rounded-2xl border border-success/30 bg-success/5">
+                  <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center border border-success/20">
+                    <CheckCircle2 className="w-8 h-8 text-success" />
                   </div>
-                  <div className="text-center space-y-1">
-                    <p className="text-sm font-medium text-green-500">WhatsApp conectado!</p>
-                    {waConnection?.phoneNumber && (
-                      <p className="text-xs text-muted-foreground">{waConnection.phoneNumber}</p>
-                    )}
-                    {waConnection?.pushName && (
-                      <p className="text-[11px] text-muted-foreground">{waConnection.pushName}</p>
-                    )}
-                    <p className="text-[11px] text-muted-foreground">Número vinculado e pronto para receber mensagens.</p>
+                  <div className="text-center space-y-2">
+                    <p className="text-lg font-black italic text-success uppercase tracking-tighter">Sistema Conectado</p>
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-xs font-bold px-3 py-1 bg-success/10 text-success rounded-full border border-success/20">
+                        {waConnection?.phoneNumber || "WhatsApp Ativo"}
+                      </span>
+                      {waConnection?.pushName && (
+                        <p className="text-[11px] font-medium text-muted-foreground">Instância: {waConnection.pushName}</p>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground max-w-[250px] mx-auto">
+                      Sua conta está vinculada e pronta para enviar e receber mensagens em tempo real.
+                    </p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={handleDisconnect}>
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Desconectar
-                  </Button>
+                  <div className="flex gap-3 pt-2">
+                    <Button variant="outline" size="sm" className="rounded-xl hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all" onClick={handleDisconnect}>
+                      <XCircle className="w-4 h-4 mr-2" />
+                      Desconectar
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
