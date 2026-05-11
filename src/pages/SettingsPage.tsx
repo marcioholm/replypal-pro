@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Users, User, Edit, QrCode, Upload, Trash2, Plus, Smartphone, Loader2, CheckCircle2, XCircle, FileText, Bell, BellOff, Users2, MessageCircle, Database, RefreshCw, AlertCircle, CheckCircle } from "lucide-react";
+import { Building2, Users, User, Edit, QrCode, Upload, Trash2, Plus, Smartphone, Loader2, CheckCircle2, XCircle, FileText, Bell, BellOff, Users2, MessageCircle, Database, RefreshCw, AlertCircle, CheckCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import ReciboGenerator from "@/components/settings/ReciboGenerator";
 import { getNotificationConfig, setNotificationConfig } from "@/hooks/useNotifications";
