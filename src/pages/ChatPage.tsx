@@ -520,6 +520,8 @@ export default function ChatPage() {
           status: 'agendada',
           created_by: user?.id
         });
+      
+      console.log("Agendamento enviado com sucesso - v2");
 
       if (error) throw error;
       
