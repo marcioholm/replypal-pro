@@ -14,70 +14,73 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
   try {
     let buffer: Buffer | null = null;
 
-    const findBase64 = (obj: any, isMedia: boolean): string | null => {
+    const findBase64 = (obj: any): string | null => {
       if (!obj || typeof obj !== 'object') return null;
-      if (obj.base64 && typeof obj.base64 === 'string') {
-        if (isMedia || obj.base64.length > 2000) return obj.base64;
+      if (obj.base64 && typeof obj.base64 === 'string' && obj.base64.length > 100) return obj.base64;
+      
+      const commonKeys = ['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage', 'documentMessage', 'message'];
+      for (const key of commonKeys) {
+        if (obj[key]) {
+          const res = findBase64(obj[key]);
+          if (res) return res;
+        }
       }
+      
       for (const key in obj) {
-        const result = findBase64(obj[key], isMedia);
-        if (result) return result;
+        if (typeof obj[key] === 'object') {
+          const result = findBase64(obj[key]);
+          if (result) return result;
+        }
       }
       return null;
     };
 
-    const isMedia = mimeType.includes('audio') || mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('msword') || mimeType.includes('sticker');
-    const b64 = findBase64(fullMessage, isMedia);
+    const b64 = findBase64(fullMessage);
     if (b64) {
       const clean = b64.includes('base64,') ? b64.split('base64,')[1] : b64;
       buffer = Buffer.from(clean, 'base64');
     }
 
     if (!buffer && evoUrl && evoKey) {
-      const instanceId = fullMessage?.instanceId || fullMessage?.data?.instanceId;
-      const ids = [instance, instanceId].filter(Boolean);
-      const v2Payload = fullMessage.data || fullMessage;
+      const instanceId = fullMessage?.instanceId || fullMessage?.data?.instanceId || instance;
+      const messageId = fullMessage?.key?.id || fullMessage?.data?.key?.id || fullMessage?.message?.key?.id;
       
-      const endpoints: string[] = [];
-      for (const id of ids) {
-        const encId = encodeURIComponent(id as string);
-        endpoints.push(`${evoUrl}/message/convert/toBase64/${encId}`);
-      }
-
-      for (const url of endpoints) {
+      if (messageId) {
         try {
-          const res = await fetch(url, {
+          const downloadUrl = `${evoUrl}/chat/getBase64FromMediaMessage/${instanceId}`;
+          const response = await fetch(downloadUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-            body: JSON.stringify(v2Payload)
+            body: JSON.stringify({ message: { key: { id: messageId } } })
           });
-          if (res.ok) {
-            const json = await res.json();
-            const dataB64 = json.base64 || json.data?.base64;
-            if (dataB64) {
-              buffer = Buffer.from(dataB64.includes('base64,') ? dataB64.split('base64,')[1] : dataB64, 'base64');
-              break;
+          if (response.ok) {
+            const json = await response.json() as any;
+            if (json?.base64) {
+              buffer = Buffer.from(json.base64.includes('base64,') ? json.base64.split('base64,')[1] : json.base64, 'base64');
             }
           }
-        } catch (e) {}
+        } catch (e) {
+          console.error("[Webhook] Erro no download fallback:", e);
+        }
       }
     }
 
     if (!buffer) return mediaPath.startsWith("http") ? mediaPath : `${evoUrl}/public/${mediaPath}`;
 
-    const safeName = (fileName || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
-    const tDir = tenantId || "incoming";
+    const tDir = tenantId || "shared";
+    const safeName = (fileName || "file").replace(/[^a-zA-Z0-9.-]/g, "_");
     const storagePath = `${tDir}/${Date.now()}_${safeName}`;
-    
+
     const { error } = await supabase.storage.from("chat-media").upload(storagePath, buffer, { 
       contentType: mimeType || "application/octet-stream", 
       upsert: true 
     });
 
     if (error) {
-      console.error("Storage Upload Error:", error);
-      return mediaPath;
+      console.error("[Webhook] Erro no upload Supabase:", error);
+      return mediaPath.startsWith("http") ? mediaPath : `${evoUrl}/public/${mediaPath}`;
     }
+
     const { data: { publicUrl } } = supabase.storage.from("chat-media").getPublicUrl(storagePath);
     return publicUrl;
   } catch (err) {

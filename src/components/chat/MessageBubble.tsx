@@ -29,6 +29,17 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
                     className="max-w-full h-auto object-contain max-h-[300px] transition-transform group-hover:scale-105" 
                     referrerPolicy="no-referrer"
                     loading="lazy"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent && !parent.querySelector('.img-error-btn')) {
+                        const btn = document.createElement('div');
+                        btn.className = 'img-error-btn p-4 flex flex-col items-center gap-2 bg-muted/20';
+                        btn.innerHTML = `<span class="text-xs opacity-60">Falha ao carregar</span><a href="${msg.mediaUrl}" target="_blank" class="text-[10px] bg-primary text-white px-2 py-1 rounded">Ver Link</a>`;
+                        parent.appendChild(btn);
+                      }
+                    }}
                   />
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                     <ImageIcon className="w-8 h-8 text-white drop-shadow-lg" />
@@ -88,11 +99,26 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
           </div>
         );
 
-      // IMPLEMENTAÇÃO 6: Sticker
       case 'sticker':
         return (
-          <div className="w-28 h-28">
-            <img src={msg.mediaUrl} alt="Sticker" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+          <div className="w-28 h-28 relative group">
+            <img 
+              src={msg.mediaUrl} 
+              alt="Sticker" 
+              className="w-full h-full object-contain" 
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                const target = e.currentTarget;
+                target.style.display = 'none';
+                const parent = target.parentElement;
+                if (parent && !parent.querySelector('.img-error-btn')) {
+                  const btn = document.createElement('div');
+                  btn.className = 'img-error-btn p-2 flex flex-col items-center gap-1 bg-muted/10 rounded border border-dashed';
+                  btn.innerHTML = `<span class="text-[10px] opacity-60">Erro</span><a href="${msg.mediaUrl}" target="_blank" class="text-[9px] text-primary underline">Link</a>`;
+                  parent.appendChild(btn);
+                }
+              }}
+            />
           </div>
         );
 
