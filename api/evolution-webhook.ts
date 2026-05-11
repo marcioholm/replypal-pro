@@ -6,10 +6,11 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL ||
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, mediaPath: string, fileName: string, mimeType: string, fullMessage: any, tenantId?: string): Promise<string> {
+async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, mediaPath: string, fileName: string, mimeType: string, fullMessage: any, tenantId?: string): Promise<{ url: string, error?: string }> {
   const evoUrl = (process.env.EVOLUTION_URL || process.env.VITE_EVOLUTION_URL || evolutionUrl || "").replace(/\/$/, "");
   const evoKey = process.env.EVOLUTION_API_KEY || process.env.VITE_EVOLUTION_API_KEY || apikey || "";
   const instance = fullMessage?.instance || process.env.INSTANCE_NAME || "SASAKI";
+  let diagError = "";
 
   try {
     let buffer: Buffer | null = null;
@@ -17,7 +18,6 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
     const findBase64 = (obj: any): string | null => {
       if (!obj || typeof obj !== 'object') return null;
       if (obj.base64 && typeof obj.base64 === 'string' && obj.base64.length > 100) return obj.base64;
-      
       const commonKeys = ['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage', 'documentMessage', 'message'];
       for (const key of commonKeys) {
         if (obj[key]) {
@@ -25,7 +25,6 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
           if (res) return res;
         }
       }
-      
       for (const key in obj) {
         if (typeof obj[key] === 'object') {
           const result = findBase64(obj[key]);
@@ -48,30 +47,25 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
           const contentType = response.headers.get('content-type');
           if (contentType && (contentType.includes('image') || contentType.includes('audio') || contentType.includes('video') || contentType.includes('application/pdf'))) {
             buffer = Buffer.from(await response.arrayBuffer());
-            console.log(`[Webhook] Mídia baixada diretamente do CDN WhatsApp (${buffer.length} bytes, type: ${contentType})`);
-          } else {
-            console.warn(`[Webhook] CDN WhatsApp retornou tipo inválido: ${contentType}`);
+            console.log(`[Webhook] Mídia baixada diretamente do CDN WhatsApp (${buffer.length} bytes)`);
           }
         }
       } catch (e) {
-        console.error("[Webhook] Erro no download direto do CDN:", e);
+        console.error("[Webhook] Erro no download direto:", e);
       }
     }
 
     if (!buffer && evoUrl && evoKey) {
       const instName = fullMessage?.instance || fullMessage?.data?.instance || instance;
       const msgId = fullMessage?.key?.id || fullMessage?.data?.key?.id || fullMessage?.message?.key?.id;
+      const instId = fullMessage?.instanceId || fullMessage?.data?.instanceId;
       
       if (msgId) {
-        // Tentar múltiplos endpoints da Evolution API
         const encName = encodeURIComponent(instName);
-        const instId = fullMessage?.instanceId || fullMessage?.data?.instanceId;
-        
         const downloadEndpoints = [
           `${evoUrl}/chat/getBase64FromMediaMessage/${encName}`,
           `${evoUrl}/message/convert/toBase64/${encName}`
         ];
-
         if (instId) {
           downloadEndpoints.push(`${evoUrl}/chat/getBase64FromMediaMessage/${instId}`);
           downloadEndpoints.push(`${evoUrl}/message/convert/toBase64/${instId}`);
@@ -79,7 +73,6 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
 
         for (const url of downloadEndpoints) {
           try {
-            console.log(`[Webhook] Tentando download via Evolution: ${url}`);
             const response = await fetch(url, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
@@ -91,47 +84,40 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
               const b64Data = json?.base64 || json?.data?.base64;
               if (b64Data) {
                 buffer = Buffer.from(b64Data.includes('base64,') ? b64Data.split('base64,')[1] : b64Data, 'base64');
-                console.log(`[Webhook] Sucesso no download via Evolution (${url})`);
                 break;
               }
             } else {
-              const errBody = await response.text();
-              console.warn(`[Webhook] Evolution API erro (${response.status}) em ${url}: ${errBody}`);
-              // Debug temporário no conteúdo da mensagem para ver o erro no chat
-              content = `Erro Evolution (${response.status}): ${errBody.substring(0, 50)}`;
+              const txt = await response.text();
+              diagError = `Evo ${response.status}: ${txt.substring(0, 30)}`;
             }
           } catch (e: any) {
-            console.error(`[Webhook] Falha na tentativa ${url}:`, e);
-            content = `Erro Conexão: ${e.message}`;
+            diagError = `Conn error: ${e.message}`;
           }
         }
       }
     }
 
     if (!buffer || buffer.length < 100) {
-      console.warn(`[Webhook] Falha total no download da mídia. Retornando link original.`);
-      return mediaPath.startsWith("http") ? mediaPath : `${evoUrl}/public/${mediaPath}`;
+      return { 
+        url: mediaPath.startsWith("http") ? mediaPath : `${evoUrl}/public/${mediaPath}`,
+        error: diagError || "Download failed"
+      };
     }
 
     const tDir = tenantId || "shared";
-    const safeName = (fileName || "file").replace(/[^a-zA-Z0-9.-]/g, "_");
-    const storagePath = `${tDir}/${Date.now()}_${safeName}`;
+    const storagePath = `${tDir}/${Date.now()}_${(fileName || "file").replace(/[^a-zA-Z0-9.-]/g, "_")}`;
 
     const { error } = await supabase.storage.from("chat-media").upload(storagePath, buffer, { 
       contentType: mimeType || "application/octet-stream", 
       upsert: true 
     });
 
-    if (error) {
-      console.error("[Webhook] Erro no upload Supabase:", error);
-      return mediaPath.startsWith("http") ? mediaPath : `${evoUrl}/public/${mediaPath}`;
-    }
+    if (error) return { url: mediaPath, error: `Upload err: ${error.message}` };
 
     const { data: { publicUrl } } = supabase.storage.from("chat-media").getPublicUrl(storagePath);
-    return publicUrl;
-  } catch (err) {
-    console.error("Media processing error:", err);
-    return mediaPath;
+    return { url: publicUrl };
+  } catch (err: any) {
+    return { url: mediaPath, error: `Critical: ${err.message}` };
   }
 }
 
@@ -216,26 +202,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } else if (messageContent.imageMessage) {
         type = 'image'; content = messageContent.imageMessage.caption || '';
         mimeType = messageContent.imageMessage.mimetype;
-        mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.imageMessage.url, 'image.jpg', mimeType, req.body, tenantId);
+        const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.imageMessage.url, 'image.jpg', mimeType, req.body, tenantId);
+        mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
       } else if (messageContent.videoMessage) {
         type = 'video'; content = messageContent.videoMessage.caption || '';
         mimeType = messageContent.videoMessage.mimetype;
-        mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.videoMessage.url, 'video.mp4', mimeType, req.body, tenantId);
+        const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.videoMessage.url, 'video.mp4', mimeType, req.body, tenantId);
+        mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
       } else if (messageContent.audioMessage) {
         type = 'audio'; content = '';
-        // Limpar o mimeType para garantir compatibilidade (remover codecs=opus etc)
         mimeType = 'audio/ogg'; 
-        mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.audioMessage.url, 'audio.ogg', mimeType, req.body, tenantId);
+        const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.audioMessage.url, 'audio.ogg', mimeType, req.body, tenantId);
+        mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
       } else if (messageContent.documentMessage || messageContent.documentWithCaptionMessage) {
         const doc = messageContent.documentMessage || messageContent.documentWithCaptionMessage?.message?.documentMessage;
         if (doc) {
           type = 'document'; fileName = doc.fileName || 'document';
           content = doc.caption || fileName; mimeType = doc.mimetype;
-          mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, doc.url, fileName, mimeType, req.body, tenantId);
+          const res = await downloadAndUploadMedia(evoUrl, evoKey, doc.url, fileName, mimeType, req.body, tenantId);
+          mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
         }
       } else if (messageContent.stickerMessage) {
         type = 'sticker'; content = '[Figurinha]'; mimeType = 'image/webp';
-        mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.stickerMessage.url, 'sticker.webp', mimeType, req.body, tenantId);
+        const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.stickerMessage.url, 'sticker.webp', mimeType, req.body, tenantId);
+        mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
       }
 
       await supabase.from('mensagens').upsert({
