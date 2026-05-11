@@ -907,12 +907,17 @@ const handleConnect = async () => {
                     <p className="text-xs text-muted-foreground">Gere um QR Code para vincular seu aparelho e começar a atender.</p>
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-3">
-                    <Button onClick={handleConnectEvolution} className="h-12 px-8 rounded-2xl shadow-xl shadow-primary/20" size="lg">
+                    <Button onClick={handleConnect} className="h-12 px-8 rounded-2xl bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20" size="lg">
+                      <CheckCircle2 className="w-5 h-5 mr-2" />
+                      Salvar Configurações
+                    </Button>
+
+                    <Button onClick={handleConnectEvolution} variant="outline" className="h-12 px-8 rounded-2xl border-primary/20 hover:bg-primary/5 text-primary" size="lg">
                       <QrCode className="w-5 h-5 mr-2" />
                       Gerar QR Code
                     </Button>
                     
-                    <Button variant="outline" className="h-12 rounded-2xl" onClick={() => {
+                    <Button variant="ghost" className="h-12 rounded-2xl text-muted-foreground" onClick={() => {
                         let panelUrl = evolutionUrl.trim();
                         if (!panelUrl) return toast.error("Configure a URL primeiro");
                         if (!panelUrl.startsWith("http")) panelUrl = "https://" + panelUrl;
