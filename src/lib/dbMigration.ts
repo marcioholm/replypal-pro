@@ -176,6 +176,28 @@ ALTER TABLE mensagens DISABLE ROW LEVEL SECURITY;
 ALTER TABLE mensagens_agendadas DISABLE ROW LEVEL SECURITY;
 ALTER TABLE automacoes_relatorios DISABLE ROW LEVEL SECURITY;
 ALTER TABLE company_settings DISABLE ROW LEVEL SECURITY;
+
+-- Garantir colunas em mensagens
+ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'text';
+ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS media_url TEXT;
+ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS mime_type TEXT;
+ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS file_name TEXT;
+ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS external_message_id TEXT;
+ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'sent';
+ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS tenant_id UUID;
+
+-- Garantir colunas em mensagens_agendadas
+ALTER TABLE mensagens_agendadas ADD COLUMN IF NOT EXISTS sender_name TEXT;
+ALTER TABLE mensagens_agendadas ADD COLUMN IF NOT EXISTS tenant_id UUID;
+ALTER TABLE mensagens_agendadas ADD COLUMN IF NOT EXISTS error_message TEXT;
+
+-- Garantir colunas em automacoes_relatorios
+ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS incluir_resumo_geral BOOLEAN DEFAULT true;
+ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS incluir_por_usuario BOOLEAN DEFAULT true;
+ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS incluir_pendentes BOOLEAN DEFAULT true;
+ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS incluir_tempo_resposta BOOLEAN DEFAULT true;
+ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS incluir_alertas BOOLEAN DEFAULT true;
+ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS mensagem_intro TEXT;
 `;
 
   try {
