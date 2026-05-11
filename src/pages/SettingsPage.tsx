@@ -186,13 +186,14 @@ export default function SettingsPage() {
 
 const handleConnect = async () => {
     let apiUrl = evolutionUrl.trim();
-    if (!apiUrl.startsWith("http")) {
-      apiUrl = "https://" + apiUrl;
-    }
+    if (!apiUrl.startsWith("http")) apiUrl = "https://" + apiUrl;
+    
+    const key = evolutionKey.trim();
+    const instance = instanceName.trim();
 
     localStorage.setItem("evolution_url", apiUrl);
-    localStorage.setItem("evolution_key", evolutionKey);
-    localStorage.setItem("evolution_instance", instanceName);
+    localStorage.setItem("evolution_key", key);
+    localStorage.setItem("evolution_instance", instance);
     localStorage.setItem("wa_connected", "true");
 
     // Salvar no banco para todos terem acesso
@@ -200,16 +201,16 @@ const handleConnect = async () => {
       await supabase.from("company_settings").upsert({
         tenant_id: user.tenantId,
         evolution_url: apiUrl,
-        evolution_api_key: evolutionKey,
-        instance_name: instanceName,
+        evolution_api_key: key,
+        instance_name: instance,
         updated_at: new Date().toISOString()
       }, { onConflict: 'tenant_id' });
       
       // Atualizar memória do robô localmente também
       updateEvolutionConfig({
         url: apiUrl,
-        key: evolutionKey,
-        instance: instanceName
+        key: key,
+        instance: instance
       });
     }
 
@@ -217,8 +218,8 @@ const handleConnect = async () => {
     toast.info("Verificando...");
 
     try {
-      const statusRes = await fetch(`${apiUrl}/instance/connectionState/${instanceName}`, {
-        headers: { "apikey": evolutionKey },
+      const statusRes = await fetch(`${apiUrl}/instance/connectionState/${instance}`, {
+        headers: { "apikey": key },
       });
       
       if (statusRes.ok) {
@@ -227,7 +228,7 @@ const handleConnect = async () => {
         if (statusData.state === "open") {
           setWaStatus("connected");
           setWaConnection({
-            instanceName,
+            instanceName: instance,
             phoneNumber: statusData.phoneNumber || "+55...",
             pushName: statusData.pushName,
           });
@@ -855,16 +856,6 @@ const handleConnect = async () => {
               <CardTitle className="text-sm font-medium">Conexão WhatsApp (Evolution API)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="instance-name" className="text-xs">Nome da Instância</Label>
-                <Input
-                  id="instance-name"
-                  placeholder="replypal"
-                  value={instanceName}
-                  onChange={(e) => setInstanceName(e.target.value)}
-                />
-              </div>
-
               <div className="grid sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5 sm:col-span-1">
                   <Label htmlFor="instance-name" className="text-xs">Nome da Instância</Label>

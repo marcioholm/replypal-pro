@@ -15,7 +15,7 @@ export function updateEvolutionConfig(config: { url?: string; key?: string; inst
 const EVO_CONFIG = {
   getUrl: () => DYNAMIC_CONFIG.url || localStorage.getItem("evolution_url") || import.meta.env.VITE_EVOLUTION_URL || "",
   getKey: () => DYNAMIC_CONFIG.key || localStorage.getItem("evolution_key") || import.meta.env.VITE_EVOLUTION_API_KEY || "",
-  getInstance: () => DYNAMIC_CONFIG.instance || localStorage.getItem("evolution_instance") || import.meta.env.VITE_INSTANCE_NAME || "SASAKI",
+  getInstance: () => (DYNAMIC_CONFIG.instance || localStorage.getItem("evolution_instance") || import.meta.env.VITE_INSTANCE_NAME || "SASAKI").trim(),
 };
 
 
@@ -110,12 +110,15 @@ export async function sendWhatsAppMessage(phone: string, message: string, agentN
       }),
     });
     
-    if (res.ok) {
-      const data = await res.json();
-      return { success: true, data };
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      return { 
+        success: false, 
+        error: errorData.message || `Erro ${res.status}: Verifique se a instância '${instance}' existe e se a chave está correta.` 
+      };
     }
-    const errorData = await res.json().catch(() => ({}));
-    return { success: false, error: errorData.message || "Erro ao enviar" };
+    const data = await res.json();
+    return { success: true, data };
   } catch (err) {
     return { success: false, error: String(err) };
   }
