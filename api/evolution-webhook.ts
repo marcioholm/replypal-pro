@@ -77,11 +77,16 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
       }
     }
 
-    if (!buffer) return mediaPath.startsWith("http") ? mediaPath : `${evoUrl}/public/${mediaPath}`;
+    if (!buffer || buffer.length < 100) {
+      console.warn(`[Webhook] Buffer inválido ou muito pequeno (${buffer?.length || 0} bytes). Cancelando upload.`);
+      return mediaPath.startsWith("http") ? mediaPath : `${evoUrl}/public/${mediaPath}`;
+    }
 
     const tDir = tenantId || "shared";
     const safeName = (fileName || "file").replace(/[^a-zA-Z0-9.-]/g, "_");
     const storagePath = `${tDir}/${Date.now()}_${safeName}`;
+
+    console.log(`[Webhook] Fazendo upload para: chat-media/${storagePath} (${buffer.length} bytes)`);
 
     const { error } = await supabase.storage.from("chat-media").upload(storagePath, buffer, { 
       contentType: mimeType || "application/octet-stream", 
