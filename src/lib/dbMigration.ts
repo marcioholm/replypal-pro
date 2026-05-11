@@ -218,6 +218,22 @@ ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS incluir_pendentes BOO
 ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS incluir_tempo_resposta BOOLEAN DEFAULT true;
 ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS incluir_alertas BOOLEAN DEFAULT true;
 ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS mensagem_intro TEXT;
+
+-- Garantir UNIQUE constraint em automacoes_relatorios para permitir UPSERT
+DO $$ 
+BEGIN 
+    -- Remover duplicatas antes de criar a constraint (manter apenas o mais recente)
+    DELETE FROM automacoes_relatorios a
+    WHERE a.id > (
+        SELECT MIN(b.id) 
+        FROM automacoes_relatorios b 
+        WHERE a.tenant_id = b.tenant_id AND a.tipo = b.tipo
+    );
+
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'automacoes_relatorios_tenant_id_tipo_key') THEN 
+        ALTER TABLE automacoes_relatorios ADD CONSTRAINT automacoes_relatorios_tenant_id_tipo_key UNIQUE (tenant_id, tipo); 
+    END IF; 
+END $$;
 `;
 
   try {
