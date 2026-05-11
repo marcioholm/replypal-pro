@@ -88,10 +88,14 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
                 break;
               }
             } else {
-              console.warn(`[Webhook] Evolution API erro (${response.status}) em ${url}`);
+              const errBody = await response.text();
+              console.warn(`[Webhook] Evolution API erro (${response.status}) em ${url}: ${errBody}`);
+              // Debug temporário no conteúdo da mensagem para ver o erro no chat
+              content = `Erro Evolution (${response.status}): ${errBody.substring(0, 50)}`;
             }
-          } catch (e) {
+          } catch (e: any) {
             console.error(`[Webhook] Falha na tentativa ${url}:`, e);
+            content = `Erro Conexão: ${e.message}`;
           }
         }
       }
