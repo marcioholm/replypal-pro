@@ -41,12 +41,12 @@ function setNotificationConfig(config: NotificationConfig) {
 interface NotificationContextType {
   config: NotificationConfig;
   updateConfig: (config: Partial<NotificationConfig>) => void;
-  notify: (title: string, body: string, type: "new" | "assigned", conversationId?: string) => void;
+  notify: (title: string, body: string, type: "new" | "assigned", conversationId?: string, assignedTo?: string) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
 
-export function NotificationProvider({ children, currentUser, userRole }: { children: ReactNode; currentUser: { id: string; name: string; role: string }; userRole: "admin" | "supervisor" | "atendente" }) {
+export function NotificationProvider({ children, currentUser, userRole }: { children: ReactNode; currentUser: { id: string; name: string; role: string }; userRole: string }) {
   const [config, setConfig] = useState<NotificationConfig>(getNotificationConfig);
   const navigate = useNavigate();
 
@@ -58,8 +58,18 @@ export function NotificationProvider({ children, currentUser, userRole }: { chil
     });
   }, []);
 
-  const notify = useCallback((title: string, body: string, type: "new" | "assigned", conversationId?: string) => {
+  const notify = useCallback((title: string, body: string, type: "new" | "assigned", conversationId?: string, assignedTo?: string) => {
     if (!config.enabled) return;
+
+    // Lógica de Cargo:
+    // 1. Admin e Recepcionista veem TUDO por padrão
+    // 2. Outros cargos só veem se for "novo" ou se estiverem atribuídos a eles
+    const isManagerOrReceptionist = ["admin", "recepcionista"].includes(userRole);
+    const isMine = assignedTo === currentUser.id;
+
+    if (!isManagerOrReceptionist && !isMine && type !== "new") {
+      return; // Ignora se não for pra mim e eu não for admin/recepção
+    }
 
     if (type === "new" && !config.notifyNewConversations) return;
     if (type === "assigned" && !config.notifyAssignedMessages) return;
