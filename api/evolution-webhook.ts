@@ -117,7 +117,16 @@ function toNum(val: any) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method === 'GET') return res.status(200).json({ status: 'online' });
+  if (req.method === 'GET') {
+    return res.status(200).json({ 
+      status: 'online',
+      diagnostico: {
+        url_configurada: !!process.env.EVOLUTION_URL,
+        key_configurada: !!process.env.EVOLUTION_API_KEY,
+        url_inicial: (process.env.EVOLUTION_URL || "").substring(0, 20) + "..."
+      }
+    });
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
   const { event, data, instance: instPayload } = req.body || {};
