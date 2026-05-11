@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,28 +6,27 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+} from "@/components/ui/table";
+import { 
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger 
+} from "@/components/ui/tooltip";
 import { initializeDatabase } from '@/lib/dbSetup';
 import { 
-  FileText, 
-  Plus, 
-  Trash2, 
-  Send, 
-  CheckCircle2, 
-  Clock, 
-  Settings2, 
-  Users, 
-  AlertCircle,
-  MessageSquare,
-  Globe,
-  Loader2,
-  ChevronLeft,
-  Database
+  FileText, Plus, Trash2, Send, CheckCircle2, Clock, 
+  Settings2, Users, AlertCircle, MessageSquare, Globe, 
+  Loader2, ChevronLeft, Database, Search, Filter, 
+  BarChart3, Activity, XCircle, AlertTriangle, ArrowRight
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface DestinationNumber {
   nome: string;
@@ -35,7 +34,17 @@ interface DestinationNumber {
   ativo: boolean;
 }
 
-const N8N_RELATORIO_TESTE_WEBHOOK_URL = ""; // Preencher futuramente
+interface ReportLog {
+  id: string;
+  numero_destino: string;
+  nome_destinatario: string;
+  status: 'enviado' | 'erro' | 'pendente';
+  enviado_em: string;
+  erro?: string;
+  tipo: string;
+}
+
+const N8N_RELATORIO_TESTE_WEBHOOK_URL = ""; // Preencher com URL real
 
 export default function DailyReportPage() {
   const { user } = useAuth();
@@ -44,12 +53,13 @@ export default function DailyReportPage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
+  // Estados de Configuração
   const [id, setId] = useState<string | null>(null);
   const [nome, setNome] = useState("Relatório Diário de Atendimento");
   const [ativo, setAtivo] = useState(true);
   const [horario, setHorario] = useState("08:00");
   const [timezone] = useState("America/Sao_Paulo");
-  const [mensagemIntro, setMensagemIntro] = useState("Olá, aqui está o resumo diário de atendimentos da sua empresa.");
+  const [mensagemIntro, setMensagemIntro] = useState("📊 Relatório diário de atendimento");
   
   const [incluirResumoGeral, setIncluirResumoGeral] = useState(true);
   const [incluirPorUsuario, setIncluirPorUsuario] = useState(true);
@@ -58,16 +68,21 @@ export default function DailyReportPage() {
   const [incluirAlertas, setIncluirAlertas] = useState(true);
   
   const [numerosDestino, setNumerosDestino] = useState<DestinationNumber[]>([
-    { nome: "", numero: "", ativo: true }
+    { nome: "Gestão", numero: "", ativo: true }
   ]);
+
+  // Estados de Histórico
+  const [logs, setLogs] = useState<ReportLog[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("todos");
 
   useEffect(() => {
     fetchConfig();
+    fetchLogs();
   }, [user]);
 
   const fetchConfig = async () => {
     if (!user?.tenantId) return;
-
     try {
       const { data, error } = await supabase
         .from("automacoes_relatorios")
@@ -77,75 +92,78 @@ export default function DailyReportPage() {
         .maybeSingle();
 
       if (error) throw error;
-
       if (data) {
         setId(data.id);
         setNome(data.nome);
         setAtivo(data.ativo);
-        setHorario(data.horario.substring(0, 5)); // HH:mm
+        setHorario(data.horario.substring(0, 5));
         setMensagemIntro(data.mensagem_intro || "");
         setIncluirResumoGeral(data.incluir_resumo_geral);
         setIncluirPorUsuario(data.incluir_por_usuario);
         setIncluirPendentes(data.incluir_pendentes);
         setIncluirTempoResposta(data.incluir_tempo_resposta);
         setIncluirAlertas(data.incluir_alertas);
-        
         if (data.numeros_destino && Array.isArray(data.numeros_destino)) {
           setNumerosDestino(data.numeros_destino);
         }
       }
     } catch (err) {
-      console.error("Erro ao buscar config:", err);
-      toast.error("Não foi possível carregar as configurações.");
+      console.error("Erro config:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const sanitizeNumber = (num: string) => {
-    const cleaned = num.replace(/\D/g, "");
-    if (!cleaned.startsWith("55") && cleaned.length >= 10) {
-      return "55" + cleaned;
+  const fetchLogs = async () => {
+    if (!user?.tenantId) return;
+    try {
+      const { data, error } = await supabase
+        .from("relatorios_envios_logs")
+        .select("*")
+        .eq("tenant_id", user.tenantId)
+        .order("enviado_em", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      setLogs(data || []);
+    } catch (err) {
+      console.error("Erro logs:", err);
     }
-    return cleaned;
   };
 
-  const handleAddNumber = () => {
-    setNumerosDestino([...numerosDestino, { nome: "", numero: "", ativo: true }]);
-  };
+  // Métricas Calculadas
+  const metrics = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const todayLogs = logs.filter(l => l.enviado_em.startsWith(today));
+    const sentToday = todayLogs.filter(l => l.status === 'enviado').length;
+    const errorsToday = todayLogs.filter(l => l.status === 'erro').length;
+    const successRate = todayLogs.length > 0 
+      ? Math.round((sentToday / todayLogs.length) * 100) 
+      : 100;
+    const lastSend = logs.length > 0 ? logs[0].enviado_em : null;
 
-  const handleRemoveNumber = (index: number) => {
-    if (numerosDestino.length === 1) {
-      toast.warning("É necessário pelo menos um número configurado.");
-      return;
-    }
-    const newNumbers = [...numerosDestino];
-    newNumbers.splice(index, 1);
-    setNumerosDestino(newNumbers);
-  };
+    return { sentToday, errorsToday, successRate, lastSend };
+  }, [logs]);
 
-  const handleUpdateNumber = (index: number, field: keyof DestinationNumber, value: any) => {
-    const newNumbers = [...numerosDestino];
-    newNumbers[index] = { ...newNumbers[index], [field]: value };
-    setNumerosDestino(newNumbers);
-  };
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      const matchesSearch = 
+        log.nome_destinatario?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.numero_destino.includes(searchTerm);
+      const matchesStatus = statusFilter === "todos" || log.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [logs, searchTerm, statusFilter]);
 
   const handleSave = async () => {
     if (!user?.tenantId) return;
-
-    const activeNumbers = numerosDestino.filter(n => n.ativo && n.numero.length >= 8);
+    const activeNumbers = numerosDestino.filter(n => n.ativo && n.numero.replace(/\D/g, "").length >= 8);
     if (ativo && activeNumbers.length === 0) {
-      toast.error("Para ativar o relatório, adicione pelo menos um número ativo.");
+      toast.error("Adicione pelo menos um número válido e ativo.");
       return;
     }
 
     setSaving(true);
     try {
-      const sanitizedNumbers = numerosDestino.map(n => ({
-        ...n,
-        numero: sanitizeNumber(n.numero)
-      }));
-
       const payload = {
         tenant_id: user.tenantId,
         tipo: "resumo_diario_atendimento",
@@ -159,7 +177,7 @@ export default function DailyReportPage() {
         incluir_pendentes: incluirPendentes,
         incluir_tempo_resposta: incluirTempoResposta,
         incluir_alertas: incluirAlertas,
-        numeros_destino: sanitizedNumbers,
+        numeros_destino: numerosDestino.map(n => ({ ...n, numero: n.numero.replace(/\D/g, "") })),
         updated_at: new Date().toISOString()
       };
 
@@ -168,354 +186,331 @@ export default function DailyReportPage() {
         .upsert(payload, { onConflict: 'tenant_id,tipo' });
 
       if (error) throw error;
-
-      toast.success("Configurações salvas com sucesso!");
+      toast.success("Configurações salvas!");
       fetchConfig();
     } catch (err: any) {
-      console.error("Erro ao salvar:", err);
-      toast.error("Erro ao salvar configurações", {
-        description: err.message || "Verifique sua conexão ou permissões."
-      });
+      toast.error("Erro ao salvar", { description: err.message });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleRepairDB = async () => {
-    setLoading(true);
-    try {
-      const result = await initializeDatabase();
-      if (result.success) {
-        toast.success("Banco de dados reparado com sucesso!", {
-          description: "As colunas e tabelas foram sincronizadas."
-        });
-        fetchConfig();
-      } else {
-        throw result.error;
-      }
-    } catch (err: any) {
-      console.error("Erro ao reparar banco:", err);
-      toast.error("Erro ao reparar banco de dados", {
-        description: err.message || "A função 'exec_sql' pode estar ausente no seu Supabase."
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleTest = async () => {
     if (!N8N_RELATORIO_TESTE_WEBHOOK_URL) {
-      toast.info("Webhook de teste não configurado ainda.", {
-        description: "Aguardando URL do fluxo no N8N."
-      });
+      toast.info("Webhook de teste não configurado.");
       return;
     }
-
     setTesting(true);
     try {
-      const response = await fetch(N8N_RELATORIO_TESTE_WEBHOOK_URL, {
+      const res = await fetch(N8N_RELATORIO_TESTE_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tenant_id: user?.tenantId,
-          tipo: "resumo_diario_atendimento",
-          modo: "teste"
-        })
+        body: JSON.stringify({ tenant_id: user?.tenantId, modo: "teste" })
       });
-
-      if (response.ok) {
-        toast.success("Teste enviado com sucesso!");
-      } else {
-        throw new Error("Erro na resposta do webhook");
-      }
-    } catch (err) {
-      console.error("Erro ao testar:", err);
-      toast.error("Erro ao enviar teste.");
+      if (res.ok) toast.success("Teste disparado!");
+      else throw new Error();
+    } catch {
+      toast.error("Falha ao disparar teste.");
     } finally {
       setTesting(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
-    <div className="container max-w-6xl py-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-muted-foreground mb-2">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/settings")} className="p-0 h-auto hover:bg-transparent text-xs font-bold uppercase tracking-widest gap-1">
-              <ChevronLeft className="w-3 h-3" />
-              Configurações
-            </Button>
-            <span className="text-[10px] opacity-30">/</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest">Relatórios</span>
+    <div className="container max-w-7xl py-8 space-y-10 animate-in fade-in duration-700">
+      {/* Header Premium */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-muted-foreground/60 text-[10px] font-bold uppercase tracking-[0.2em]">
+            <Settings2 className="w-3 h-3" />
+            Configurações
+            <ArrowRight className="w-2 h-2" />
+            Relatórios
           </div>
-          <h1 className="text-3xl font-black tracking-tighter italic uppercase text-foreground">
-            Relatório Diário <span className="text-primary text-2xl not-italic">●</span>
+          <h1 className="text-4xl font-black tracking-tight italic uppercase">
+            Daily <span className="text-primary not-italic">Report</span>
           </h1>
-          <p className="text-muted-foreground text-sm max-w-2xl">
-            Configure o envio automático do resumo de atendimentos via WhatsApp para a sua equipe de gestão.
+          <p className="text-muted-foreground text-sm max-w-xl">
+            Painel executivo para gestão de disparos automáticos de métricas via WhatsApp.
           </p>
         </div>
         
         <div className="flex gap-3">
           <Button 
             variant="outline" 
-            onClick={handleRepairDB} 
-            className="rounded-xl border-amber-500/20 text-amber-600 hover:bg-amber-500/5 font-bold uppercase tracking-widest text-[10px]"
-          >
-            <Database className="w-3 h-3 mr-2" />
-            Reparar Banco
-          </Button>
-          <Button 
-            variant="outline" 
             onClick={handleTest} 
             disabled={testing || !id}
-            className="rounded-xl border-primary/20 hover:bg-primary/5 text-primary transition-all font-bold uppercase tracking-widest text-[10px]"
+            className="rounded-xl border-border/40 hover:bg-primary/5 text-xs font-bold uppercase tracking-wider h-11 px-6 transition-all active:scale-95"
           >
             {testing ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : <Send className="w-3 h-3 mr-2" />}
-            Enviar teste agora
+            Disparar Teste
           </Button>
           <Button 
             onClick={handleSave} 
             disabled={saving}
-            className="rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all font-bold uppercase tracking-widest text-[10px] px-6"
+            className="rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl shadow-primary/20 text-xs font-bold uppercase tracking-wider h-11 px-8 transition-all active:scale-95"
           >
             {saving ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : <CheckCircle2 className="w-3 h-3 mr-2" />}
-            Salvar Configuração
+            Salvar Alterações
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Lado Esquerdo: Status e Conteúdo */}
-        <div className="lg:col-span-4 space-y-8">
-          {/* Card 1: Status */}
-          <Card className="rounded-[22px] border-border/50 shadow-sm overflow-hidden bg-card/50 backdrop-blur-sm transition-all hover:border-primary/20">
-            <CardHeader className="border-b border-border/40 bg-muted/30">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
-                  <Clock className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-sm font-bold uppercase tracking-tight">Status do Relatório</CardTitle>
-                  <CardDescription className="text-[10px]">Agendamento e fuso horário</CardDescription>
-                </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {[
+          { label: "Enviados Hoje", value: metrics.sentToday, icon: CheckCircle2, color: "text-green-500" },
+          { label: "Falhas Hoje", value: metrics.errorsToday, icon: XCircle, color: "text-red-500" },
+          { label: "Taxa de Sucesso", value: `${metrics.successRate}%`, icon: Activity, color: "text-blue-500" },
+          { label: "Último Envio", value: metrics.lastSend ? format(new Date(metrics.lastSend), "HH:mm", { locale: ptBR }) : "--:--", icon: Clock, color: "text-primary" },
+        ].map((kpi, i) => (
+          <Card key={i} className="rounded-2xl border-border/40 bg-card/30 backdrop-blur-md shadow-sm">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className={cn("w-10 h-10 rounded-xl bg-background border border-border/40 flex items-center justify-center", kpi.color)}>
+                <kpi.icon className="w-5 h-5" />
               </div>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="flex items-center justify-between p-4 rounded-xl border border-border/40 bg-background/50 transition-all hover:bg-background">
-                <div className="space-y-0.5">
-                  <Label className="text-xs font-bold">Relatório Ativado</Label>
-                  <p className="text-[10px] text-muted-foreground">Envio automático habilitado</p>
-                </div>
-                <Switch 
-                  checked={ativo} 
-                  onCheckedChange={setAtivo}
-                  className="data-[state=checked]:bg-primary"
-                />
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Horário de Envio</Label>
-                  <div className="relative group">
-                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                    <Input 
-                      type="time" 
-                      value={horario} 
-                      onChange={(e) => setHorario(e.target.value)}
-                      className="pl-10 h-11 rounded-xl bg-background border-border/40 focus:ring-primary/20"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Fuso Horário</Label>
-                  <div className="relative">
-                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input 
-                      value="America/Sao_Paulo (Brasil)" 
-                      disabled 
-                      className="pl-10 h-11 rounded-xl bg-muted/50 border-border/20 italic text-xs"
-                    />
-                  </div>
-                </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{kpi.label}</p>
+                <p className="text-xl font-black tabular-nums">{kpi.value}</p>
               </div>
             </CardContent>
           </Card>
+        ))}
+      </div>
 
-          {/* Card 2: Conteúdo */}
-          <Card className="rounded-[22px] border-border/50 shadow-sm overflow-hidden bg-card/50 backdrop-blur-sm transition-all hover:border-primary/20">
-            <CardHeader className="border-b border-border/40 bg-muted/30">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
-                  <FileText className="w-4 h-4 text-primary" />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Lado Esquerdo: Configurações Core */}
+        <div className="lg:col-span-5 space-y-8">
+          {/* Card 1: Status e Agendamento */}
+          <Card className="rounded-[28px] border-border/40 shadow-xl shadow-black/5 overflow-hidden bg-card/40 backdrop-blur-xl">
+            <div className="p-8 space-y-8">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-bold tracking-tight italic uppercase">Status do Serviço</h3>
+                  <p className="text-xs text-muted-foreground">Controle a ativação e o horário de disparo.</p>
                 </div>
-                <div>
-                  <CardTitle className="text-sm font-bold uppercase tracking-tight">Conteúdo</CardTitle>
-                  <CardDescription className="text-[10px]">O que será incluído no PDF/Mensagem</CardDescription>
+                <div className={cn(
+                  "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5",
+                  ativo ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+                )}>
+                  <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", ativo ? "bg-green-500" : "bg-red-500")} />
+                  {ativo ? "Ativo" : "Inativo"}
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              {[
-                { id: "geral", label: "Resumo Geral", desc: "Total de atendimentos, novos e resolvidos", state: incluirResumoGeral, setState: setIncluirResumoGeral },
-                { id: "usuario", label: "Desempenho por Usuário", desc: "Métricas individuais de cada atendente", state: incluirPorUsuario, setState: setIncluirPorUsuario },
-                { id: "pendentes", label: "Pendências Atuais", desc: "Listagem de conversas aguardando resposta", state: incluirPendentes, setState: setIncluirPendentes },
-                { id: "tempo", label: "Tempo Médio de Resposta", desc: "Performance de agilidade da equipe", state: incluirTempoResposta, setState: setIncluirTempoResposta },
-                { id: "alertas", label: "Alertas Inteligentes", desc: "Incidentes e SLAs estourados no dia", state: incluirAlertas, setState: setIncluirAlertas },
-              ].map((item) => (
-                <div key={item.id} className="flex items-start gap-3 p-3 rounded-xl border border-transparent hover:border-border/40 hover:bg-background/50 transition-all group">
-                  <Checkbox 
-                    id={item.id} 
-                    checked={item.state} 
-                    onCheckedChange={(checked) => item.setState(checked as boolean)}
-                    className="mt-0.5 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+
+              <div className="flex items-center justify-between p-5 rounded-2xl bg-background/50 border border-border/40">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-bold">Relatório Automático</Label>
+                  <p className="text-[10px] text-muted-foreground">Habilita o envio recorrente</p>
+                </div>
+                <Switch checked={ativo} onCheckedChange={setAtivo} className="data-[state=checked]:bg-primary" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground/70">Horário Local</Label>
+                  <Input 
+                    type="time" 
+                    value={horario} 
+                    onChange={(e) => setHorario(e.target.value)}
+                    className="h-12 rounded-xl bg-background/50 border-border/40 font-bold text-center"
                   />
-                  <div className="grid gap-1.5 leading-none">
-                    <label
-                      htmlFor={item.id}
-                      className="text-xs font-bold leading-none cursor-pointer group-hover:text-primary transition-colors"
-                    >
-                      {item.label}
-                    </label>
-                    <p className="text-[10px] text-muted-foreground">
-                      {item.desc}
-                    </p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground/70">Timezone</Label>
+                  <div className="h-12 flex items-center px-4 rounded-xl bg-muted/30 border border-border/40 text-[10px] font-bold italic">
+                    America/Sao_Paulo
                   </div>
                 </div>
-              ))}
-            </CardContent>
+              </div>
+            </div>
+          </Card>
+
+          {/* Card 2: Conteúdo do Relatório */}
+          <Card className="rounded-[28px] border-border/40 shadow-xl shadow-black/5 overflow-hidden bg-card/40 backdrop-blur-xl">
+            <div className="p-8 space-y-6">
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold tracking-tight italic uppercase">Composição dos Dados</h3>
+                <p className="text-xs text-muted-foreground">Selecione os módulos que compõem o resumo.</p>
+              </div>
+
+              <div className="space-y-3">
+                {[
+                  { id: "geral", label: "Resumo Geral", state: incluirResumoGeral, setState: setIncluirResumoGeral },
+                  { id: "usuario", label: "Desempenho por Usuário", state: incluirPorUsuario, setState: setIncluirPorUsuario },
+                  { id: "pendentes", label: "Listagem de Pendências", state: incluirPendentes, setState: setIncluirPendentes },
+                  { id: "tempo", label: "Tempo de Resposta (SLA)", state: incluirTempoResposta, setState: setIncluirTempoResposta },
+                  { id: "alertas", label: "Incidentes e Alertas", state: incluirAlertas, setState: setIncluirAlertas },
+                ].map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-4 rounded-xl border border-transparent hover:border-border/40 hover:bg-background/40 transition-all cursor-pointer group" onClick={() => item.setState(!item.state)}>
+                    <Label className="text-xs font-bold group-hover:text-primary transition-colors cursor-pointer">{item.label}</Label>
+                    <Checkbox checked={item.state} onCheckedChange={(v) => item.setState(v as boolean)} className="rounded-md data-[state=checked]:bg-primary" />
+                  </div>
+                ))}
+              </div>
+            </div>
           </Card>
         </div>
 
-        {/* Lado Direito: Números e Mensagem */}
-        <div className="lg:col-span-8 space-y-8">
-          {/* Card 3: Números da Gestão */}
-          <Card className="rounded-[22px] border-border/50 shadow-sm overflow-hidden bg-card/50 backdrop-blur-sm transition-all hover:border-primary/20">
-            <CardHeader className="border-b border-border/40 bg-muted/30">
+        {/* Lado Direito: Destinatários e Logs */}
+        <div className="lg:col-span-7 space-y-8">
+          {/* Card 3: Destinatários */}
+          <Card className="rounded-[28px] border-border/40 shadow-xl shadow-black/5 overflow-hidden bg-card/40 backdrop-blur-xl">
+            <div className="p-8 space-y-6">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
-                    <Users className="w-4 h-4 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-sm font-bold uppercase tracking-tight">Números da Gestão</CardTitle>
-                    <CardDescription className="text-[10px]">Destinatários que receberão o relatório</CardDescription>
-                  </div>
+                <div className="space-y-1">
+                  <h3 className="text-lg font-bold tracking-tight italic uppercase">Equipe de Gestão</h3>
+                  <p className="text-xs text-muted-foreground">Números que receberão o relatório via WhatsApp.</p>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleAddNumber}
-                  className="rounded-xl border-primary/20 text-primary hover:bg-primary/5 h-8 text-[10px] font-bold uppercase tracking-widest"
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  Adicionar
+                <Button variant="outline" size="sm" onClick={() => setNumerosDestino([...numerosDestino, { nome: "", numero: "", ativo: true }])} className="rounded-xl border-primary/30 text-primary h-8 font-black uppercase tracking-tighter text-[10px]">
+                  + Adicionar
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent className="p-6">
+
               <div className="space-y-4">
                 {numerosDestino.map((item, index) => (
-                  <div 
-                    key={index} 
-                    className={cn(
-                      "flex flex-col md:flex-row items-end md:items-center gap-4 p-4 rounded-[18px] border transition-all animate-in zoom-in-95 duration-300",
-                      item.ativo ? "border-border/40 bg-background/30" : "border-dashed border-border/40 opacity-60 bg-muted/10"
-                    )}
-                  >
-                    <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Nome</Label>
-                        <Input 
-                          placeholder="Ex: Direção" 
-                          value={item.nome}
-                          onChange={(e) => handleUpdateNumber(index, 'nome', e.target.value)}
-                          className="h-10 rounded-xl bg-background/50"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">WhatsApp</Label>
-                        <Input 
-                          placeholder="5542999999999" 
-                          value={item.numero}
-                          onChange={(e) => handleUpdateNumber(index, 'numero', e.target.value)}
-                          className="h-10 rounded-xl bg-background/50"
-                        />
-                      </div>
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 rounded-2xl bg-background/40 border border-border/40 animate-in slide-in-from-right-4 duration-300">
+                    <div className="md:col-span-5 space-y-1.5">
+                      <Label className="text-[10px] font-bold text-muted-foreground/70 uppercase">Nome</Label>
+                      <Input value={item.nome} onChange={(e) => {
+                        const newNums = [...numerosDestino];
+                        newNums[index].nome = e.target.value;
+                        setNumerosDestino(newNums);
+                      }} className="h-10 rounded-xl bg-background/50 border-border/40" />
                     </div>
-                    
-                    <div className="flex items-center gap-2 pt-2 md:pt-0">
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/30 border border-border/40">
-                        <span className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">Ativo</span>
-                        <Switch 
-                          checked={item.ativo}
-                          onCheckedChange={(val) => handleUpdateNumber(index, 'ativo', val)}
-                          className="scale-75 data-[state=checked]:bg-primary"
-                        />
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleRemoveNumber(index)}
-                        className="rounded-xl hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-all"
-                      >
+                    <div className="md:col-span-4 space-y-1.5">
+                      <Label className="text-[10px] font-bold text-muted-foreground/70 uppercase">WhatsApp</Label>
+                      <Input value={item.numero} onChange={(e) => {
+                        const newNums = [...numerosDestino];
+                        newNums[index].numero = e.target.value;
+                        setNumerosDestino(newNums);
+                      }} className="h-10 rounded-xl bg-background/50 border-border/40" />
+                    </div>
+                    <div className="md:col-span-3 flex items-end justify-end gap-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => {
+                              const newNums = [...numerosDestino];
+                              newNums[index].ativo = !newNums[index].ativo;
+                              setNumerosDestino(newNums);
+                            }} className={cn("rounded-xl transition-all", item.ativo ? "text-green-500 bg-green-500/10" : "text-muted-foreground/40 bg-muted/10")}>
+                              <CheckCircle2 className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p className="text-[10px]">{item.ativo ? "Ativo" : "Pausado"}</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <Button variant="ghost" size="icon" onClick={() => {
+                        const newNums = [...numerosDestino];
+                        newNums.splice(index, 1);
+                        setNumerosDestino(newNums);
+                      }} className="rounded-xl text-red-400 hover:bg-red-500/10 transition-all">
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
                 ))}
-
-                {numerosDestino.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-border/40 rounded-[22px] bg-muted/10">
-                    <Users className="w-8 h-8 text-muted-foreground/30 mb-2" />
-                    <p className="text-sm font-bold text-muted-foreground/50">Nenhum número cadastrado</p>
-                    <Button variant="ghost" size="sm" onClick={handleAddNumber} className="mt-2 text-primary hover:bg-primary/5">
-                      Adicionar o primeiro número
-                    </Button>
-                  </div>
-                )}
               </div>
-            </CardContent>
+            </div>
           </Card>
 
-          {/* Card 4: Mensagem Inicial */}
-          <Card className="rounded-[22px] border-border/50 shadow-sm overflow-hidden bg-card/50 backdrop-blur-sm transition-all hover:border-primary/20">
-            <CardHeader className="border-b border-border/40 bg-muted/30">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
-                  <MessageSquare className="w-4 h-4 text-primary" />
+          {/* Card 4: Histórico (Logs) */}
+          <Card className="rounded-[28px] border-border/40 shadow-xl shadow-black/5 overflow-hidden bg-card/40 backdrop-blur-xl">
+            <div className="p-8 space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-bold tracking-tight italic uppercase">Histórico de Disparos</h3>
+                  <p className="text-xs text-muted-foreground">Acompanhe as últimas tentativas de envio.</p>
                 </div>
-                <div>
-                  <CardTitle className="text-sm font-bold uppercase tracking-tight">Mensagem de Introdução</CardTitle>
-                  <CardDescription className="text-[10px]">Texto que antecede os dados do relatório</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                <Textarea 
-                  placeholder="Olá! Aqui estão as métricas de hoje..." 
-                  value={mensagemIntro}
-                  onChange={(e) => setMensagemIntro(e.target.value)}
-                  className="min-h-[120px] rounded-2xl bg-background/50 border-border/40 focus:ring-primary/20 resize-none p-4 text-sm"
-                />
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
-                  <AlertCircle className="w-4 h-4 text-primary" />
-                  <p className="text-[10px] font-medium text-primary/80">
-                    Dica: Use uma saudação amigável. O relatório detalhado será anexado logo abaixo desta mensagem.
-                  </p>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                    <Input 
+                      placeholder="Buscar..." 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9 h-9 w-[180px] rounded-xl bg-background/50 border-border/40 text-xs"
+                    />
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={fetchLogs} className="rounded-xl h-9 w-9">
+                    <RefreshCcw className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
-            </CardContent>
+
+              <div className="rounded-2xl border border-border/40 overflow-hidden bg-background/20">
+                <Table>
+                  <TableHeader className="bg-muted/30">
+                    <TableRow className="hover:bg-transparent border-border/40">
+                      <TableHead className="text-[10px] font-black uppercase py-4">Status</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase">Destinatário</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase">Data/Hora</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase text-right">Ação</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredLogs.map((log) => (
+                      <TableRow key={log.id} className="border-border/40 hover:bg-white/5 transition-colors">
+                        <TableCell className="py-4">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center">
+                                  {log.status === 'enviado' ? (
+                                    <div className="px-2 py-1 rounded-full bg-green-500/10 text-green-500 text-[9px] font-bold flex items-center gap-1">
+                                      <CheckCircle2 className="w-3 h-3" /> ENVIADO
+                                    </div>
+                                  ) : log.status === 'erro' ? (
+                                    <div className="px-2 py-1 rounded-full bg-red-500/10 text-red-500 text-[9px] font-bold flex items-center gap-1">
+                                      <AlertTriangle className="w-3 h-3" /> ERRO
+                                    </div>
+                                  ) : (
+                                    <div className="px-2 py-1 rounded-full bg-amber-500/10 text-amber-500 text-[9px] font-bold flex items-center gap-1">
+                                      <Clock className="w-3 h-3" /> PENDENTE
+                                    </div>
+                                  )}
+                                </div>
+                              </TooltipTrigger>
+                              {log.erro && (
+                                <TooltipContent className="bg-destructive text-destructive-foreground p-3 rounded-xl max-w-[200px]">
+                                  <p className="text-xs font-bold mb-1">Motivo da Falha:</p>
+                                  <p className="text-[10px] leading-relaxed opacity-90">{log.erro}</p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold">{log.nome_destinatario || 'Sem Nome'}</span>
+                            <span className="text-[10px] text-muted-foreground tabular-nums">{log.numero_destino}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-bold">{format(new Date(log.enviado_em), "dd MMM", { locale: ptBR })}</span>
+                            <span className="text-[10px] text-muted-foreground">{format(new Date(log.enviado_em), "HH:mm")}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 hover:bg-primary/10 hover:text-primary">
+                            <FileText className="w-3.5 h-3.5" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {filteredLogs.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="h-40 text-center text-muted-foreground/40 text-[10px] font-bold italic">
+                          Nenhum log encontrado para os critérios selecionados.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
           </Card>
         </div>
       </div>

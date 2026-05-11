@@ -171,10 +171,27 @@ CREATE TABLE IF NOT EXISTS automacoes_relatorios (
   UNIQUE(tenant_id, tipo)
 );
 
+-- 11. Logs de Envios de Relatórios
+CREATE TABLE IF NOT EXISTS relatorios_envios_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  configuracao_id UUID REFERENCES automacoes_relatorios(id) ON DELETE SET NULL,
+  numero_destino TEXT NOT NULL,
+  nome_destinatario TEXT,
+  tipo TEXT DEFAULT 'resumo_diario_atendimento',
+  status TEXT NOT NULL, -- 'enviado', 'erro', 'pendente'
+  mensagem TEXT,
+  response_json JSONB,
+  erro TEXT,
+  enviado_em TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Desabilitar RLS para evitar erros de permissão no frontend
 ALTER TABLE mensagens DISABLE ROW LEVEL SECURITY;
 ALTER TABLE mensagens_agendadas DISABLE ROW LEVEL SECURITY;
 ALTER TABLE automacoes_relatorios DISABLE ROW LEVEL SECURITY;
+ALTER TABLE relatorios_envios_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE company_settings DISABLE ROW LEVEL SECURITY;
 
 -- Garantir colunas em mensagens
