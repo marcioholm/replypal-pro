@@ -155,10 +155,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const messageContent = msg.message || data.message;
       const pushName = data.pushName || msg.pushName || '';
       const remoteJid = key?.remoteJid;
-      if (!remoteJid || key?.fromMe) return res.status(200).json({ success: true });
+      if (!remoteJid) return res.status(200).json({ success: true });
 
       const isGroup = remoteJid.endsWith('@g.us');
       const phone = isGroup ? remoteJid : remoteJid.split('@')[0];
+      const isFromMe = !!key?.fromMe;
       
       const DEFAULT_TENANT = '11111111-1111-1111-1111-111111111111';
       // Capturar avatar do cliente de várias fontes possíveis (v1, v2 e data wrapper)
@@ -198,6 +199,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const tenantId = conv?.tenant_id || DEFAULT_TENANT;
+
+      // Verificar se mensagem já existe (evitar duplicar envios manuais do chat)
+      if (isFromMe) {
+        const { data: existingMsg } = await supabase
+          .from('mensagens')
+          .select('id')
+          .eq('external_message_id', key.id)
+          .maybeSingle();
+        
+        if (existingMsg) return res.status(200).json({ success: true, detail: 'Manual message already recorded' });
+      }
+
       let type = 'text', content = '', mediaUrl = null, mimeType = null, fileName = null, fileSize = null, duration = null;
 
       const text = messageContent.conversation || messageContent.extendedTextMessage?.text || messageContent.text || '';
@@ -235,14 +248,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await supabase.from('mensagens').upsert({
         conversation_id: conv?.id, 
         content, 
-        sender: 'client', 
-        sender_name: pushName || phone, 
+        sender: isFromMe ? 'agent' : 'client', 
+        sender_name: isFromMe ? 'Sistema' : (pushName || phone), 
         type, 
         media_url: mediaUrl,
         mime_type: mimeType, 
         file_name: fileName, 
         external_message_id: key.id, 
-        status: 'delivered', 
+        status: isFromMe ? 'sent' : 'delivered', 
         tenant_id: tenantId
       }, { onConflict: 'external_message_id' });
 
@@ -251,8 +264,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         last_message_time: new Date().toISOString() 
       };
       
-      // Se a conversa estava encerrada (resolvido), ela volta para o atendente anterior
-      if (conv?.status === 'resolvido') {
+      // Se a mensagem veio do cliente e a conversa estava encerrada, reabre
+      if (!isFromMe && conv?.status === 'resolvido') {
         updatePayload.status = 'aguardando';
       }
 
