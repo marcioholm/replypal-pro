@@ -27,6 +27,8 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
                     src={msg.mediaUrl} 
                     alt="Imagem" 
                     className="max-w-full h-auto object-contain max-h-[300px] transition-transform group-hover:scale-105" 
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
                   />
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                     <ImageIcon className="w-8 h-8 text-white drop-shadow-lg" />
@@ -39,6 +41,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
                     src={msg.mediaUrl} 
                     alt="Preview" 
                     className="max-w-full max-h-[85vh] h-auto w-auto object-contain shadow-2xl rounded-sm" 
+                    referrerPolicy="no-referrer"
                   />
                 </div>
               </DialogContent>
@@ -89,7 +92,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
       case 'sticker':
         return (
           <div className="w-28 h-28">
-            <img src={msg.mediaUrl} alt="Sticker" className="w-full h-full object-contain" />
+            <img src={msg.mediaUrl} alt="Sticker" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
           </div>
         );
 

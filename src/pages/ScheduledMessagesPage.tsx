@@ -114,19 +114,34 @@ export default function ScheduledMessagesPage() {
               </span>
             </div>
             
-            <p className="text-sm font-medium line-clamp-2 mb-2">
-              {msg.textContent || `[${msg.messageType.toUpperCase()}] ${msg.fileName || ''}`}
-            </p>
-            
-            <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                {format(msg.scheduledAt, "PP", { locale: ptBR })}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {format(msg.scheduledAt, "p", { locale: ptBR })}
-              </span>
+            <div className="flex gap-3">
+              {msg.mediaUrl && (
+                <div className="shrink-0 w-16 h-16 rounded-lg bg-muted flex items-center justify-center overflow-hidden border border-border/40">
+                  {msg.messageType === 'image' ? (
+                    <img src={msg.mediaUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : msg.messageType === 'video' ? (
+                    <PlayCircle className="w-6 h-6 text-primary" />
+                  ) : (
+                    <FileText className="w-6 h-6 text-muted-foreground" />
+                  )}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium line-clamp-2 mb-2">
+                  {msg.textContent || `[${msg.messageType.toUpperCase()}] ${msg.fileName || ''}`}
+                </p>
+                
+                <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {format(msg.scheduledAt, "PP", { locale: ptBR })}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {format(msg.scheduledAt, "p", { locale: ptBR })}
+                  </span>
+                </div>
+              </div>
             </div>
             
             {msg.errorMessage && (
