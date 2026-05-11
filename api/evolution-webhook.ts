@@ -45,8 +45,13 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
       try {
         const response = await fetch(mediaPath);
         if (response.ok) {
-          buffer = Buffer.from(await response.arrayBuffer());
-          console.log(`[Webhook] Mídia baixada diretamente do CDN WhatsApp (${buffer.length} bytes)`);
+          const contentType = response.headers.get('content-type');
+          if (contentType && (contentType.includes('image') || contentType.includes('audio') || contentType.includes('video') || contentType.includes('application/pdf'))) {
+            buffer = Buffer.from(await response.arrayBuffer());
+            console.log(`[Webhook] Mídia baixada diretamente do CDN WhatsApp (${buffer.length} bytes, type: ${contentType})`);
+          } else {
+            console.warn(`[Webhook] CDN WhatsApp retornou tipo inválido: ${contentType}`);
+          }
         }
       } catch (e) {
         console.error("[Webhook] Erro no download direto do CDN:", e);
