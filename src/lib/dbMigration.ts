@@ -187,12 +187,23 @@ CREATE TABLE IF NOT EXISTS relatorios_envios_logs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Desabilitar RLS para evitar erros de permissão no frontend
+-- Desabilitar RLS para evitar erros de permissão no frontend e webhooks
+ALTER TABLE conversas DISABLE ROW LEVEL SECURITY;
 ALTER TABLE mensagens DISABLE ROW LEVEL SECURITY;
 ALTER TABLE mensagens_agendadas DISABLE ROW LEVEL SECURITY;
 ALTER TABLE automacoes_relatorios DISABLE ROW LEVEL SECURITY;
 ALTER TABLE relatorios_envios_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE company_settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE usuarios DISABLE ROW LEVEL SECURITY;
+
+-- Garantir colunas em conversas
+ALTER TABLE conversas ADD COLUMN IF NOT EXISTS client_avatar TEXT;
+ALTER TABLE conversas ADD COLUMN IF NOT EXISTS is_group BOOLEAN DEFAULT false;
+ALTER TABLE conversas ADD COLUMN IF NOT EXISTS is_typing BOOLEAN DEFAULT false;
+ALTER TABLE conversas ADD COLUMN IF NOT EXISTS sla_deadline TIMESTAMPTZ;
+ALTER TABLE conversas ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
+ALTER TABLE conversas ADD COLUMN IF NOT EXISTS last_message_time TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE conversas ADD COLUMN IF NOT EXISTS tenant_id UUID;
 
 -- Garantir colunas em mensagens
 ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'text';
