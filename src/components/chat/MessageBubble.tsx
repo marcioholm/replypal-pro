@@ -33,11 +33,15 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
                       const target = e.currentTarget;
                       target.style.display = 'none';
                       const parent = target.parentElement;
-                      if (parent && !parent.querySelector('.img-error-btn')) {
-                        const btn = document.createElement('div');
-                        btn.className = 'img-error-btn p-4 flex flex-col items-center gap-2 bg-muted/20';
-                        btn.innerHTML = `<span class="text-xs opacity-60">Falha ao carregar</span><a href="${msg.mediaUrl}" target="_blank" class="text-[10px] bg-primary text-white px-2 py-1 rounded">Ver Link</a>`;
-                        parent.appendChild(btn);
+                      if (parent && !parent.querySelector('.img-error-info')) {
+                        const info = document.createElement('div');
+                        info.className = 'img-error-info p-3 flex flex-col gap-1 bg-muted/20 border-t';
+                        info.innerHTML = `
+                          <span class="text-[10px] font-bold text-destructive">Erro ao carregar mídia</span>
+                          <code class="text-[9px] break-all p-1 bg-background/50 rounded select-all">${msg.mediaUrl}</code>
+                          <a href="${msg.mediaUrl}" target="_blank" class="text-[10px] text-primary underline mt-1">Abrir em nova guia</a>
+                        `;
+                        parent.appendChild(info);
                       }
                     }}
                   />
