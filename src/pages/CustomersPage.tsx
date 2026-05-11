@@ -59,6 +59,7 @@ export default function CustomersPage() {
               regime: c.regime_tributario as any,
               naturezaJuridica: c.natureza_juridica || "",
               cnae: c.cnae || "",
+              openingDate: c.opening_date ? new Date(c.opening_date) : undefined,
               hasEmployees: !!c.has_employees,
               employeeCount: c.employee_count || 0,
               status: c.status as any,
@@ -67,11 +68,15 @@ export default function CustomersPage() {
               preferredChannel: (c.preferred_channel || "WhatsApp") as any,
               plan: c.plan || "",
               monthlyValue: c.monthly_value || 0,
+              financialStatus: c.financial_status as any,
               origin: c.origin || "Direto",
               tenantId: c.tenant_id,
               contacts: [],
               tags: [],
               documents: [],
+              driveFolderUrl: c.drive_folder_url || "",
+              drivePayrollUrl: c.drive_payroll_url || "",
+              driveBillingUrl: c.drive_billing_url || "",
               observations: c.observations || "",
               createdAt: new Date(c.created_at)
             });
