@@ -77,9 +77,7 @@ export default function InboxPage() {
         query = query.is("assigned_to", null).neq("status", "resolvido");
       }
 
-      const { data: dbConvs, error } = await query.order("last_message_time", { 
-        ascending: filter === "fila" 
-      });
+      const { data: dbConvs, error } = await query.order("last_message_time", { ascending: false });
 
       if (error) {
         console.error("Erro ao buscar conversas:", error);
@@ -296,15 +294,6 @@ export default function InboxPage() {
     });
 
     convs.sort((a, b) => {
-      if (a.status === "novo" && b.status !== "novo") return -1;
-      if (b.status === "novo" && a.status !== "novo") return 1;
-      const slaA = store.getSLAStatus(a);
-      const slaB = store.getSLAStatus(b);
-      if ((slaA === "estourado" || slaA === "em_risco") && slaB === "ok") return -1;
-      if ((slaB === "estourado" || slaB === "em_risco") && slaA === "ok") return 1;
-      if (filter === "fila") {
-        return a.lastMessageTime.getTime() - b.lastMessageTime.getTime();
-      }
       return b.lastMessageTime.getTime() - a.lastMessageTime.getTime();
     });
 
