@@ -13,7 +13,7 @@ import ReciboGenerator from "@/components/settings/ReciboGenerator";
 import { getNotificationConfig, setNotificationConfig } from "@/hooks/useNotifications";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { fetchQRCode, logoutInstance } from "@/lib/evolution";
+import { fetchQRCode, logoutInstance, updateEvolutionConfig } from "@/lib/evolution";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AlertsPage from "./AlertsPage";
@@ -53,20 +53,19 @@ export default function SettingsPage() {
   const [newMember, setNewMember] = useState({ name: "", email: "", role: "atendente" as UserRole, password: "", whatsapp: "" });
   const [showAddMember, setShowAddMember] = useState(false);
 
-  const [evolutionUrl, setEvolutionUrl] = useState(() => {
-    const saved = localStorage.getItem("evolution_url");
-    return saved || "";
-  });
-  const [evolutionKey, setEvolutionKey] = useState(() => {
-    const saved = localStorage.getItem("evolution_key");
-    return saved || "";
-  });
-  const [instanceName, setInstanceName] = useState(() => {
-    const saved = localStorage.getItem("evolution_instance");
-    return saved || import.meta.env.VITE_INSTANCE_NAME || "SASAKI";
-  });
+  const { user, refreshUser, tenant } = useAuth();
 
-  const { user, refreshUser } = useAuth();
+  const [evolutionUrl, setEvolutionUrl] = useState(tenant?.evolutionUrl || "");
+  const [evolutionKey, setEvolutionKey] = useState(tenant?.evolutionKey || "");
+  const [instanceName, setInstanceName] = useState(tenant?.evolutionInstance || import.meta.env.VITE_INSTANCE_NAME || "SASAKI");
+
+  useEffect(() => {
+    if (tenant) {
+      if (tenant.evolutionUrl) setEvolutionUrl(tenant.evolutionUrl);
+      if (tenant.evolutionKey) setEvolutionKey(tenant.evolutionKey);
+      if (tenant.evolutionInstance) setInstanceName(tenant.evolutionInstance);
+    }
+  }, [tenant]);
   const [waStatus, setWaStatus] = useState<WhatsAppStatus>("idle");
   const [waConnection, setWaConnection] = useState<WhatsAppConnection | null>(null);
   const [qrCodeImage, setQrCodeImage] = useState<string | null>(null);
@@ -195,6 +194,24 @@ const handleConnect = async () => {
     localStorage.setItem("evolution_key", evolutionKey);
     localStorage.setItem("evolution_instance", instanceName);
     localStorage.setItem("wa_connected", "true");
+
+    // Salvar no banco para todos terem acesso
+    if (user?.tenantId) {
+      await supabase.from("company_settings").upsert({
+        tenant_id: user.tenantId,
+        evolution_url: apiUrl,
+        evolution_api_key: evolutionKey,
+        instance_name: instanceName,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'tenant_id' });
+      
+      // Atualizar memória do robô localmente também
+      updateEvolutionConfig({
+        url: apiUrl,
+        key: evolutionKey,
+        instance: instanceName
+      });
+    }
 
     setWaStatus("loading");
     toast.info("Verificando...");
@@ -342,6 +359,16 @@ const handleConnect = async () => {
     setWaStatus("loading");
     setShowQr(true);
     setQrCodeImage(null);
+
+    // Garantir que as funções usem os dados atuais da tela
+    let apiUrl = evolutionUrl.trim();
+    if (!apiUrl.startsWith("http")) apiUrl = "https://" + apiUrl;
+    
+    updateEvolutionConfig({
+      url: apiUrl,
+      key: evolutionKey,
+      instance: instanceName
+    });
 
     const res = await fetchQRCode();
     if (res.success && res.code) {

@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { createTables } from "./dbMigration";
 
 const CREATE_TABLES_SQL = `
 -- 1. Usuarios
@@ -87,6 +88,9 @@ CREATE TABLE IF NOT EXISTS mensagens (
 
 export async function initializeDatabase() {
   try {
+    // Garantir que as tabelas existem
+    await createTables();
+
     const tenantId = '11111111-1111-1111-1111-111111111111';
 
     // 1. Tenants

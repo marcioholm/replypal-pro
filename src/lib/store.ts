@@ -26,6 +26,9 @@ export interface Tenant {
   name: string;
   subdomain: string;
   logo?: string;
+  evolutionUrl?: string;
+  evolutionKey?: string;
+  evolutionInstance?: string;
 }
 
 export interface Tag {

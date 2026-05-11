@@ -2,6 +2,7 @@ import { createContext, useContext, ReactNode, useState, useCallback, useEffect 
 import { User, Tenant, setCurrentTenantId } from "./store";
 import { supabase } from "./supabase";
 import { initializeDatabase } from "./dbSetup";
+import { updateEvolutionConfig } from "./evolution";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LENGTH = 16;
@@ -97,9 +98,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               avatar: data.avatar
             };
             setUser(userData);
-            supabase.from("tenants").select("*").eq("id", data.tenant_id).single().then(({ data: tData }) => {
+            supabase.from("tenants").select("*").eq("id", data.tenant_id).single().then(async ({ data: tData }) => {
               if (tData) {
-                setTenant({ id: tData.id, name: tData.nome, subdomain: tData.subdomain });
+                // Buscar configurações adicionais da empresa
+                const { data: sData } = await supabase
+                  .from("company_settings")
+                  .select("*")
+                  .eq("tenant_id", tData.id)
+                  .maybeSingle();
+
+                setTenant({ 
+                  id: tData.id, 
+                  name: tData.nome, 
+                  subdomain: tData.subdomain,
+                  evolutionUrl: sData?.evolution_url,
+                  evolutionKey: sData?.evolution_api_key,
+                  evolutionInstance: sData?.instance_name
+                });
+
+                // Atualizar configuração global do WhatsApp
+                updateEvolutionConfig({
+                  url: sData?.evolution_url,
+                  key: sData?.evolution_api_key,
+                  instance: sData?.instance_name
+                });
+
                 setCurrentTenantId(tData.id);
               }
               setIsLoading(false);
@@ -175,7 +198,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData);
       const { data: foundTenant } = await supabase.from("tenants").select("*").eq("id", foundUser.tenant_id).single();
       if (foundTenant) {
-        setTenant({ id: foundTenant.id, name: foundTenant.nome, subdomain: foundTenant.subdomain });
+        // Buscar configurações adicionais da empresa
+        const { data: sData } = await supabase
+          .from("company_settings")
+          .select("*")
+          .eq("tenant_id", foundTenant.id)
+          .maybeSingle();
+
+        setTenant({ 
+          id: foundTenant.id, 
+          name: foundTenant.nome, 
+          subdomain: foundTenant.subdomain,
+          evolutionUrl: sData?.evolution_url,
+          evolutionKey: sData?.evolution_api_key,
+          evolutionInstance: sData?.instance_name
+        });
+
+        // Atualizar configuração global do WhatsApp
+        updateEvolutionConfig({
+          url: sData?.evolution_url,
+          key: sData?.evolution_api_key,
+          instance: sData?.instance_name
+        });
+
         setCurrentTenantId(foundTenant.id);
       }
       

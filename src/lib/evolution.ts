@@ -1,9 +1,21 @@
 import { supabase } from "./supabase";
 
+let DYNAMIC_CONFIG = {
+  url: "",
+  key: "",
+  instance: ""
+};
+
+export function updateEvolutionConfig(config: { url?: string; key?: string; instance?: string }) {
+  if (config.url) DYNAMIC_CONFIG.url = config.url;
+  if (config.key) DYNAMIC_CONFIG.key = config.key;
+  if (config.instance) DYNAMIC_CONFIG.instance = config.instance;
+}
+
 const EVO_CONFIG = {
-  getUrl: () => localStorage.getItem("evolution_url") || import.meta.env.VITE_EVOLUTION_URL || "",
-  getKey: () => localStorage.getItem("evolution_key") || import.meta.env.VITE_EVOLUTION_API_KEY || "",
-  getInstance: () => localStorage.getItem("evolution_instance") || import.meta.env.VITE_INSTANCE_NAME || "SASAKI",
+  getUrl: () => DYNAMIC_CONFIG.url || localStorage.getItem("evolution_url") || import.meta.env.VITE_EVOLUTION_URL || "",
+  getKey: () => DYNAMIC_CONFIG.key || localStorage.getItem("evolution_key") || import.meta.env.VITE_EVOLUTION_API_KEY || "",
+  getInstance: () => DYNAMIC_CONFIG.instance || localStorage.getItem("evolution_instance") || import.meta.env.VITE_INSTANCE_NAME || "SASAKI",
 };
 
 
