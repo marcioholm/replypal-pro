@@ -653,6 +653,7 @@ export default function InboxPage() {
               Use as setas do teclado para alternar entre conversas rapidamente e <span className="font-bold text-primary">Enter</span> para abrir o chat.
             </p>
           </div>
+          </div>
         </div>
       )}
     </div>
