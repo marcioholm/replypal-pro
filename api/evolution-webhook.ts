@@ -65,10 +65,17 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
       if (msgId) {
         // Tentar múltiplos endpoints da Evolution API
         const encName = encodeURIComponent(instName);
+        const instId = fullMessage?.instanceId || fullMessage?.data?.instanceId;
+        
         const downloadEndpoints = [
           `${evoUrl}/chat/getBase64FromMediaMessage/${encName}`,
           `${evoUrl}/message/convert/toBase64/${encName}`
         ];
+
+        if (instId) {
+          downloadEndpoints.push(`${evoUrl}/chat/getBase64FromMediaMessage/${instId}`);
+          downloadEndpoints.push(`${evoUrl}/message/convert/toBase64/${instId}`);
+        }
 
         for (const url of downloadEndpoints) {
           try {
