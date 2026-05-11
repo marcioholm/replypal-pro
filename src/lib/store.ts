@@ -186,6 +186,9 @@ interface Store {
   getNotes: (conversationId: string) => any[];
   getHistory: (conversationId: string) => HistoryEntry[];
   getCustomer: (id?: string) => Customer | undefined;
+  getCustomerByCnpj: (cnpj: string) => Customer | undefined;
+  addCustomer: (customer: Customer) => void;
+  updateCustomer: (id: string, updates: Partial<Customer>) => void;
   assumeConversation: (conversationId: string, user: User) => void;
   transferConversation: (conversationId: string, fromUser: User, toUserId: string, reason?: string) => void;
   updateStatus: (conversationId: string, status: ConversationStatus, user: User, closingReason?: ClosingReason) => void;
@@ -358,6 +361,19 @@ function getStore(): Store {
       getNotes: () => [],
       getHistory: (conversationId) => s.history.filter(h => h.conversationId === conversationId),
       getCustomer: (id) => s.customers.find(c => c.id === id),
+      getCustomerByCnpj: (cnpj) => s.customers.find(c => c.cnpj === cnpj),
+      addCustomer(customer) {
+        s.customers = [...s.customers, customer];
+        notify();
+      },
+      updateCustomer(id, updates) {
+        const index = s.customers.findIndex(c => c.id === id);
+        if (index !== -1) {
+          s.customers[index] = { ...s.customers[index], ...updates };
+          s.customers = [...s.customers];
+          notify();
+        }
+      },
       assumeConversation(conversationId, user) {
         s.addDbConversation({ id: conversationId, assignedTo: user.id, status: "respondido" } as any);
       },
