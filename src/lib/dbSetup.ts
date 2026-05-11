@@ -137,8 +137,11 @@ ALTER TABLE company_settings DISABLE ROW LEVEL SECURITY;
 
 export async function initializeDatabase() {
   try {
-    // Garantir que as tabelas existem
-    await createTables();
+    const { success, error } = await createTables();
+    if (!success) {
+      console.error("Falha ao criar tabelas:", error);
+      return { success: false, error };
+    }
 
     const tenantId = '11111111-1111-1111-1111-111111111111';
 

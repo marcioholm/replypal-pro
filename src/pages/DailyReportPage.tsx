@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { initializeDatabase } from '@/lib/dbSetup';
 import { 
   FileText, 
   Plus, 
@@ -19,7 +20,8 @@ import {
   MessageSquare,
   Globe,
   Loader2,
-  ChevronLeft
+  ChevronLeft,
+  Database
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
@@ -179,6 +181,28 @@ export default function DailyReportPage() {
     }
   };
 
+  const handleRepairDB = async () => {
+    setLoading(true);
+    try {
+      const result = await initializeDatabase();
+      if (result.success) {
+        toast.success("Banco de dados reparado com sucesso!", {
+          description: "As colunas e tabelas foram sincronizadas."
+        });
+        fetchConfig();
+      } else {
+        throw result.error;
+      }
+    } catch (err: any) {
+      console.error("Erro ao reparar banco:", err);
+      toast.error("Erro ao reparar banco de dados", {
+        description: err.message || "A função 'exec_sql' pode estar ausente no seu Supabase."
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleTest = async () => {
     if (!N8N_RELATORIO_TESTE_WEBHOOK_URL) {
       toast.info("Webhook de teste não configurado ainda.", {
@@ -241,6 +265,14 @@ export default function DailyReportPage() {
         </div>
         
         <div className="flex gap-3">
+          <Button 
+            variant="outline" 
+            onClick={handleRepairDB} 
+            className="rounded-xl border-amber-500/20 text-amber-600 hover:bg-amber-500/5 font-bold uppercase tracking-widest text-[10px]"
+          >
+            <Database className="w-3 h-3 mr-2" />
+            Reparar Banco
+          </Button>
           <Button 
             variant="outline" 
             onClick={handleTest} 
