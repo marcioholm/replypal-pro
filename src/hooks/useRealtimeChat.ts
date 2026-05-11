@@ -6,9 +6,10 @@ interface UseRealtimeOptions {
   tenantId?: string;
   userId?: string;
   enabled?: boolean;
+  notify?: (title: string, body: string, type: "new" | "assigned") => void;
 }
 
-export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtimeOptions) {
+export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: UseRealtimeOptions) {
   const store = useStore();
   const storeRef = useRef(store);
   storeRef.current = store;
@@ -36,6 +37,14 @@ export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtim
           const { eventType, new: newRecord, old: oldRecord } = payload;
 
           if (eventType === "INSERT" && newRecord) {
+            import("./useSound").then(({ playNotificationSound }) => {
+              playNotificationSound({ type: "new_conversation" });
+            });
+
+            if (notify) {
+              notify("Nova Conversa", `${newRecord.client_name} iniciou um chat`, "new");
+            }
+
             storeRef.current.addDbConversation({
               id: newRecord.id,
               clientName: newRecord.client_name,
@@ -51,6 +60,10 @@ export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtim
               isTyping: newRecord.is_typing,
             });
           } else if (eventType === "UPDATE" && newRecord) {
+            // Se mudou para mim, notificar
+            if (newRecord.assigned_to === userId && oldRecord?.assigned_to !== userId && notify) {
+              notify("Conversa Atribuída", `Você agora é o responsável por ${newRecord.client_name}`, "assigned");
+            }
             storeRef.current.addDbConversation({
               id: newRecord.id,
               clientName: newRecord.client_name,
@@ -89,6 +102,18 @@ export function useRealtimeChat({ tenantId, userId, enabled = true }: UseRealtim
           );
           if (!knownConv) return; // Ignora mensagens de outros tenants
           
+          // Tocar som se a mensagem não for do próprio atendente
+          if (newRecord.sender === "client") {
+            import("./useSound").then(({ playNotificationSound }) => {
+              playNotificationSound({ type: "new_message" });
+            });
+
+            if (notify) {
+              const body = newRecord.type === "text" ? newRecord.content : `Nova mídia: ${newRecord.type}`;
+              notify(newRecord.sender_name || "Cliente", body, "assigned");
+            }
+          }
+
           storeRef.current.addDbMessages([
             {
               id: newRecord.id,

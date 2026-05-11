@@ -160,7 +160,34 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
         );
 
       default:
-        return <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>;
+        const renderTextWithLinks = (text: string) => {
+          if (!text) return null;
+          const urlRegex = /(https?:\/\/[^\s]+)/g;
+          const parts = text.split(urlRegex);
+          
+          return parts.map((part, i) => {
+            if (part.match(urlRegex)) {
+              return (
+                <a 
+                  key={i} 
+                  href={part} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-primary-foreground underline underline-offset-2 hover:opacity-80 break-all"
+                >
+                  {part}
+                </a>
+              );
+            }
+            return part;
+          });
+        };
+        
+        return (
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+            {renderTextWithLinks(msg.content)}
+          </p>
+        );
     }
   };
 
