@@ -59,39 +59,51 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
     }
 
     if (!buffer && evoUrl && evoKey) {
-      const instanceId = fullMessage?.instanceId || fullMessage?.data?.instanceId || instance;
-      const messageId = fullMessage?.key?.id || fullMessage?.data?.key?.id || fullMessage?.message?.key?.id;
+      const instName = fullMessage?.instance || fullMessage?.data?.instance || instance;
+      const msgId = fullMessage?.key?.id || fullMessage?.data?.key?.id || fullMessage?.message?.key?.id;
       
-      if (messageId) {
-        try {
-          const downloadUrl = `${evoUrl}/chat/getBase64FromMediaMessage/${instanceId}`;
-          const response = await fetch(downloadUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-            body: JSON.stringify({ message: { key: { id: messageId } } })
-          });
-          if (response.ok) {
-            const json = await response.json() as any;
-            if (json?.base64) {
-              buffer = Buffer.from(json.base64.includes('base64,') ? json.base64.split('base64,')[1] : json.base64, 'base64');
+      if (msgId) {
+        // Tentar múltiplos endpoints da Evolution API
+        const downloadEndpoints = [
+          `${evoUrl}/chat/getBase64FromMediaMessage/${instName}`,
+          `${evoUrl}/message/convert/toBase64/${instName}`
+        ];
+
+        for (const url of downloadEndpoints) {
+          try {
+            console.log(`[Webhook] Tentando download via Evolution: ${url}`);
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+              body: JSON.stringify(fullMessage.data || fullMessage)
+            });
+            
+            if (response.ok) {
+              const json = await response.json() as any;
+              const b64Data = json?.base64 || json?.data?.base64;
+              if (b64Data) {
+                buffer = Buffer.from(b64Data.includes('base64,') ? b64Data.split('base64,')[1] : b64Data, 'base64');
+                console.log(`[Webhook] Sucesso no download via Evolution (${url})`);
+                break;
+              }
+            } else {
+              console.warn(`[Webhook] Evolution API erro (${response.status}) em ${url}`);
             }
+          } catch (e) {
+            console.error(`[Webhook] Falha na tentativa ${url}:`, e);
           }
-        } catch (e) {
-          console.error("[Webhook] Erro no download fallback:", e);
         }
       }
     }
 
     if (!buffer || buffer.length < 100) {
-      console.warn(`[Webhook] Buffer inválido ou muito pequeno (${buffer?.length || 0} bytes). Cancelando upload.`);
+      console.warn(`[Webhook] Falha total no download da mídia. Retornando link original.`);
       return mediaPath.startsWith("http") ? mediaPath : `${evoUrl}/public/${mediaPath}`;
     }
 
     const tDir = tenantId || "shared";
     const safeName = (fileName || "file").replace(/[^a-zA-Z0-9.-]/g, "_");
     const storagePath = `${tDir}/${Date.now()}_${safeName}`;
-
-    console.log(`[Webhook] Fazendo upload para: chat-media/${storagePath} (${buffer.length} bytes)`);
 
     const { error } = await supabase.storage.from("chat-media").upload(storagePath, buffer, { 
       contentType: mimeType || "application/octet-stream", 
