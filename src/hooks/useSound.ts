@@ -7,10 +7,10 @@ interface UseSoundOptions {
 }
 
 const SOUND_URLS = {
-  new_message: "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleU4APpLmnn9JEhM1lOa0gEoLP5DnnoJMEyE3lvG/hVQTPY/wyIVWFyUAAACMqQ==",
-  new_conversation: "data:audio/wav;base64,UklGRl9vT19teleSREZ3R0N3eICJi42QlJWKhoaBjJCOj5KNjIuMiomHhYWEg4OCgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgQ==",
-  sla_warning: "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleU4APpLmnn9JEhM1lOa0gEoLP5DnnoJMEyE3lvG/hVQTPY/wyIVWFyQAAACMqg==",
-  success: "data:audio/wav;base64,UklGRl9vT19teleSREZ3R0N3eICJi42QlJWKhoaBjJCOj5KNjIuMiomHhYWEg4OCgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgQ==",
+  new_message: "https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3", // Click nítido
+  new_conversation: "https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3", // Alerta de recepção
+  sla_warning: "https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3", // Alerta persistente
+  success: "https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3",
 };
 
 export function useSound(options: UseSoundOptions) {

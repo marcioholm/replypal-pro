@@ -49,6 +49,15 @@ export default function InboxPage() {
   };
 
   // 1. Helpers e FetchData
+  useEffect(() => {
+    const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
+    if (totalUnread > 0) {
+      document.title = `(${totalUnread}) ReplyPal Pro`;
+    } else {
+      document.title = "ReplyPal Pro";
+    }
+  }, [unreadCounts]);
+
   const fetchData = useCallback(async () => {
     const tenantId = user?.tenantId;
     if (!tenantId) return;
