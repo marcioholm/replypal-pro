@@ -209,6 +209,9 @@ ALTER TABLE mensagens_agendadas ADD COLUMN IF NOT EXISTS tenant_id UUID;
 ALTER TABLE mensagens_agendadas ADD COLUMN IF NOT EXISTS error_message TEXT;
 
 -- Garantir colunas em automacoes_relatorios
+ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS nome TEXT DEFAULT 'Relatório Diário';
+ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'America/Sao_Paulo';
+ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS numeros_destino JSONB DEFAULT '[]';
 ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS incluir_resumo_geral BOOLEAN DEFAULT true;
 ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS incluir_por_usuario BOOLEAN DEFAULT true;
 ALTER TABLE automacoes_relatorios ADD COLUMN IF NOT EXISTS incluir_pendentes BOOLEAN DEFAULT true;
