@@ -50,13 +50,18 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const { user, tenant, logout } = useAuth();
   const navigate = useNavigate();
 
-  // Calcular contagens baseadas na store (apenas conversas atribuídas ao usuário logado)
+  // Calcular contagens baseadas na store
   const openCount = store.conversations.filter(c => 
     c.assignedTo === user?.id && 
     c.status?.toLowerCase() !== "resolvido"
   ).length;
+
+  const queueCount = store.conversations.filter(c => 
+    !c.assignedTo && 
+    c.status?.toLowerCase() !== "resolvido"
+  ).length;
+
   const atRiskCount = store.conversations.filter(c => {
-    if (c.assignedTo !== user?.id) return false;
     if (c.status?.toLowerCase() === "resolvido") return false;
     const slaStatus = store.getSLAStatus(c);
     return slaStatus === "estourado" || slaStatus === "em_risco";
@@ -188,15 +193,23 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                     <div className="absolute inset-0 w-2 h-2 rounded-full bg-primary animate-ping opacity-75" />
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <p className="text-xl font-black text-foreground">{openCount}</p>
-                    <p className="text-[9px] text-muted-foreground font-medium uppercase">Conversas ativas</p>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <p className="text-xl font-black text-foreground">{openCount}</p>
+                      <p className="text-[9px] text-muted-foreground font-medium uppercase">Meus atendimentos</p>
+                    </div>
+                    {queueCount > 0 && (
+                      <div className="flex-1 text-right">
+                        <p className="text-xl font-black text-primary">{queueCount}</p>
+                        <p className="text-[9px] text-muted-foreground font-medium uppercase">Na fila</p>
+                      </div>
+                    )}
                   </div>
                   {atRiskCount > 0 && (
-                    <div className="px-2.5 py-1.5 rounded-[10px] bg-destructive/10 border border-destructive/20">
-                      <p className="text-xs font-bold text-destructive">{atRiskCount}</p>
-                      <p className="text-[8px] text-destructive/70 font-bold">SLA</p>
+                    <div className="px-2.5 py-1.5 rounded-[10px] bg-destructive/10 border border-destructive/20 flex items-center justify-between">
+                      <p className="text-[9px] text-destructive font-bold uppercase tracking-wider">Atenção (SLA)</p>
+                      <p className="text-xs font-black text-destructive">{atRiskCount}</p>
                     </div>
                   )}
                 </div>

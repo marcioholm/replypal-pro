@@ -297,10 +297,17 @@ export default function InboxPage() {
     return convs;
   }, [allConversations, filter, user?.id, search, store]);
 
-  // Contagem da fila
-  const filaCount = useMemo(() => {
-    return allConversations.filter(c => !c.assignedTo && c.status !== "resolvido").length;
-  }, [allConversations]);
+  // Contagens para as abas
+  const counts = useMemo(() => {
+    return {
+      minhas: allConversations.filter(c => c.assignedTo === user?.id && c.status !== 'resolvido').length,
+      todas: allConversations.filter(c => c.status !== 'resolvido').length,
+      pendentes: allConversations.filter(c => (!c.assignedTo || c.status === 'novo' || c.status === 'aguardando') && c.status !== 'resolvido').length,
+      fila: allConversations.filter(c => !c.assignedTo && c.status !== 'resolvido').length
+    };
+  }, [allConversations, user?.id]);
+
+  const filaCount = counts.fila;
 
   useEffect(() => {
     if (filtered.length > prevConversationCount && prevConversationCount > 0) {
@@ -370,54 +377,68 @@ export default function InboxPage() {
           </div>
 
           <div className="flex p-1 bg-slate-100 dark:bg-white/5 rounded-xl border border-border/20">
-            <button
-              onClick={() => setFilter("minhas")}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
-                filter === "minhas" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              Minhas
-            </button>
-            <button
-              onClick={() => setFilter("todas")}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
-                filter === "todas" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Users className="w-3.5 h-3.5" />
-              Todas
-            </button>
-            <button
-              onClick={() => setFilter("pendentes")}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
-                filter === "pendentes" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Clock className="w-3.5 h-3.5" />
-              Pendentes
-            </button>
-            {/* IMPLEMENTAÇÃO 1.3: Aba Fila para admin/supervisor */}
-            {['admin', 'supervisor'].includes(user.role) && (
               <button
-                onClick={() => setFilter("fila")}
+                onClick={() => setFilter("minhas")}
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
-                  filter === "fila" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  filter === "minhas" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Users className="w-3.5 h-3.5" />
-                Fila
-                {filaCount > 0 && (
-                  <span className="ml-1 w-4 h-4 bg-destructive text-white text-[9px] font-black rounded-full flex items-center justify-center">
-                    {filaCount}
+                <UserCheck className="w-3.5 h-3.5" />
+                Minhas
+                {counts.minhas > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] rounded-full">
+                    {counts.minhas}
                   </span>
                 )}
               </button>
-            )}
+              <button
+                onClick={() => setFilter("todas")}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
+                  filter === "todas" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Users className="w-3.5 h-3.5" />
+                Todas
+                {counts.todas > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-400 text-[10px] rounded-full">
+                    {counts.todas}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setFilter("pendentes")}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
+                  filter === "pendentes" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                Pendentes
+                {counts.pendentes > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] rounded-full">
+                    {counts.pendentes}
+                  </span>
+                )}
+              </button>
+              {['admin', 'supervisor'].includes(user.role) && (
+                <button
+                  onClick={() => setFilter("fila")}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
+                    filter === "fila" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  Fila
+                  {counts.fila > 0 && (
+                    <span className="ml-1 w-4 h-4 bg-destructive text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                      {counts.fila}
+                    </span>
+                  )}
+                </button>
+              )}
           </div>
         </div>
 

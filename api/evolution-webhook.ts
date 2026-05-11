@@ -6,7 +6,7 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL ||
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, mediaPath: string, fileName: string, mimeType: string, fullMessage: any): Promise<string> {
+async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, mediaPath: string, fileName: string, mimeType: string, fullMessage: any, tenantId?: string): Promise<string> {
   const evoUrl = (process.env.EVOLUTION_URL || process.env.VITE_EVOLUTION_URL || evolutionUrl || "").replace(/\/$/, "");
   const evoKey = process.env.EVOLUTION_API_KEY || process.env.VITE_EVOLUTION_API_KEY || apikey || "";
   const instance = fullMessage?.instance || process.env.INSTANCE_NAME || "SASAKI";
@@ -17,8 +17,7 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
     const findBase64 = (obj: any, isMedia: boolean): string | null => {
       if (!obj || typeof obj !== 'object') return null;
       if (obj.base64 && typeof obj.base64 === 'string') {
-        // Se for áudio ou documento, aceita qualquer tamanho. Se for imagem, exige > 10KB para evitar thumbnails.
-        if (isMedia || obj.base64.length > 10000) return obj.base64;
+        if (isMedia || obj.base64.length > 2000) return obj.base64;
       }
       for (const key in obj) {
         const result = findBase64(obj[key], isMedia);
@@ -27,16 +26,14 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
       return null;
     };
 
-    const isMedia = mimeType.includes('audio') || mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('msword');
+    const isMedia = mimeType.includes('audio') || mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('msword') || mimeType.includes('sticker');
     const b64 = findBase64(fullMessage, isMedia);
     if (b64) {
-      console.log(`Webhook Media: Base64 found (${b64.length} bytes, isMedia: ${isMedia})`);
       const clean = b64.includes('base64,') ? b64.split('base64,')[1] : b64;
       buffer = Buffer.from(clean, 'base64');
     }
 
     if (!buffer && evoUrl && evoKey) {
-      console.log(`Webhook Media: Base64 missing, attempting API download...`);
       const instanceId = fullMessage?.instanceId || fullMessage?.data?.instanceId;
       const ids = [instance, instanceId].filter(Boolean);
       const v2Payload = fullMessage.data || fullMessage;
@@ -45,7 +42,6 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
       for (const id of ids) {
         const encId = encodeURIComponent(id as string);
         endpoints.push(`${evoUrl}/message/convert/toBase64/${encId}`);
-        endpoints.push(`${evoUrl}/chat/getBase64FromMediaMessage/${encId}`);
       }
 
       for (const url of endpoints) {
@@ -60,31 +56,6 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
             const dataB64 = json.base64 || json.data?.base64;
             if (dataB64) {
               buffer = Buffer.from(dataB64.includes('base64,') ? dataB64.split('base64,')[1] : dataB64, 'base64');
-              console.log(`Webhook Media: API Download successful (${buffer.length} bytes)`);
-              break;
-            }
-          }
-        } catch (e) {}
-      }
-    }
-
-    if (!buffer) {
-      console.log(`Webhook Media: API method failed, trying public/direct URL...`);
-      const fileNameId = mediaPath.split('/').pop()?.split('?')[0] || fileName;
-      const encInstance = encodeURIComponent(instance);
-      const evoPublicUrl = `${evoUrl}/public/media/${encInstance}/${fileNameId}`;
-      const urls = [evoPublicUrl, mediaPath];
-      
-      for (const dUrl of urls) {
-        try {
-          const res = await fetch(dUrl, { 
-            headers: dUrl === mediaPath ? {} : { 'apikey': evoKey }
-          });
-          if (res.ok) {
-            const tmp = Buffer.from(await res.arrayBuffer());
-            if (tmp.length > 100) { 
-              buffer = tmp;
-              console.log(`Webhook Media: Direct URL download successful (${buffer.length} bytes)`);
               break;
             }
           }
@@ -95,16 +66,22 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
     if (!buffer) return mediaPath.startsWith("http") ? mediaPath : `${evoUrl}/public/${mediaPath}`;
 
     const safeName = (fileName || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
-    const storagePath = `incoming/${Date.now()}_${safeName}`;
+    const tDir = tenantId || "incoming";
+    const storagePath = `${tDir}/${Date.now()}_${safeName}`;
+    
     const { error } = await supabase.storage.from("chat-media").upload(storagePath, buffer, { 
       contentType: mimeType || "application/octet-stream", 
       upsert: true 
     });
 
-    if (error) return mediaPath;
+    if (error) {
+      console.error("Storage Upload Error:", error);
+      return mediaPath;
+    }
     const { data: { publicUrl } } = supabase.storage.from("chat-media").getPublicUrl(storagePath);
     return publicUrl;
   } catch (err) {
+    console.error("Media processing error:", err);
     return mediaPath;
   }
 }
@@ -181,26 +158,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } else if (messageContent.imageMessage) {
         type = 'image'; content = messageContent.imageMessage.caption || '';
         mimeType = messageContent.imageMessage.mimetype;
-        mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.imageMessage.url, 'image.jpg', mimeType, req.body);
+        mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.imageMessage.url, 'image.jpg', mimeType, req.body, tenantId);
       } else if (messageContent.videoMessage) {
         type = 'video'; content = messageContent.videoMessage.caption || '';
         mimeType = messageContent.videoMessage.mimetype;
-        mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.videoMessage.url, 'video.mp4', mimeType, req.body);
+        mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.videoMessage.url, 'video.mp4', mimeType, req.body, tenantId);
       } else if (messageContent.audioMessage) {
         type = 'audio'; content = '';
         // Limpar o mimeType para garantir compatibilidade (remover codecs=opus etc)
         mimeType = 'audio/ogg'; 
-        mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.audioMessage.url, 'audio.ogg', mimeType, req.body);
+        mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.audioMessage.url, 'audio.ogg', mimeType, req.body, tenantId);
       } else if (messageContent.documentMessage || messageContent.documentWithCaptionMessage) {
         const doc = messageContent.documentMessage || messageContent.documentWithCaptionMessage?.message?.documentMessage;
         if (doc) {
           type = 'document'; fileName = doc.fileName || 'document';
           content = doc.caption || fileName; mimeType = doc.mimetype;
-          mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, doc.url, fileName, mimeType, req.body);
+          mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, doc.url, fileName, mimeType, req.body, tenantId);
         }
       } else if (messageContent.stickerMessage) {
         type = 'sticker'; content = '[Figurinha]'; mimeType = 'image/webp';
-        mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.stickerMessage.url, 'sticker.webp', mimeType, req.body);
+        mediaUrl = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.stickerMessage.url, 'sticker.webp', mimeType, req.body, tenantId);
       }
 
       await supabase.from('mensagens').upsert({
