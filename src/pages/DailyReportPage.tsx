@@ -18,7 +18,7 @@ import {
   FileText, Plus, Trash2, Send, CheckCircle2, Clock, 
   Settings2, Users, AlertCircle, MessageSquare, Globe, 
   Loader2, ChevronLeft, Database, Search, Filter, 
-  BarChart3, Activity, XCircle, AlertTriangle, ArrowRight
+  BarChart3, Activity, XCircle, AlertTriangle, ArrowRight, RefreshCcw
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
