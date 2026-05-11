@@ -2,7 +2,7 @@ import { User, Conversation, Customer } from "./store";
 
 const N8N_URLS = {
   financeiro: import.meta.env.VITE_N8N_FINANCEIRO_WEBHOOK || "",
-  documentos: import.meta.env.VITE_N8N_WEBHOOK_DOCUMENTOS || "",
+  documentos: "https://northway.vps8204.panel.icontainer.cloud/webhook/documentos/upload",
   // Endpoint para eventos operacionais do sistema
   eventos: import.meta.env.VITE_N8N_IA_WEBHOOK || "", 
 };

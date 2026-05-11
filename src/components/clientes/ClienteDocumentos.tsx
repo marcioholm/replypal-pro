@@ -57,7 +57,7 @@ export default function ClienteDocumentos({ clienteId, clienteNome }: ClienteDoc
   const [loading, setLoading] = useState(true);
   const store = useStore();
   const { user } = useAuth();
-  const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_DOCUMENTOS;
+  const webhookUrl = "https://northway.vps8204.panel.icontainer.cloud/webhook/documentos/upload";
 
   const [filters, setFilters] = useState({
     rh: { month: new Date().getMonth() + 1, year: new Date().getFullYear() },
