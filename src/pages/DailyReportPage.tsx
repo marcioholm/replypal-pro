@@ -44,7 +44,7 @@ interface ReportLog {
   tipo: string;
 }
 
-const N8N_RELATORIO_TESTE_WEBHOOK_URL = ""; // Preencher com URL real
+const N8N_RELATORIO_TESTE_WEBHOOK_URL = "https://northway.vps8204.panel.icontainer.cloud/webhook/replypal/relatorio-atendimento/teste";
 
 export default function DailyReportPage() {
   const { user } = useAuth();
