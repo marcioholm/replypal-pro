@@ -222,11 +222,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         last_message_time: new Date().toISOString() 
       };
       
-      // Se a conversa estava encerrada (resolvido), ela volta para a fila como 'novo'
-      // e removemos o atendente anterior para que qualquer um possa assumir
+      // Se a conversa estava encerrada (resolvido), ela volta para o atendente anterior
       if (conv?.status === 'resolvido') {
-        updatePayload.status = 'novo';
-        updatePayload.assigned_to = null;
+        updatePayload.status = 'aguardando';
       }
 
       await supabase.from('conversas').update(updatePayload).eq('id', conv?.id);
