@@ -18,6 +18,8 @@ export async function fetchMessages(phone: string) {
   const key = EVO_CONFIG.getKey();
   const instance = EVO_CONFIG.getInstance();
   
+  console.log(`[Evolution] Buscando mensagens. Instância: ${instance}, URL: ${url}`);
+  
   if (!url || !key) return { success: false, error: "API não configurada" };
   
   const phoneClean = phone.replace(/\D/g, "");
@@ -70,6 +72,8 @@ export async function sendWhatsAppMessage(phone: string, message: string, agentN
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
   const instance = EVO_CONFIG.getInstance();
+  
+  console.log(`[Evolution] Enviando mensagem. Instância: ${instance}, Para: ${phone}`);
   
   if (!url || !key) return { success: false, error: "API não configurada" };
   

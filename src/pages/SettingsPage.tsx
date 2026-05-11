@@ -63,7 +63,7 @@ export default function SettingsPage() {
   });
   const [instanceName, setInstanceName] = useState(() => {
     const saved = localStorage.getItem("evolution_instance");
-    return saved || "SASAKI";
+    return saved || import.meta.env.VITE_INSTANCE_NAME || "SASAKI";
   });
 
   const { user, refreshUser } = useAuth();
@@ -967,6 +967,16 @@ const handleConnect = async () => {
                     <Button variant="outline" size="sm" className="rounded-xl hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all" onClick={handleDisconnect}>
                       <XCircle className="w-4 h-4 mr-2" />
                       Desconectar
+                    </Button>
+                    <Button variant="ghost" size="sm" className="rounded-xl text-muted-foreground" onClick={() => {
+                      localStorage.removeItem("evolution_url");
+                      localStorage.removeItem("evolution_key");
+                      localStorage.removeItem("evolution_instance");
+                      localStorage.removeItem("wa_connection_cache");
+                      window.location.reload();
+                    }}>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Resetar Configurações Locais
                     </Button>
                   </div>
                 </div>
