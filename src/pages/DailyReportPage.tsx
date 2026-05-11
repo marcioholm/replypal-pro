@@ -173,6 +173,14 @@ export default function DailyReportPage() {
 
     setSaving(true);
     try {
+      // 1. Verificar se já existe uma configuração
+      const { data: existing } = await supabase
+        .from("automacoes_relatorios")
+        .select("id")
+        .eq("tenant_id", user.tenantId)
+        .eq("tipo", "resumo_diario_atendimento")
+        .maybeSingle();
+
       const payload = {
         tenant_id: user.tenantId,
         tipo: "resumo_diario_atendimento",
@@ -190,11 +198,21 @@ export default function DailyReportPage() {
         updated_at: new Date().toISOString()
       };
 
-      const { error } = await supabase
-        .from("automacoes_relatorios")
-        .upsert(payload, { onConflict: 'tenant_id,tipo' });
+      let result;
+      if (existing?.id) {
+        // Atualizar
+        result = await supabase
+          .from("automacoes_relatorios")
+          .update(payload)
+          .eq("id", existing.id);
+      } else {
+        // Inserir novo
+        result = await supabase
+          .from("automacoes_relatorios")
+          .insert(payload);
+      }
 
-      if (error) throw error;
+      if (result.error) throw result.error;
       toast.success("Configurações salvas!");
       fetchConfig();
     } catch (err: any) {
