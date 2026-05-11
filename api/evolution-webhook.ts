@@ -41,6 +41,18 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
       buffer = Buffer.from(clean, 'base64');
     }
 
+    if (!buffer && mediaPath.startsWith("http")) {
+      try {
+        const response = await fetch(mediaPath);
+        if (response.ok) {
+          buffer = Buffer.from(await response.arrayBuffer());
+          console.log(`[Webhook] Mídia baixada diretamente do CDN WhatsApp (${buffer.length} bytes)`);
+        }
+      } catch (e) {
+        console.error("[Webhook] Erro no download direto do CDN:", e);
+      }
+    }
+
     if (!buffer && evoUrl && evoKey) {
       const instanceId = fullMessage?.instanceId || fullMessage?.data?.instanceId || instance;
       const messageId = fullMessage?.key?.id || fullMessage?.data?.key?.id || fullMessage?.message?.key?.id;
