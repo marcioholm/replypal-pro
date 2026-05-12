@@ -50,6 +50,7 @@ export default function ChatPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [linkCnpjOpen, setLinkCnpjOpen] = useState(false);
   const [cnpjInput, setCnpjInput] = useState("");
+  const [contactNameInput, setContactNameInput] = useState("");
   const [isLinking, setIsLinking] = useState(false);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -780,16 +781,46 @@ export default function ChatPage() {
         return;
       }
 
-      // 2. Vincular à conversa
+      // 2. Vincular à conversa e atualizar nome se fornecido
+      const updatePayload: any = { customer_id: customerData.id };
+      if (contactNameInput) {
+        updatePayload.client_name = contactNameInput;
+      }
+
       const { error: convError } = await supabase
         .from("conversas")
-        .update({ customer_id: customerData.id })
+        .update(updatePayload)
         .eq("id", id);
       
       if (convError) throw convError;
 
-      // 3. Registrar nos logs (Conversa e Cliente)
-      const logDetails = `CNPJ: ${cleanCnpj} - ${customerData.nome_fantasia || customerData.razao_social}`;
+      // 3. Adicionar ao array de contatos do cliente (Setor/Nome)
+      const existingContacts = Array.isArray(customerData.contacts) ? customerData.contacts : [];
+      const contactExists = existingContacts.find((c: any) => c.phone === conv.clientPhone);
+      
+      if (!contactExists || contactNameInput) {
+        let newContacts = [...existingContacts];
+        const newContact = {
+          name: contactNameInput || conv.clientName,
+          phone: conv.clientPhone,
+          addedAt: new Date().toISOString()
+        };
+
+        if (contactExists) {
+          // Atualizar nome se já existe
+          newContacts = existingContacts.map(c => c.phone === conv.clientPhone ? newContact : c);
+        } else {
+          newContacts.push(newContact);
+        }
+
+        await supabase
+          .from("clientes")
+          .update({ contacts: newContacts })
+          .eq("id", customerData.id);
+      }
+
+      // 4. Registrar nos logs (Conversa e Cliente)
+      const logDetails = `CNPJ: ${cleanCnpj} - ${customerData.nome_fantasia || customerData.razao_social}${contactNameInput ? ` (Setor: ${contactNameInput})` : ""}`;
       
       await supabase.from("historico").insert([
         {
@@ -806,7 +837,8 @@ export default function ChatPage() {
       // Atualizar store local
       store.addDbConversation({
         ...conv,
-        customerId: customerData.id
+        customerId: customerData.id,
+        clientName: contactNameInput || conv.clientName
       });
       
       // Mapear para o formato do store
@@ -1170,15 +1202,24 @@ export default function ChatPage() {
                             placeholder="00.000.000/0000-00" 
                             value={cnpjInput} 
                             onChange={(e) => setCnpjInput(e.target.value)}
-                            className="rounded-2xl"
+                            className="rounded-2xl h-12"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs font-bold text-muted-foreground uppercase ml-1">Nome do Contato / Setor (Opcional)</p>
+                          <Input 
+                            placeholder="Ex: Financeiro, João RH, etc" 
+                            value={contactNameInput} 
+                            onChange={(e) => setContactNameInput(e.target.value)}
+                            className="rounded-2xl h-12"
                           />
                         </div>
                         <Button 
                           onClick={() => handleLinkCnpj(cnpjInput)} 
-                          className="w-full rounded-2xl h-12 font-bold"
+                          className="w-full rounded-2xl h-12 font-bold shadow-lg shadow-primary/20"
                           disabled={isLinking}
                         >
-                          {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : "Vincular Cliente"}
+                          {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : "Vincular e Salvar Contato"}
                         </Button>
                       </div>
                     </DialogContent>
