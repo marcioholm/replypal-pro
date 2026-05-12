@@ -372,6 +372,21 @@ const handleConnect = async () => {
       instance: instanceName
     });
 
+    // Salvar no banco para garantir persistência após o login
+    if (user?.tenantId) {
+      try {
+        await supabase.from("company_settings").upsert({
+          tenant_id: user.tenantId,
+          evolution_url: apiUrl,
+          evolution_api_key: evolutionKey.trim(),
+          instance_name: instanceName.trim(),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'tenant_id' });
+      } catch (err) {
+        console.error("Erro ao persistir configurações:", err);
+      }
+    }
+
     const res = await fetchQRCode();
     if (res.success && res.code) {
       setWaStatus("qrcode");

@@ -181,7 +181,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const now = new Date();
         const slaDeadline = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 horas de SLA por padrão
 
-        const { data: nConv, error: cErr } = await supabase.from('conversas').insert({
+        const { data: nConv, error: cErr } = await supabase.from('conversas').upsert({
           client_name: pushName || phone, 
           client_phone: phone, 
           status: 'novo', 
@@ -190,7 +190,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           client_avatar: profilePic, 
           is_group: isGroup,
           sla_deadline: slaDeadline.toISOString()
-        }).select().single();
+        }, { onConflict: 'client_phone,tenant_id' }).select().single();
         if (cErr) throw cErr;
         conv = nConv;
       } else if (profilePic && conv.client_avatar !== profilePic) {

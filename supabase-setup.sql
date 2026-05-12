@@ -47,10 +47,13 @@ CREATE TABLE IF NOT EXISTS conversas (
   assigned_to UUID,
   started_at TIMESTAMPTZ,
   sla_deadline TIMESTAMPTZ,
-  tags TEXT[],
+  is_group BOOLEAN DEFAULT false,
+  is_typing BOOLEAN DEFAULT false,
+  client_avatar TEXT,
   tenant_id UUID,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(client_phone, tenant_id)
 );
 
 CREATE TABLE IF NOT EXISTS mensagens (
@@ -60,6 +63,13 @@ CREATE TABLE IF NOT EXISTS mensagens (
   sender TEXT NOT NULL,
   sender_name TEXT,
   is_internal BOOLEAN DEFAULT false,
+  type TEXT DEFAULT 'text',
+  media_url TEXT,
+  mime_type TEXT,
+  file_name TEXT,
+  external_message_id TEXT UNIQUE,
+  status TEXT DEFAULT 'sent',
+  tenant_id UUID,
   timestamp TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -184,5 +194,24 @@ ALTER TABLE clientes DISABLE ROW LEVEL SECURITY;
 ALTER TABLE conversas DISABLE ROW LEVEL SECURITY;
 ALTER TABLE mensagens DISABLE ROW LEVEL SECURITY;
 ALTER TABLE tags DISABLE ROW LEVEL SECURITY;
+
+-- 10. TABELA DE CONFIGURAÇÕES DA EMPRESA
+CREATE TABLE IF NOT EXISTS company_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID UNIQUE REFERENCES tenants(id) ON DELETE CASCADE,
+  nome TEXT,
+  cnpj TEXT,
+  email TEXT,
+  telefone TEXT,
+  endereco TEXT,
+  logo_url TEXT,
+  evolution_url TEXT,
+  evolution_api_key TEXT,
+  instance_name TEXT DEFAULT 'replypal',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE company_settings DISABLE ROW LEVEL SECURITY;
 
 SELECT 'Setup concluído com segurança!' as status;
