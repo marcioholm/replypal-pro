@@ -133,7 +133,7 @@ export default function DailyReportPage() {
   // Métricas Calculadas
   const metrics = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
-    const todayLogs = logs.filter(l => l.enviado_em.startsWith(today));
+    const todayLogs = logs.filter(l => l.enviado_em && l.enviado_em.startsWith(today));
     const sentToday = todayLogs.filter(l => l.status === 'enviado').length;
     const errorsToday = todayLogs.filter(l => l.status === 'erro').length;
     const successRate = todayLogs.length > 0 
