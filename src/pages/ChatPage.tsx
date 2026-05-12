@@ -456,9 +456,9 @@ export default function ChatPage() {
         // 1. Marcar como lida na Evolution API
         const lastClientMsg = [...messages].reverse()
           .find(m => m.sender === 'client' && m.external_message_id);
-        if (lastClientMsg?.external_message_id) {
-          markAsRead(conv.clientPhone, lastClientMsg.external_message_id);
-        }
+        // if (lastClientMsg?.external_message_id) {
+        //   markAsRead(conv.clientPhone, lastClientMsg.external_message_id);
+        // }
 
         // 2. Atualizar status no Supabase (de novo para pendente)
         if (conv.status === "novo") {

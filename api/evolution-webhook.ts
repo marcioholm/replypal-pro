@@ -182,9 +182,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const slaDeadline = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 horas de SLA por padrão
 
         const { data: nConv, error: cErr } = await supabase.from('conversas').upsert({
-          client_name: pushName || phone, 
+          client_name: isFromMe ? phone : (pushName || phone), 
           client_phone: phone, 
-          status: 'novo', 
+          status: isFromMe ? 'em_atendimento' : 'novo', 
           last_message_time: now.toISOString(), 
           tenant_id: tId,
           client_avatar: profilePic, 

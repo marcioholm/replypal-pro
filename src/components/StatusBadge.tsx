@@ -11,6 +11,13 @@ const colorMap: Record<string, string> = {
 
 export function StatusBadge({ status }: { status: ConversationStatus }) {
   const config = STATUS_CONFIG[status];
+  if (!config) {
+    return (
+      <Badge variant="outline" className="text-[10px] font-medium px-2 py-0.5">
+        {status || "Desconhecido"}
+      </Badge>
+    );
+  }
   return (
     <Badge variant="outline" className={`text-[10px] font-medium px-2 py-0.5 ${colorMap[config.color] || ""}`}>
       {config.label}
