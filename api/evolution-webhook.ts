@@ -243,6 +243,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         type = 'sticker'; content = '[Figurinha]'; mimeType = 'image/webp';
         const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.stickerMessage.url, 'sticker.webp', mimeType, req.body, tenantId);
         mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
+      } else if (messageContent.contactMessage) {
+        type = 'contact';
+        const contact = messageContent.contactMessage;
+        fileName = contact.displayName || 'Contato';
+        content = `[Contato] ${fileName}`;
+      } else if (messageContent.contactsArrayMessage) {
+        type = 'contact';
+        const contacts = messageContent.contactsArrayMessage.contacts || [];
+        fileName = contacts.length > 1 ? `${contacts[0].displayName} e mais ${contacts.length - 1}` : (contacts[0]?.displayName || 'Contatos');
+        content = `[Contatos] ${fileName}`;
+      } else if (messageContent.locationMessage || messageContent.liveLocationMessage) {
+        type = 'location';
+        const loc = messageContent.locationMessage || messageContent.liveLocationMessage;
+        const lat = loc.degreesLatitude;
+        const lng = loc.degreesLongitude;
+        fileName = loc.name || 'Localização';
+        content = `[Localização] ${fileName}`;
+        mediaUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
       }
 
       await supabase.from('mensagens').upsert({
