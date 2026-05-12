@@ -8,19 +8,15 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function checkConstraints() {
+async function updateConstraint() {
   const sql = `
-    SELECT
-        conname,
-        pg_get_constraintdef(oid)
-    FROM
-        pg_constraint
-    WHERE
-        conrelid = 'mensagens'::regclass;
+    ALTER TABLE mensagens DROP CONSTRAINT IF EXISTS mensagens_type_check;
+    ALTER TABLE mensagens ADD CONSTRAINT mensagens_type_check 
+    CHECK (type IN ('text', 'image', 'video', 'audio', 'document', 'sticker', 'location', 'contact'));
   `;
   const { data, error } = await supabase.rpc('exec_sql', { query: sql });
   if (error) console.error(error);
-  else console.log('Constraints on mensagens:', data);
+  else console.log('Constraint updated successfully:', data);
 }
 
-checkConstraints();
+updateConstraint();

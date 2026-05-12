@@ -248,11 +248,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const contact = messageContent.contactMessage;
         fileName = contact.displayName || 'Contato';
         content = `[Contato] ${fileName}`;
+        const vcard = contact.vcard || "";
+        const telMatch = vcard.match(/TEL(?:;[^:]+)*:([+\d\s-]+)/);
+        if (telMatch) mediaUrl = telMatch[1].replace(/\D/g, "");
       } else if (messageContent.contactsArrayMessage) {
         type = 'contact';
         const contacts = messageContent.contactsArrayMessage.contacts || [];
-        fileName = contacts.length > 1 ? `${contacts[0].displayName} e mais ${contacts.length - 1}` : (contacts[0]?.displayName || 'Contatos');
+        const firstContact = contacts[0];
+        fileName = contacts.length > 1 ? `${firstContact?.displayName} e mais ${contacts.length - 1}` : (firstContact?.displayName || 'Contatos');
         content = `[Contatos] ${fileName}`;
+        const vcard = firstContact?.vcard || "";
+        const telMatch = vcard.match(/TEL(?:;[^:]+)*:([+\d\s-]+)/);
+        if (telMatch) mediaUrl = telMatch[1].replace(/\D/g, "");
       } else if (messageContent.locationMessage || messageContent.liveLocationMessage) {
         type = 'location';
         const loc = messageContent.locationMessage || messageContent.liveLocationMessage;

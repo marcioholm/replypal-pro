@@ -8,19 +8,19 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function checkConstraints() {
+async function checkMensagensSchema() {
   const sql = `
     SELECT
-        conname,
-        pg_get_constraintdef(oid)
+        column_name,
+        data_type
     FROM
-        pg_constraint
+        information_schema.columns
     WHERE
-        conrelid = 'mensagens'::regclass;
+        table_name = 'mensagens';
   `;
   const { data, error } = await supabase.rpc('exec_sql', { query: sql });
   if (error) console.error(error);
-  else console.log('Constraints on mensagens:', data);
+  else console.log('Columns in mensagens:', data);
 }
 
-checkConstraints();
+checkMensagensSchema();

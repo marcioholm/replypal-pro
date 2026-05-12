@@ -25,6 +25,19 @@ export function NewChatDialog({ collapsed }: NewChatDialogProps) {
   const { user } = useAuth();
   const store = useStore();
   const navigate = useNavigate();
+  const [isExternal, setIsExternal] = useState(false);
+
+  useEffect(() => {
+    const handleOpenExternal = (e: any) => {
+      if (e.detail?.phone) {
+        setPhone(e.detail.phone);
+        setOpen(true);
+        setIsExternal(true);
+      }
+    };
+    window.addEventListener("open-new-chat", handleOpenExternal);
+    return () => window.removeEventListener("open-new-chat", handleOpenExternal);
+  }, []);
 
   const handleStartChat = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +61,7 @@ export function NewChatDialog({ collapsed }: NewChatDialogProps) {
         .from("conversas")
         .select("*")
         .eq("client_phone", cleanPhone)
+        .eq("tenant_id", user.tenantId)
         .maybeSingle();
 
       if (fetchError) throw fetchError;
