@@ -48,6 +48,9 @@ export default function ChatPage() {
   const [closingReason, setClosingReason] = useState<ClosingReason>("resolvido");
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [linkCnpjOpen, setLinkCnpjOpen] = useState(false);
+  const [cnpjInput, setCnpjInput] = useState("");
+  const [isLinking, setIsLinking] = useState(false);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Media states
@@ -729,6 +732,16 @@ export default function ChatPage() {
       
       if (convError) throw convError;
 
+      // Registrar no histórico DB
+      await supabase.from("historico").insert({
+        conversation_id: id,
+        customer_id: newCustomer.id,
+        action: "Novo cliente cadastrado e vinculado",
+        user_id: user?.id,
+        user_name: user?.name,
+        timestamp: new Date().toISOString()
+      });
+
       store.addDbConversation({
         ...conv,
         customerId: newCustomer.id
@@ -739,6 +752,98 @@ export default function ChatPage() {
     } catch (err) {
       console.error("Erro ao vincular cliente:", err);
       toast.error("Erro ao vincular cliente");
+    }
+  };
+
+  const handleLinkCnpj = async (cnpj: string) => {
+    if (!cnpj || !conv) return;
+    const cleanCnpj = cnpj.replace(/\D/g, "");
+    if (cleanCnpj.length < 11) {
+      toast.error("CNPJ/CPF inválido");
+      return;
+    }
+
+    setIsLinking(true);
+    try {
+      // 1. Buscar cliente por CNPJ
+      const { data: customerData, error: customerError } = await supabase
+        .from("clientes")
+        .select("*")
+        .eq("cnpj", cleanCnpj)
+        .maybeSingle();
+      
+      if (customerError) throw customerError;
+      
+      if (!customerData) {
+        toast.error("CNPJ não encontrado na base de clientes.");
+        setIsLinking(false);
+        return;
+      }
+
+      // 2. Vincular à conversa
+      const { error: convError } = await supabase
+        .from("conversas")
+        .update({ customer_id: customerData.id })
+        .eq("id", id);
+      
+      if (convError) throw convError;
+
+      // 3. Registrar nos logs (Conversa e Cliente)
+      const logDetails = `CNPJ: ${cleanCnpj} - ${customerData.nome_fantasia || customerData.razao_social}`;
+      
+      await supabase.from("historico").insert([
+        {
+          conversation_id: id,
+          customer_id: customerData.id,
+          action: "Cliente vinculado via CNPJ",
+          user_id: user?.id,
+          user_name: user?.name,
+          details: logDetails,
+          timestamp: new Date().toISOString()
+        }
+      ]);
+
+      // Atualizar store local
+      store.addDbConversation({
+        ...conv,
+        customerId: customerData.id
+      });
+      
+      // Mapear para o formato do store
+      store.addDbCustomer({
+        id: customerData.id,
+        name: customerData.nome_fantasia,
+        razaoSocial: customerData.razao_social,
+        cnpj: customerData.cnpj,
+        responsibleName: customerData.responsavel,
+        whatsapp: customerData.whatsapp,
+        phone: customerData.telefone,
+        email: customerData.email,
+        city: customerData.cidade,
+        state: customerData.estado,
+        regime: customerData.regime_tributario,
+        naturezaJuridica: customerData.natureza_juridica,
+        cnae: customerData.cnae,
+        hasEmployees: customerData.has_employees,
+        employeeCount: customerData.employee_count,
+        status: customerData.status,
+        priority: customerData.prioridade,
+        serviceLevel: customerData.service_level,
+        preferredChannel: customerData.preferred_channel,
+        plan: customerData.plan,
+        monthlyValue: customerData.monthly_value,
+        tenantId: customerData.tenant_id,
+        createdAt: new Date(customerData.created_at)
+      } as any);
+
+      toast.success("Cliente vinculado com sucesso!");
+      setLinkCnpjOpen(false);
+      setCnpjInput("");
+    } catch (err: any) {
+      console.error("Erro ao vincular CNPJ:", err);
+      toast.error(`Erro ao vincular: ${err.message}`);
+    } finally {
+      setIsLinking(false);
     }
   };
 
@@ -1046,9 +1151,38 @@ export default function ChatPage() {
                   <Button variant="outline" className="w-full" onClick={() => navigate(`/customers/${customer.id}`)}>Ver Cadastro Completo</Button>
                 </>
               ) : (
-                <div className="text-center py-8">
+                <div className="text-center py-8 space-y-3">
                   <p className="text-sm text-muted-foreground mb-4">Cliente não cadastrado.</p>
-                  <Button onClick={handleAutoCreateCustomer}>Cadastrar Agora</Button>
+                  <Button onClick={handleAutoCreateCustomer} className="w-full">Cadastrar Novo</Button>
+                  
+                  <Dialog open={linkCnpjOpen} onOpenChange={setLinkCnpjOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">Vincular a CNPJ</Button>
+                    </DialogTrigger>
+                    <DialogContent className="rounded-[32px]">
+                      <DialogHeader>
+                        <DialogTitle>Vincular a CNPJ Existente</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <p className="text-xs font-bold text-muted-foreground uppercase ml-1">CNPJ do Cliente</p>
+                          <Input 
+                            placeholder="00.000.000/0000-00" 
+                            value={cnpjInput} 
+                            onChange={(e) => setCnpjInput(e.target.value)}
+                            className="rounded-2xl"
+                          />
+                        </div>
+                        <Button 
+                          onClick={() => handleLinkCnpj(cnpjInput)} 
+                          className="w-full rounded-2xl h-12 font-bold"
+                          disabled={isLinking}
+                        >
+                          {isLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : "Vincular Cliente"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               )}
             </div>
