@@ -493,77 +493,93 @@ export default function DailyReportPage() {
                   </Button>
                 </div>
               </div>
-
-              <div className="rounded-2xl border border-border/40 overflow-hidden bg-background/20">
-                <Table>
-                  <TableHeader className="bg-muted/30">
-                    <TableRow className="hover:bg-transparent border-border/40">
-                      <TableHead className="text-[10px] font-black uppercase py-4">Status</TableHead>
-                      <TableHead className="text-[10px] font-black uppercase">Destinatário</TableHead>
-                      <TableHead className="text-[10px] font-black uppercase">Data/Hora</TableHead>
-                      <TableHead className="text-[10px] font-black uppercase text-right">Ação</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredLogs.map((log) => (
-                      <TableRow key={log.id} className="border-border/40 hover:bg-white/5 transition-colors">
-                        <TableCell className="py-4">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center">
-                                  {log.status === 'enviado' ? (
-                                    <div className="px-2 py-1 rounded-full bg-green-500/10 text-green-500 text-[9px] font-bold flex items-center gap-1">
-                                      <CheckCircle2 className="w-3 h-3" /> ENVIADO
-                                    </div>
-                                  ) : log.status === 'erro' ? (
-                                    <div className="px-2 py-1 rounded-full bg-red-500/10 text-red-500 text-[9px] font-bold flex items-center gap-1">
-                                      <AlertTriangle className="w-3 h-3" /> ERRO
-                                    </div>
-                                  ) : (
-                                    <div className="px-2 py-1 rounded-full bg-amber-500/10 text-amber-500 text-[9px] font-bold flex items-center gap-1">
-                                      <Clock className="w-3 h-3" /> PENDENTE
-                                    </div>
-                                  )}
-                                </div>
-                              </TooltipTrigger>
-                              {log.erro && (
-                                <TooltipContent className="bg-destructive text-destructive-foreground p-3 rounded-xl max-w-[200px]">
-                                  <p className="text-xs font-bold mb-1">Motivo da Falha:</p>
-                                  <p className="text-[10px] leading-relaxed opacity-90">{log.erro}</p>
-                                </TooltipContent>
+              <div className="rounded-2xl border border-border/20 overflow-hidden bg-background/20">
+                <div className="max-h-[450px] overflow-y-auto custom-scrollbar">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
+                      <TableRow className="hover:bg-transparent border-border/40">
+                        <TableHead className="text-[10px] font-black uppercase tracking-tighter w-[100px] h-10">Status</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-tighter h-10">Destinatário</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-tighter h-10">Data/Hora</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-tighter text-right h-10 pr-6">Ação</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredLogs.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="h-40 text-center">
+                            <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground/40">
+                              <Search className="w-8 h-8" />
+                              <p className="text-xs font-medium italic">Nenhum log encontrado.</p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredLogs.map((log) => (
+                          <TableRow key={log.id} className="group border-border/10 hover:bg-primary/5 transition-colors">
+                            <TableCell className="py-3">
+                              {log.status === 'enviado' ? (
+                                <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0">
+                                  <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
+                                  Enviado
+                                </Badge>
+                              ) : log.status === 'erro' ? (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Badge className="bg-red-500/10 text-red-500 border-red-500/20 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 cursor-help">
+                                        <XCircle className="w-2.5 h-2.5 mr-1" />
+                                        Erro
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right" className="bg-destructive text-destructive-foreground border-none">
+                                      <p className="text-[10px] font-bold">{log.erro || "Falha"}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              ) : (
+                                <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0">
+                                  <Clock className="w-2.5 h-2.5 mr-1" />
+                                  Pendente
+                                </Badge>
                               )}
-                            </Tooltip>
-                          </TooltipProvider>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="text-xs font-bold">{log.nome_destinatario || 'Sem Nome'}</span>
-                            <span className="text-[10px] text-muted-foreground tabular-nums">{log.numero_destino}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-bold">{format(new Date(log.enviado_em), "dd MMM", { locale: ptBR })}</span>
-                            <span className="text-[10px] text-muted-foreground">{format(new Date(log.enviado_em), "HH:mm")}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 hover:bg-primary/10 hover:text-primary">
-                            <FileText className="w-3.5 h-3.5" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {filteredLogs.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={4} className="h-40 text-center text-muted-foreground/40 text-[10px] font-bold italic">
-                          Nenhum log encontrado para os critérios selecionados.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                            </TableCell>
+                            <TableCell className="py-3">
+                              <div className="flex flex-col">
+                                <span className="text-xs font-bold truncate max-w-[120px]">{log.nome_destinatario || 'Sem nome'}</span>
+                                <span className="text-[10px] text-muted-foreground/60 tabular-nums">{log.numero_destino}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-3">
+                              <div className="flex flex-col text-[10px] font-medium leading-tight">
+                                <span>{format(new Date(log.enviado_em), "dd MMM", { locale: ptBR })}</span>
+                                <span className="text-muted-foreground/40">{format(new Date(log.enviado_em), "HH:mm")}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-3 text-right pr-6">
+                              {log.response_json && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-primary/10">
+                                        <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent align="end">
+                                      <pre className="text-[9px] max-w-[200px] overflow-auto">
+                                        {JSON.stringify(log.response_json, null, 2)}
+                                      </pre>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
           </Card>
