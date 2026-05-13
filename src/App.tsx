@@ -28,6 +28,7 @@ import AlertsPage from "@/pages/AlertsPage";
 import ScheduledMessagesPage from "@/pages/ScheduledMessagesPage";
 import DailyReportPage from "@/pages/DailyReportPage";
 import ContactsPage from "@/pages/ContactsPage";
+import HygienePage from "@/pages/HygienePage";
 import NotFound from "@/pages/NotFound";
 
 interface ErrorBoundaryState {
@@ -174,6 +175,7 @@ function AppRoutes() {
                     <Route path="/customers" element={<CustomersPage />} />
                     <Route path="/customers/:id" element={<CustomerDetailsPage />} />
                     <Route path="/contacts" element={<ContactsPage />} />
+                    <Route path="/contacts/hygiene" element={<HygienePage />} />
                     <Route path="/training" element={<TrainingPage />} />
                     <Route path="/alerts" element={<AlertsPage />} />
                     <Route path="/scheduled" element={<ScheduledMessagesPage />} />

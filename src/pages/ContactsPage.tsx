@@ -15,8 +15,7 @@ import { cn } from "@/lib/utils";
 import { 
   Users, Search, Filter, 
   MessageSquare, ChevronRight, FilterX,
-  Loader2, ChevronLeft, Building2, 
-  ClipboardList, Mail, PhoneCall, Download
+  Loader2, ChevronLeft, Building2,  UserCog, ClipboardList, Info, Mail, PhoneCall, ShieldCheck
 } from "lucide-react";
 
 export default function ContactsPage() {
@@ -140,7 +139,14 @@ export default function ContactsPage() {
         </div>
         
         <div className="flex items-center gap-2">
-          <SmartHygieneDialog />
+          <Button 
+            onClick={() => navigate("/contacts/hygiene")} 
+            className="gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 rounded-xl px-4 font-bold shadow-sm"
+            variant="outline"
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Auditoria de Contatos
+          </Button>
           <SimpleContactDialog onSuccess={() => {}} />
           <ContactImportDialog onSuccess={() => window.location.reload()} />
         </div>
