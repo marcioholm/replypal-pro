@@ -33,6 +33,56 @@ export default function HygienePage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const pageSize = 30;
 
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      const tenantId = user?.tenantId;
+      if (!tenantId || store.customers.length > 0) return;
+
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("clientes")
+          .select("*")
+          .eq("tenant_id", tenantId);
+
+        if (error) throw error;
+        
+        if (data) {
+          data.forEach(c => {
+            store.addDbCustomer({
+              id: c.id,
+              name: c.nome_fantasia || c.razao_social || "Sem Nome",
+              razaoSocial: c.razao_social || "",
+              cnpj: c.cnpj || "",
+              responsibleName: c.responsavel || "",
+              whatsapp: c.whatsapp || "",
+              phone: c.telefone || "",
+              email: c.email || "",
+              city: c.cidade || "",
+              state: c.estado || "",
+              regime: c.regime_tributario as any,
+              status: c.status as any,
+              priority: (c.prioridade || "Média") as any,
+              tenantId: c.tenant_id,
+              operational_status: c.operational_status as any,
+              internal_responsible_name: c.internal_responsible_name,
+              sector: c.sector as any,
+              fantasy_name: c.nome_fantasia,
+              whatsapp_status: c.whatsapp_status,
+              createdAt: new Date(c.created_at)
+            });
+          });
+        }
+      } catch (err) {
+        console.error("Erro ao carregar higiene:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCustomers();
+  }, [user?.tenantId]);
+
   const auditData = useMemo(() => {
     return store.customers.map(c => ({
       ...c,
