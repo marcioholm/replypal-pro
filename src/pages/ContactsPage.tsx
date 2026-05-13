@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ContactImportDialog } from "@/components/clientes/ContactImportDialog";
 import { SimpleContactDialog } from "@/components/clientes/SimpleContactDialog";
-import { DuplicateCheckDialog } from "@/components/clientes/DuplicateCheckDialog";
+import { SmartHygieneDialog } from "@/components/clientes/SmartHygieneDialog";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { useEffect } from "react";
@@ -91,7 +91,7 @@ export default function ContactsPage() {
         </div>
         
         <div className="flex items-center gap-2">
-          <DuplicateCheckDialog />
+          <SmartHygieneDialog />
           <SimpleContactDialog onSuccess={() => {}} />
           <ContactImportDialog onSuccess={() => window.location.reload()} />
         </div>
