@@ -184,8 +184,8 @@ export default function CustomersPage() {
               </div>
               <TrendingUp className="w-4 h-4 text-success" />
             </div>
-            <p className="text-3xl font-bold tracking-tight">{store.customers.length}</p>
-            <p className="text-xs text-muted-foreground mt-1 font-medium">Total de clientes</p>
+            <p className="text-3xl font-bold tracking-tight">{store.customers.filter(c => c.cnpj && c.cnpj.trim().length > 0).length}</p>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">Empresas cadastradas</p>
           </CardContent>
         </Card>
 
@@ -198,8 +198,10 @@ export default function CustomersPage() {
               </div>
               <span className="text-xs font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">98%</span>
             </div>
-            <p className="text-3xl font-bold text-success">{store.customers.filter(c => c.status === 'Ativo').length}</p>
-            <p className="text-xs text-muted-foreground mt-1 font-medium">Clientes ativos</p>
+            <p className="text-3xl font-bold text-success">
+              {store.customers.filter(c => c.status === 'Ativo' && c.cnpj && c.cnpj.trim().length > 0).length}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">Empresas ativas</p>
           </CardContent>
         </Card>
 
@@ -211,8 +213,10 @@ export default function CustomersPage() {
                 <Clock className="w-5 h-5 text-info" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-info">{store.customers.filter(c => c.status === 'Onboarding').length}</p>
-            <p className="text-xs text-muted-foreground mt-1 font-medium">Em onboarding</p>
+            <p className="text-3xl font-bold text-info">
+              {store.customers.filter(c => c.status === 'Onboarding' && c.cnpj && c.cnpj.trim().length > 0).length}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">Em onboarding (Empresas)</p>
           </CardContent>
         </Card>
 
@@ -224,8 +228,10 @@ export default function CustomersPage() {
                 <BookOpen className="w-5 h-5 text-warning" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-warning">{store.customers.filter(c => c.serviceLevel === 'Estratégico').length}</p>
-            <p className="text-xs text-muted-foreground mt-1 font-medium">Contas estratégicas</p>
+            <p className="text-3xl font-bold text-warning">
+              {store.customers.filter(c => c.serviceLevel === 'Estratégico' && c.cnpj && c.cnpj.trim().length > 0).length}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">Contas estratégicas (Empresas)</p>
           </CardContent>
         </Card>
       </div>
