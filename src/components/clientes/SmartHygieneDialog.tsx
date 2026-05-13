@@ -162,6 +162,76 @@ export function SmartHygieneDialog() {
     }
   };
 
+  const handleCheckWhatsapp = async (id: string, phone: string) => {
+    setLoading(true);
+    try {
+      const result = await checkWhatsappNumber(phone);
+      const { error } = await supabase.from("clientes").update({
+        whatsapp_status: result.status,
+        whatsapp_checked_at: result.checked_at,
+        whatsapp_check_provider: result.provider,
+        whatsapp_check_error: result.error
+      }).eq("id", id);
+
+      if (error) throw error;
+      store.updateCustomer(id, { 
+        whatsapp_status: result.status as any,
+        whatsapp_checked_at: new Date(result.checked_at),
+        whatsapp_check_provider: result.provider,
+        whatsapp_check_error: result.error
+      });
+      toast.success(result.status === "possui WhatsApp" ? "WhatsApp identificado!" : "Sem WhatsApp.");
+    } catch (err: any) {
+      toast.error("Erro na verificação: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkCheckWhatsapp = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    setIsVerifying(true);
+    setVerificationProgress({ current: 0, total: ids.length });
+    
+    try {
+      for (let i = 0; i < ids.length; i++) {
+        const id = ids[i];
+        const customer = auditData.find(d => d.id === id);
+        if (!customer) continue;
+
+        const phone = customer.whatsapp || customer.phone;
+        if (!phone) continue;
+
+        setVerificationProgress({ current: i + 1, total: ids.length });
+        
+        const result = await checkWhatsappNumber(phone);
+        await supabase.from("clientes").update({
+          whatsapp_status: result.status,
+          whatsapp_checked_at: result.checked_at,
+          whatsapp_check_provider: result.provider,
+          whatsapp_check_error: result.error
+        }).eq("id", id);
+
+        store.updateCustomer(id, { 
+          whatsapp_status: result.status as any,
+          whatsapp_checked_at: new Date(result.checked_at),
+          whatsapp_check_provider: result.provider,
+          whatsapp_check_error: result.error
+        });
+
+        // Intervalo entre verificações para segurança
+        await new Promise(r => setTimeout(r, 400));
+      }
+      toast.success("Verificação em massa concluída!");
+    } catch (err: any) {
+      toast.error("Erro no processamento: " + err.message);
+    } finally {
+      setIsVerifying(false);
+      setSelectedIds([]);
+    }
+  };
+
+
   const handleMerge = async (phone: string, list: (Customer & { audit: AuditResult })[]) => {
     setLoading(true);
     try {
