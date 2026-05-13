@@ -595,3 +595,57 @@ function EmptyState({ message }: { message: string }) {
     </div>
   );
 }
+
+function MetricCard({ label, value, icon: Icon, color }: { label: string; value: number; icon: any; color: string }) {
+  const colors: any = {
+    primary: "bg-primary/10 text-primary",
+    green: "bg-green-500/10 text-green-500",
+    red: "bg-red-500/10 text-red-500",
+    amber: "bg-amber-500/10 text-amber-500",
+    purple: "bg-purple-500/10 text-purple-500",
+    blue: "bg-blue-500/10 text-blue-500",
+  };
+
+  return (
+    <div className="bg-background rounded-[24px] p-5 border shadow-sm group hover:shadow-md transition-all hover:-translate-y-0.5">
+      <div className="flex items-center justify-between mb-4">
+        <div className={cn("p-2 rounded-xl transition-colors", colors[color])}>
+          <Icon className="w-4 h-4" />
+        </div>
+        <Badge variant="ghost" className="text-[10px] opacity-50 font-bold uppercase tracking-widest">Card</Badge>
+      </div>
+      <div className="space-y-0.5">
+        <h4 className="text-3xl font-black tracking-tight">{value}</h4>
+        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground opacity-70">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+function AuditBadge({ severity }: { severity: Severity }) {
+  const configs: Record<Severity, { label: string; className: string }> = {
+    CRITICAL: { label: "Crítico", className: "bg-red-500/10 text-red-600 border-red-200" },
+    ATTENTION: { label: "Atenção", className: "bg-amber-500/10 text-amber-600 border-amber-200" },
+    DUPLICATE: { label: "Duplicado", className: "bg-purple-500/10 text-purple-600 border-purple-200" },
+    OK: { label: "Válido", className: "bg-green-500/10 text-green-600 border-green-200" },
+  };
+
+  return (
+    <Badge variant="outline" className={cn("rounded-md px-2 py-0 h-5 text-[9px] font-black uppercase tracking-widest", configs[severity].className)}>
+      {configs[severity].label}
+    </Badge>
+  );
+}
+
+function formatWithHighlight(text: string, range?: [number, number]) {
+  if (!range) return text;
+  const start = range[0];
+  const end = range[1];
+  return (
+    <>
+      {text.substring(0, start)}
+      <span className="bg-red-500/20 text-red-700 px-0.5 rounded mx-0.5 border border-red-200">{text.substring(start, end)}</span>
+      {text.substring(end)}
+    </>
+  );
+}
