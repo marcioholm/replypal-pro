@@ -38,7 +38,10 @@ export default function HygienePage() {
   useEffect(() => {
     const fetchCustomers = async () => {
       const tenantId = user?.tenantId;
-      if (!tenantId || store.customers.length > 0) return;
+      if (!tenantId) return;
+
+      // Limpar contatos atuais para garantir carga completa e fresca
+      store.customers = []; 
 
       setLoading(true);
       try {
