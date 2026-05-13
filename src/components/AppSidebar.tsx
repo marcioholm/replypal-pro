@@ -27,7 +27,8 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { title: "Caixa de Entrada", url: "/", icon: MessageSquare, badge: "inbox" },
   { title: "Pipeline", url: "/pipeline", icon: Columns3, badge: "pipeline" },
-  { title: "Clientes", url: "/customers", icon: Users, badge: "customers" },
+  { title: "Clientes", url: "/customers", icon: Building2, badge: "customers" },
+  { title: "Contatos", url: "/contacts", icon: Users, badge: "contacts" },
   { title: "Treinamento da IA", url: "/training", icon: GraduationCap, badge: "training" },
   { title: "Alertas Inteligentes", url: "/alerts", icon: Bell, badge: "alerts" },
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, badge: "dashboard" },

@@ -245,6 +245,29 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'automacoes_relatorios_tenant_id_tipo_key') THEN 
         ALTER TABLE automacoes_relatorios ADD CONSTRAINT automacoes_relatorios_tenant_id_tipo_key UNIQUE (tenant_id, tipo); 
     END IF; 
+
+    -- Garantir UNIQUE constraint em clientes para permitir UPSERT de contatos
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'clientes_whatsapp_tenant_id_key') THEN 
+        -- 1. Limpar caracteres não numéricos
+        UPDATE clientes SET whatsapp = REGEXP_REPLACE(whatsapp, '\D', '', 'g') WHERE whatsapp IS NOT NULL;
+        
+        -- 2. Normalizar whatsapp existentes (adicionar 55 se tiver 10 ou 11 dígitos)
+        UPDATE clientes 
+        SET whatsapp = '55' || whatsapp 
+        WHERE LENGTH(whatsapp) BETWEEN 10 AND 11 
+        AND whatsapp NOT LIKE '55%';
+
+        -- 3. Remover duplicatas antes de criar a constraint (manter apenas o mais recente)
+        DELETE FROM clientes a
+        WHERE a.id > (
+            SELECT MIN(b.id) 
+            FROM clientes b 
+            WHERE (a.whatsapp = b.whatsapp OR (a.whatsapp IS NULL AND b.whatsapp IS NULL))
+            AND a.tenant_id = b.tenant_id
+        );
+        
+        ALTER TABLE clientes ADD CONSTRAINT clientes_whatsapp_tenant_id_key UNIQUE (whatsapp, tenant_id); 
+    END IF; 
 END $$;
 `;
 

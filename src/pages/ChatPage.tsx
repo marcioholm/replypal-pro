@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useStore, formatTime, formatDuration, MOCK_TAGS, UserRole, MessageType, ConversationStatus, ClosingReason } from "@/lib/store";
-import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead, syncConversationHistory } from "@/lib/evolution";
+import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead, syncConversationHistory, checkWhatsApp } from "@/lib/evolution";
 import { webhooks } from "@/lib/webhooks";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -18,7 +18,7 @@ import {
   Send, Phone, Video, MoreVertical, Search, Paperclip, Smile, Mic, 
   ChevronLeft, Clock, Zap, MessageSquare, Shield, User, Users, FileText, 
   Trash2, AlertCircle, RefreshCw, Check, X, Play, StopCircle, Trash,
-  ArrowLeft, ArrowRightLeft, StickyNote, Tag, History, CheckCircle2, Plus, Loader2
+  ArrowLeft, ArrowRightLeft, StickyNote, Tag, History, CheckCircle2, Plus, Loader2, CheckCircle
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
@@ -51,7 +51,9 @@ export default function ChatPage() {
   const [linkCnpjOpen, setLinkCnpjOpen] = useState(false);
   const [cnpjInput, setCnpjInput] = useState("");
   const [contactNameInput, setContactNameInput] = useState("");
+  const [contactSectorInput, setContactSectorInput] = useState("Outro");
   const [isLinking, setIsLinking] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Media states
@@ -302,6 +304,18 @@ export default function ChatPage() {
       .getPublicUrl(filePath);
 
     return publicUrl;
+  };
+
+  const handleCheckWhatsApp = async () => {
+    if (!conv?.clientPhone) return;
+    setIsVerifying(true);
+    const { exists } = await checkWhatsApp(conv.clientPhone);
+    if (exists) {
+      toast.success("WhatsApp validado com sucesso!");
+    } else {
+      toast.error("Este número não parece ter um WhatsApp ativo.");
+    }
+    setIsVerifying(false);
   };
 
   const handleSend = async () => {
@@ -798,25 +812,32 @@ export default function ChatPage() {
       const existingContacts = Array.isArray(customerData.contacts) ? customerData.contacts : [];
       const contactExists = existingContacts.find((c: any) => c.phone === conv.clientPhone);
       
-      if (!contactExists || contactNameInput) {
-        let newContacts = [...existingContacts];
-        const newContact = {
-          name: contactNameInput || conv.clientName,
-          phone: conv.clientPhone,
-          addedAt: new Date().toISOString()
-        };
+      let newContacts = [...existingContacts];
+      const newContact = {
+        name: contactNameInput || conv.clientName,
+        phone: conv.clientPhone,
+        type: contactSectorInput,
+        addedAt: new Date().toISOString()
+      };
 
-        if (contactExists) {
-          // Atualizar nome se já existe
-          newContacts = existingContacts.map(c => c.phone === conv.clientPhone ? newContact : c);
-        } else {
-          newContacts.push(newContact);
+      if (contactExists) {
+        // Atualizar nome/setor se já existe
+        newContacts = existingContacts.map(c => c.phone === conv.clientPhone ? { ...c, ...newContact } : c);
+      } else {
+        newContacts.push(newContact);
+      }
+
+      await supabase
+        .from("clientes")
+        .update({ contacts: newContacts })
+        .eq("id", customerData.id);
+
+      // 3.5. Se era um contato avulso (cliente sem CNPJ), remover para "separar"
+      if (conv.customerId) {
+        const { data: currentCust } = await supabase.from("clientes").select("cnpj").eq("id", conv.customerId).maybeSingle();
+        if (currentCust && (!currentCust.cnpj || currentCust.cnpj.trim() === "")) {
+          await supabase.from("clientes").delete().eq("id", conv.customerId);
         }
-
-        await supabase
-          .from("clientes")
-          .update({ contacts: newContacts })
-          .eq("id", customerData.id);
       }
 
       // 4. Registrar nos logs (Conversa e Cliente)
@@ -1197,22 +1218,49 @@ export default function ChatPage() {
                       </DialogHeader>
                       <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                          <p className="text-xs font-bold text-muted-foreground uppercase ml-1">CNPJ do Cliente</p>
+                          <div className="flex items-center justify-between ml-1">
+                            <p className="text-xs font-bold text-muted-foreground uppercase">CNPJ do Cliente</p>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={handleCheckWhatsApp}
+                              disabled={isVerifying}
+                              className="h-6 px-2 text-[9px] font-bold uppercase tracking-widest text-green-500 hover:bg-green-500/5 gap-1"
+                            >
+                              {isVerifying ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <CheckCircle className="w-2.5 h-2.5" />}
+                              Validar WhatsApp
+                            </Button>
+                          </div>
                           <Input 
                             placeholder="00.000.000/0000-00" 
                             value={cnpjInput} 
                             onChange={(e) => setCnpjInput(e.target.value)}
-                            className="rounded-2xl h-12"
+                            className="rounded-2xl h-12 font-mono"
                           />
                         </div>
-                        <div className="space-y-2">
-                          <p className="text-xs font-bold text-muted-foreground uppercase ml-1">Nome do Contato / Setor (Opcional)</p>
-                          <Input 
-                            placeholder="Ex: Financeiro, João RH, etc" 
-                            value={contactNameInput} 
-                            onChange={(e) => setContactNameInput(e.target.value)}
-                            className="rounded-2xl h-12"
-                          />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <p className="text-xs font-bold text-muted-foreground uppercase ml-1">Nome do Contato</p>
+                            <Input 
+                              placeholder="Nome do contato" 
+                              value={contactNameInput} 
+                              onChange={(e) => setContactNameInput(e.target.value)}
+                              className="rounded-2xl h-12"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-xs font-bold text-muted-foreground uppercase ml-1">Departamento / Setor</p>
+                            <Select value={contactSectorInput} onValueChange={setContactSectorInput}>
+                              <SelectTrigger className="rounded-2xl h-12">
+                                <SelectValue placeholder="Selecione o setor" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {["Financeiro", "RH", "Fiscal", "Societário", "Outro"].map(s => (
+                                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                         <Button 
                           onClick={() => handleLinkCnpj(cnpjInput)} 

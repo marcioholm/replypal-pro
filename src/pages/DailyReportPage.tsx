@@ -75,6 +75,8 @@ export default function DailyReportPage() {
   const [logs, setLogs] = useState<ReportLog[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchConfig();
@@ -154,6 +156,16 @@ export default function DailyReportPage() {
     });
   }, [logs, searchTerm, statusFilter]);
 
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const paginatedLogs = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredLogs.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredLogs, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
   const handleSave = async () => {
     if (!user?.tenantId) return;
     
@@ -194,7 +206,16 @@ export default function DailyReportPage() {
         incluir_pendentes: incluirPendentes,
         incluir_tempo_resposta: incluirTempoResposta,
         incluir_alertas: incluirAlertas,
-        numeros_destino: numerosDestino.map(n => ({ ...n, numero: n.numero.replace(/\D/g, "") })),
+        numeros_destino: numerosDestino.map(n => {
+          let num = n.numero.replace(/\D/g, "");
+          if ((num.length === 10 || num.length === 11) && !num.startsWith("55")) {
+            num = "55" + num;
+          }
+          return { ...n, numero: num };
+        }),
+        // Sincronizar campos legados para compatibilidade com n8n antigo
+        numero_destino: validNumbers.length > 0 ? validNumbers[0].numero.replace(/\D/g, "") : null,
+        numero_gerencia: validNumbers.length > 0 ? validNumbers[0].numero.replace(/\D/g, "") : null,
         updated_at: new Date().toISOString()
       };
 
@@ -229,10 +250,20 @@ export default function DailyReportPage() {
     }
     setTesting(true);
     try {
+      // Aviso: O teste usa a configuração salva no banco de dados.
       const res = await fetch(N8N_RELATORIO_TESTE_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenant_id: user?.tenantId, modo: "teste" })
+        body: JSON.stringify({ 
+          tenant_id: user?.tenantId, 
+          modo: "teste",
+          // Enviamos os números atuais para o n8n poder usar se ele suportar override no teste
+          numeros_destino: numerosDestino.filter(n => n.ativo).map(n => {
+            let num = n.numero.replace(/\D/g, "");
+            if ((num.length === 10 || num.length === 11) && !num.startsWith("55")) num = "55" + num;
+            return { ...n, numero: num };
+          })
+        })
       });
       if (res.ok) toast.success("Teste disparado!");
       else throw new Error();
@@ -505,7 +536,7 @@ export default function DailyReportPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredLogs.length === 0 ? (
+                      {paginatedLogs.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={4} className="h-40 text-center">
                             <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground/40">
@@ -515,7 +546,7 @@ export default function DailyReportPage() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        filteredLogs.map((log) => (
+                        paginatedLogs.map((log) => (
                           <TableRow key={log.id} className="group border-border/10 hover:bg-primary/5 transition-colors">
                             <TableCell className="py-3">
                               {log.status === 'enviado' ? (
@@ -532,8 +563,8 @@ export default function DailyReportPage() {
                                         Erro
                                       </Badge>
                                     </TooltipTrigger>
-                                    <TooltipContent side="right" className="bg-destructive text-destructive-foreground border-none">
-                                      <p className="text-[10px] font-bold">{log.erro || "Falha"}</p>
+                                    <TooltipContent side="right" className="bg-destructive text-destructive-foreground border-none max-w-[300px]">
+                                      <p className="text-[10px] font-bold break-words">{log.erro || "Falha desconhecida no envio"}</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
@@ -552,8 +583,8 @@ export default function DailyReportPage() {
                             </TableCell>
                             <TableCell className="py-3">
                               <div className="flex flex-col text-[10px] font-medium leading-tight">
-                                <span>{format(new Date(log.enviado_em), "dd MMM", { locale: ptBR })}</span>
-                                <span className="text-muted-foreground/40">{format(new Date(log.enviado_em), "HH:mm")}</span>
+                                <span>{log.enviado_em ? format(new Date(log.enviado_em), "dd MMM", { locale: ptBR }) : '---'}</span>
+                                <span className="text-muted-foreground/40">{log.enviado_em ? format(new Date(log.enviado_em), "HH:mm") : 'Aguardando...'}</span>
                               </div>
                             </TableCell>
                             <TableCell className="py-3 text-right pr-6">
@@ -580,6 +611,65 @@ export default function DailyReportPage() {
                     </TableBody>
                   </Table>
                 </div>
+                
+                {/* Paginação Premium */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between px-6 py-4 border-t border-border/10 bg-background/30 backdrop-blur-sm">
+                    <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                      Página {currentPage} de {totalPages}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(prev => prev - 1)}
+                        className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-30"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                          .filter(page => {
+                            // Mostrar primeira, última e páginas ao redor da atual
+                            return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
+                          })
+                          .map((page, index, array) => {
+                            const showEllipsis = index > 0 && page - array[index - 1] > 1;
+                            return (
+                              <div key={page} className="flex items-center">
+                                {showEllipsis && <span className="text-muted-foreground/40 mx-1">...</span>}
+                                <Button
+                                  variant={currentPage === page ? "default" : "ghost"}
+                                  size="sm"
+                                  onClick={() => setCurrentPage(page)}
+                                  className={cn(
+                                    "h-8 w-8 rounded-lg text-[10px] font-black transition-all",
+                                    currentPage === page 
+                                      ? "bg-primary shadow-lg shadow-primary/20" 
+                                      : "hover:bg-primary/10 hover:text-primary"
+                                  )}
+                                >
+                                  {page}
+                                </Button>
+                              </div>
+                            );
+                          })}
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(prev => prev + 1)}
+                        className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary transition-all disabled:opacity-30"
+                      >
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </Card>

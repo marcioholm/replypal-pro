@@ -8,7 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CustomerForm } from "@/components/CustomerForm";
+import { ContactImportDialog } from "@/components/clientes/ContactImportDialog";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useCallback } from "react";
@@ -19,6 +21,7 @@ import {
   ChevronRight, Calendar, Briefcase, FilterX,
   MapPin, Loader2
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function CustomersPage() {
   const store = useStore();
@@ -29,6 +32,7 @@ export default function CustomersPage() {
   const [regimeFilter, setRegimeFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [originFilter, setOriginFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all"); // "all", "company", "individual"
   const [isNewDialogOpen, setIsNewDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -105,9 +109,15 @@ export default function CustomersPage() {
     const matchesRegime = regimeFilter === "all" || c.regime === regimeFilter;
     const matchesPriority = priorityFilter === "all" || c.priority === priorityFilter;
     const matchesOrigin = originFilter === "all" || c.origin === originFilter;
+    const matchesType = typeFilter === "all" || 
+      (typeFilter === "company" && c.cnpj && c.cnpj.trim().length > 0) ||
+      (typeFilter === "individual" && (!c.cnpj || c.cnpj.trim().length === 0));
 
-    return matchesSearch && matchesStatus && matchesRegime && matchesPriority && matchesOrigin;
+    return matchesSearch && matchesStatus && matchesRegime && matchesPriority && matchesOrigin && matchesType;
   });
+
+  const companiesCount = store.customers.filter(c => c.cnpj && c.cnpj.trim().length > 0).length;
+  const individualCount = store.customers.filter(c => !c.cnpj || c.cnpj.trim().length === 0).length;
 
   const statusColors = {
     "Ativo": "bg-success/20 text-success border-success/30",
@@ -130,34 +140,37 @@ export default function CustomersPage() {
             <Building className="w-7 h-7 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Base de Clientes</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">CRM de Atendimento</h1>
             <p className="text-sm text-muted-foreground flex items-center gap-2">
               <Briefcase className="w-3.5 h-3.5" />
-              Gestão operacional e contábil centralizada
+              Gestão de empresas e contatos individuais
             </p>
           </div>
         </div>
         
-        <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-95 px-6 gap-2">
-              <UserPlus className="h-4 w-4" />
-              Novo Cliente
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-semibold">Novo Cadastro de Cliente</DialogTitle>
-              <CardDescription>Preencha os dados contábeis e de atendimento.</CardDescription>
-            </DialogHeader>
-            <div className="pt-4">
-              <CustomerForm onSuccess={(c) => {
-                setIsNewDialogOpen(false);
-                navigate(`/customers/${c.id}`);
-              }} />
-            </div>
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-2">
+          <ContactImportDialog onSuccess={() => window.location.reload()} />
+          <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-95 px-6 gap-2">
+                <UserPlus className="h-4 w-4" />
+                Novo Cliente
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-semibold">Novo Cadastro de Cliente</DialogTitle>
+                <CardDescription>Preencha os dados contábeis e de atendimento.</CardDescription>
+              </DialogHeader>
+              <div className="pt-4">
+                <CustomerForm onSuccess={(c) => {
+                  setIsNewDialogOpen(false);
+                  navigate(`/customers/${c.id}`);
+                }} />
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -222,7 +235,7 @@ export default function CustomersPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Buscar por Fantasia, Razão Social ou CNPJ..." 
+                placeholder="Buscar por nome, telefone ou CNPJ..." 
                 className="pl-9 bg-background border-muted-foreground/20 focus-visible:ring-primary h-11"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -259,20 +272,21 @@ export default function CustomersPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={originFilter} onValueChange={setOriginFilter}>
-                <SelectTrigger className="h-9 w-[130px] bg-background text-xs"><SelectValue placeholder="Origem" /></SelectTrigger>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="h-9 w-[130px] bg-background text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {origins.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                  <SelectItem value="all">Todos Tipos</SelectItem>
+                  <SelectItem value="company">Empresas ({companiesCount})</SelectItem>
+                  <SelectItem value="individual">Individuais ({individualCount})</SelectItem>
                 </SelectContent>
               </Select>
 
-              {(statusFilter !== "all" || regimeFilter !== "all" || priorityFilter !== "all" || originFilter !== "all" || search) && (
+              {(statusFilter !== "all" || regimeFilter !== "all" || priorityFilter !== "all" || originFilter !== "all" || typeFilter !== "all" || search) && (
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   className="h-9 text-xs text-muted-foreground hover:text-destructive gap-1"
-                  onClick={() => { setSearch(""); setStatusFilter("all"); setRegimeFilter("all"); setPriorityFilter("all"); setOriginFilter("all"); }}
+                  onClick={() => { setSearch(""); setStatusFilter("all"); setRegimeFilter("all"); setPriorityFilter("all"); setOriginFilter("all"); setTypeFilter("all"); }}
                 >
                   <FilterX className="w-3.5 h-3.5" />
                   Limpar filtros
@@ -285,69 +299,57 @@ export default function CustomersPage() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent bg-muted/20 border-b-2 border-border/50">
-                  <TableHead className="w-[280px] font-semibold py-4 pl-6 text-xs uppercase tracking-wider text-muted-foreground">Cliente</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">CNPJ / Localização</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Atendente</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Origem</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-center">Status</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-center">Prioridade</TableHead>
-                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-right pr-6">Ações</TableHead>
-                </TableRow>
+                  <TableRow className="hover:bg-transparent bg-muted/20 border-b-2 border-border/50">
+                    <TableHead className="w-[280px] font-semibold py-4 pl-6 text-xs uppercase tracking-wider text-muted-foreground">Empresa</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">CNPJ / Localização</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Atendente</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-center">Status</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-right pr-6">Ações</TableHead>
+                  </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCustomers.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="h-64 text-center text-muted-foreground">Nenhum cliente encontrado com os filtros selecionados.</TableCell></TableRow>
+                {loading ? (
+                  <TableRow><TableCell colSpan={5} className="h-64 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
+                ) : filteredCustomers.length === 0 ? (
+                  <TableRow><TableCell colSpan={5} className="h-64 text-center text-muted-foreground">Nenhum cliente encontrado com os filtros atuais.</TableCell></TableRow>
                 ) : (
                   filteredCustomers.map((c) => (
                     <TableRow key={c.id} className="group hover:bg-muted/30 transition-all cursor-pointer border-b border-border/30" onClick={() => navigate(`/customers/${c.id}`)}>
                       <TableCell className="pl-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg transform group-hover:scale-105 transition-transform ${
-                             c.status === 'Ativo' ? 'bg-gradient-to-br from-primary to-primary/60' : 'bg-muted-foreground/40'
-                          }`}>
-                            {c.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                          <div className={cn(
+                            "w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-xs shadow-md transition-transform group-hover:scale-110",
+                            c.cnpj ? "bg-gradient-to-br from-primary to-primary/60" : "bg-gradient-to-br from-info to-info/60"
+                          )}>
+                            {c.name.substring(0, 2).toUpperCase()}
                           </div>
                           <div className="min-w-0">
                             <p className="font-semibold text-sm tracking-tight truncate">{c.name}</p>
-                            <p className="text-[10px] text-muted-foreground uppercase font-medium truncate">{c.razaoSocial}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-medium truncate">{c.razaoSocial || (c.cnpj ? '' : 'Pessoa Física')}</p>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
-                          <p className="text-xs font-mono text-foreground font-medium">{c.cnpj}</p>
-                          <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.city} - {c.state}</p>
+                          <p className="text-xs font-mono text-foreground font-medium">{c.cnpj || c.whatsapp || 'Sem identificação'}</p>
+                          <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.city || 'Cidade'} - {c.state || 'UF'}</p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                           <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-[10px] font-bold text-accent-foreground">
-                             {store.users.find(u => u.id === c.attendantId)?.name[0]}
-                           </div>
-                           <p className="text-xs font-medium">{store.users.find(u => u.id === c.attendantId)?.name || '—'}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                         <Badge variant="outline" className="text-[10px] font-medium bg-muted/50 border-muted-foreground/20">{c.origin}</Badge>
+                        <p className="text-xs font-medium">{store.users.find(u => u.id === c.attendantId)?.name || '—'}</p>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-md border shadow-sm ${statusColors[c.status]}`}>
+                        <Badge className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-md border shadow-sm ${statusColors[c.status as keyof typeof statusColors] || 'bg-muted'}`}>
                           {c.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-center">
-                        <span className={`text-[11px] font-medium ${priorityColors[c.priority]}`}>{c.priority}</span>
-                      </TableCell>
                       <TableCell className="text-right pr-6">
-                         <Button variant="ghost" size="sm" className="group-hover:translate-x-1 transition-transform h-8 w-8 p-0">
-                           <ChevronRight className="w-4 h-4 text-primary" />
-                         </Button>
+                         <ChevronRight className="w-4 h-4 text-primary ml-auto" />
                       </TableCell>
                     </TableRow>
                   ))
                 )}
-</TableBody>
+              </TableBody>
             </Table>
           </div>
         </CardContent>

@@ -1,0 +1,164 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useStore } from "@/lib/store";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { ContactImportDialog } from "@/components/clientes/ContactImportDialog";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+import { useEffect } from "react";
+import { 
+  Users, UserPlus, Search, Filter, 
+  MessageSquare, ChevronRight, Briefcase, FilterX,
+  Loader2, UserCheck
+} from "lucide-react";
+
+export default function ContactsPage() {
+  const store = useStore();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      const tenantId = user?.tenantId;
+      if (!tenantId || tenantId.length < 5) return;
+
+      try {
+        const { data } = await supabase
+          .from("clientes")
+          .select("*")
+          .eq("tenant_id", tenantId);
+
+        if (data) {
+          data.forEach(c => {
+            store.addDbCustomer({
+              id: c.id,
+              name: c.nome_fantasia,
+              razaoSocial: c.razao_social || "",
+              cnpj: c.cnpj || "",
+              responsibleName: c.responsavel || "",
+              whatsapp: c.whatsapp || "",
+              phone: c.telefone || "",
+              email: c.email || "",
+              city: c.cidade || "",
+              state: c.estado || "",
+              regime: c.regime_tributario as any,
+              status: c.status as any,
+              priority: (c.prioridade || "Média") as any,
+              tenantId: c.tenant_id,
+              createdAt: new Date(c.created_at)
+            });
+          });
+        }
+      } catch (err) {
+        console.error("Erro ao carregar contatos:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCustomers();
+  }, [user?.tenantId]);
+
+  const individualContacts = store.customers
+    .filter(c => !c.cnpj || c.cnpj.trim().length === 0)
+    .filter(c => 
+      c.name.toLowerCase().includes(search.toLowerCase()) || 
+      c.whatsapp.includes(search)
+    );
+
+  return (
+    <div className="p-6 space-y-6 max-w-[1600px] mx-auto animate-in fade-in duration-700">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
+            <Users className="w-7 h-7 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Gestão de Contatos</h1>
+            <p className="text-sm text-muted-foreground flex items-center gap-2">
+              <UserCheck className="w-3.5 h-3.5" />
+              Contatos avulsos e prospectos
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <ContactImportDialog onSuccess={() => window.location.reload()} />
+        </div>
+      </div>
+
+      <Card className="border-none shadow-xl shadow-primary/5 overflow-hidden">
+        <CardHeader className="bg-muted/20 pb-4 border-b">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Buscar por nome ou telefone..." 
+              className="pl-9 bg-background border-muted-foreground/20 focus-visible:ring-primary h-11"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent bg-muted/20 border-b-2 border-border/50">
+                  <TableHead className="w-[280px] font-semibold py-4 pl-6 text-xs uppercase tracking-wider text-muted-foreground">Contato</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">WhatsApp / Identificação</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-center">Tipo</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-right pr-6">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow><TableCell colSpan={4} className="h-64 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
+                ) : individualContacts.length === 0 ? (
+                  <TableRow><TableCell colSpan={4} className="h-64 text-center text-muted-foreground italic">Nenhum contato avulso encontrado.</TableCell></TableRow>
+                ) : (
+                  individualContacts.map((c) => (
+                    <TableRow key={c.id} className="group hover:bg-muted/30 transition-all cursor-pointer border-b border-border/30" onClick={() => navigate(`/customers/${c.id}`)}>
+                      <TableCell className="pl-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-xs border shadow-sm">
+                            {c.name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm tracking-tight truncate">{c.name}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-medium truncate">{c.email || 'Sem e-mail'}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                           <div className="p-1.5 bg-green-500/10 rounded-lg">
+                             <MessageSquare className="w-3 h-3 text-green-500" />
+                           </div>
+                           <p className="text-xs font-mono font-medium">{c.whatsapp || c.phone || '—'}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary" className="text-[10px] font-semibold px-2 py-0.5 rounded-md">
+                          Avulso
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right pr-6">
+                         <ChevronRight className="w-4 h-4 text-primary ml-auto" />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

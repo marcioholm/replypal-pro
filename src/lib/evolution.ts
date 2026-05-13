@@ -335,3 +335,30 @@ export async function syncConversationHistory(phone: string, tenantId: string) {
     return { success: false, error: String(err), messages: [] };
   }
 }
+
+export async function checkWhatsApp(phone: string) {
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = EVO_CONFIG.getInstance();
+  
+  if (!url || !key) return { exists: false, error: "API não configurada" };
+  
+  const phoneClean = phone.replace(/\D/g, "");
+  
+  try {
+    const res = await fetch(`${getApiUrl()}/chat/whatsappNumbers/${instance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key },
+      body: JSON.stringify({ numbers: [phoneClean] })
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      const result = data[0] || {};
+      return { exists: result.exists || false, jid: result.jid };
+    }
+    return { exists: false, error: "Erro ao verificar" };
+  } catch (err) {
+    return { exists: false, error: String(err) };
+  }
+}

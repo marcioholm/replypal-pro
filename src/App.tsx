@@ -27,6 +27,7 @@ import TrainingPage from "@/pages/TrainingPage";
 import AlertsPage from "@/pages/AlertsPage";
 import ScheduledMessagesPage from "@/pages/ScheduledMessagesPage";
 import DailyReportPage from "@/pages/DailyReportPage";
+import ContactsPage from "@/pages/ContactsPage";
 import NotFound from "@/pages/NotFound";
 
 interface ErrorBoundaryState {
@@ -106,6 +107,7 @@ type UserRole = "admin" | "supervisor" | "atendente" | "recepcionista";
 const rolePermissions: Record<string, UserRole[]> = {
   "/settings": ["admin"],
   "/customers": ["admin", "supervisor", "atendente", "recepcionista"],
+  "/contacts": ["admin", "supervisor", "atendente", "recepcionista"],
   "/training": ["admin", "supervisor"],
 };
 
@@ -171,6 +173,7 @@ function AppRoutes() {
                     <Route path="/calendar" element={<CalendarPage />} />
                     <Route path="/customers" element={<CustomersPage />} />
                     <Route path="/customers/:id" element={<CustomerDetailsPage />} />
+                    <Route path="/contacts" element={<ContactsPage />} />
                     <Route path="/training" element={<TrainingPage />} />
                     <Route path="/alerts" element={<AlertsPage />} />
                     <Route path="/scheduled" element={<ScheduledMessagesPage />} />
