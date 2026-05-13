@@ -38,7 +38,7 @@ const DDD_MAP: Record<string, string> = {
 
 const VALID_DDDS = Object.keys(DDD_MAP);
 
-export function analyzeContact(customer: Customer): AuditResult {
+export function analyzeContact(customer: Customer, allCustomers: Customer[] = []): AuditResult {
   const issues: AuditIssue[] = [];
   const rawPhone = customer.whatsapp || customer.phone || "";
   const cleaned = rawPhone.replace(/\D/g, "");
@@ -48,6 +48,19 @@ export function analyzeContact(customer: Customer): AuditResult {
   let severity: Severity = "OK";
   let isLandline = false;
   let location = "";
+
+  // 0. Duplicate Check
+  if (cleaned && allCustomers.length > 0) {
+    const isDuplicate = allCustomers.some(c => 
+      c.id !== customer.id && 
+      (c.whatsapp?.replace(/\D/g, "") === cleaned || c.phone?.replace(/\D/g, "") === cleaned)
+    );
+    if (isDuplicate) {
+      issues.push({ type: "duplicate", message: "Número duplicado na base", severity: "DUPLICATE" });
+      score -= 30;
+      severity = "DUPLICATE";
+    }
+  }
 
   // 1. Basic Validation
   if (!cleaned) {
@@ -154,7 +167,7 @@ export function analyzeContact(customer: Customer): AuditResult {
   }
 
   return {
-    status: severity === "OK" ? "Válido" : (isLandline ? "Fixo" : "Inconsistente"),
+    status: severity === "OK" ? "Válido" : (isLandline ? "Fixo" : (severity === "DUPLICATE" ? "Duplicado" : "Inconsistente")),
     severity,
     issues,
     suggestion: issues.find(i => i.suggestion)?.suggestion,

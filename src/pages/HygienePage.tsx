@@ -14,7 +14,7 @@ import {
   CheckCircle2, Merge, ZapIcon, Phone,
   Search, Download, Trash2, Edit3, Check, X,
   MousePointer2, ChevronLeft, Loader2, ArrowRight,
-  MessageSquare, Settings, RefreshCw, Layers
+  MessageSquare, Settings, RefreshCw, Layers, Edit2
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -36,7 +36,7 @@ export default function HygienePage() {
   const auditData = useMemo(() => {
     return store.customers.map(c => ({
       ...c,
-      audit: analyzeContact(c.whatsapp || c.phone || "")
+      audit: analyzeContact(c, store.customers)
     }));
   }, [store.customers]);
 
@@ -165,6 +165,39 @@ export default function HygienePage() {
       toast.error("Erro na auditoria global: " + err.message);
     } finally {
       setIsVerifying(false);
+    }
+  };
+
+  const handleMerge = async (id: string) => {
+    const customer = store.customers.find(c => c.id === id);
+    if (!customer) return;
+    const phone = (customer.whatsapp || customer.phone || "").replace(/\D/g, "");
+    if (!phone) return;
+
+    const duplicates = store.customers.filter(c => 
+      c.id !== id && 
+      (c.whatsapp?.replace(/\D/g, "") === phone || c.phone?.replace(/\D/g, "") === phone)
+    );
+
+    if (duplicates.length === 0) {
+      toast.info("Nenhuma duplicata encontrada para mesclar.");
+      return;
+    }
+
+    if (!confirm(`Deseja mesclar este contato com outras ${duplicates.length} duplicatas? Os outros registros serão removidos.`)) return;
+
+    setLoading(true);
+    try {
+      const idsToDelete = duplicates.map(d => d.id);
+      const { error } = await supabase.from('clientes').delete().in('id', idsToDelete);
+      if (error) throw error;
+
+      idsToDelete.forEach(id => store.deleteCustomer(id));
+      toast.success(`${duplicates.length} duplicatas removidas.`);
+    } catch (err: any) {
+      toast.error("Erro ao mesclar: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -311,6 +344,7 @@ export default function HygienePage() {
                   onEdit={() => {}}
                   onApplySuggestion={handleApplySuggestion}
                   onCheckWhatsapp={handleCheckWhatsapp}
+                  onMerge={handleMerge}
                   loading={loading}
                   showMasterCheckbox={true}
                   filteredData={filteredData}

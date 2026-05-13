@@ -12,6 +12,7 @@ interface AnomaliesTableProps {
   onEdit: (customer: any) => void;
   onApplySuggestion: (id: string, suggestion: string) => void;
   onCheckWhatsapp: (id: string, phone: string) => void;
+  onMerge?: (id: string) => void;
   loading: boolean;
   showMasterCheckbox?: boolean;
   filteredData: any[];
@@ -142,6 +143,17 @@ export function AnomaliesTable({
               </TableCell>
               <TableCell className="text-right pr-6">
                   <div className="flex items-center justify-end gap-1">
+                    {d.audit.severity === "DUPLICATE" && onMerge && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-10 w-10 text-purple-500 hover:bg-purple-500/10 rounded-xl transition-all" 
+                        onClick={() => onMerge(d.id)}
+                        title="Mesclar Duplicado"
+                      >
+                        <Merge className="h-5 w-5" />
+                      </Button>
+                    )}
                     <Button 
                       variant="ghost" 
                       size="icon" 
