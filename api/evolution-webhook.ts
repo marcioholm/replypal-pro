@@ -126,6 +126,28 @@ function toNum(val: any) {
   return typeof val === 'number' ? val : 0;
 }
 
+function canonicalPhone(phone: string): string {
+  let cleaned = phone.replace(/\D/g, "");
+  if (!cleaned) return "";
+  
+  // Add 55 if missing (assuming Brazil for this CRM)
+  if (cleaned.length <= 11 && !cleaned.startsWith("55")) {
+    cleaned = "55" + cleaned;
+  }
+
+  // Handle 9th digit for Brazil
+  if (cleaned.startsWith("55") && cleaned.length === 12) {
+    const ddd = cleaned.substring(2, 4);
+    const firstDigit = cleaned[4];
+    // If it's a mobile (6-9) and missing the 9th digit
+    if (["6", "7", "8", "9"].includes(firstDigit)) {
+      cleaned = "55" + ddd + "9" + cleaned.substring(4);
+    }
+  }
+  
+  return cleaned;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     return res.status(200).json({ 
@@ -158,7 +180,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!remoteJid) return res.status(200).json({ success: true });
 
       const isGroup = remoteJid.endsWith('@g.us');
-      const phone = isGroup ? remoteJid : remoteJid.split('@')[0];
+      const rawPhone = isGroup ? remoteJid : remoteJid.split('@')[0];
+      const phone = isGroup ? rawPhone : canonicalPhone(rawPhone);
       const isFromMe = !!key?.fromMe;
       
       const DEFAULT_TENANT = '11111111-1111-1111-1111-111111111111';
@@ -334,7 +357,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!remoteJid) continue;
         
         const isGrp = remoteJid.endsWith('@g.us');
-        const phone = isGrp ? remoteJid : remoteJid.split('@')[0];
+        const rawPhone = isGrp ? remoteJid : remoteJid.split('@')[0];
+        const phone = isGrp ? rawPhone : canonicalPhone(rawPhone);
         
         const pic = c.profilePicUrl || c.imgUrl || c.data?.profilePicUrl;
         const name = c.pushName || c.name || c.data?.pushName;
