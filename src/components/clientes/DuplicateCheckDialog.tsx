@@ -35,8 +35,12 @@ export function DuplicateCheckDialog() {
   const handleMerge = async (phone: string, list: Customer[]) => {
     setLoading(true);
     try {
-      // O primeiro será o "mestre" (preferencialmente um que tenha CNPJ)
-      const master = list.find(c => c.cnpj && c.cnpj.trim().length > 0) || list[0];
+      // O primeiro será o "mestre" 
+      // Prioridade: 1. Tem CNPJ, 2. Tem nome (não é apenas o número), 3. O primeiro da lista
+      const master = list.find(c => c.cnpj && c.cnpj.trim().length > 0) || 
+                     list.find(c => c.name && c.name !== c.whatsapp) || 
+                     list[0];
+      
       const others = list.filter(c => c.id !== master.id);
 
       // Excluir os outros no banco
