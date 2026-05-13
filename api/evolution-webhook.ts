@@ -457,6 +457,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           updated_at: new Date().toISOString()
         };
 
+        // Etapa 5: Detecção de Duplicados em tempo real
+        const { data: existing } = await supabase
+          .from('contacts')
+          .select('id')
+          .eq('tenant_id', tId)
+          .eq('telefone_formatado', hygiene.telefone_formatado)
+          .neq('jid', remoteJid)
+          .maybeSingle();
+
+        if (existing) {
+          contactData.duplicado = true;
+          contactData.duplicado_de = existing.id;
+          contactData.grupo_duplicidade = hygiene.telefone_formatado;
+        }
+
         await supabase.from('contacts').upsert(contactData, { onConflict: 'jid,tenant_id' });
 
         // Também atualizar o nome na conversa se ela existir
@@ -480,6 +495,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (Object.keys(updConv).length > 0) {
           await supabase.from('conversas').update(updConv).eq('client_phone', hygiene.telefone_formatado).eq('tenant_id', tId);
         }
+
       }
 
       // Log de Sincronização
