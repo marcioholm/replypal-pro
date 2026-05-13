@@ -171,7 +171,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 1. Verificar se o número pertence a um cliente cadastrado
       const { data: matchedCustomer } = await supabase
         .from('clientes')
-        .select('id, nome_fantasia')
+        .select('id, nome_fantasia, responsavel')
         .or(`whatsapp.eq.${phone},telefone.eq.${phone}`)
         .maybeSingle();
 
@@ -189,7 +189,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const slaDeadline = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 horas de SLA por padrão
 
         const { data: nConv, error: cErr } = await supabase.from('conversas').upsert({
-          client_name: matchedCustomer?.nome_fantasia || (isFromMe ? phone : (pushName || phone)), 
+          client_name: matchedCustomer?.responsavel || matchedCustomer?.nome_fantasia || (isFromMe ? phone : (pushName || phone)), 
           client_phone: phone, 
           customer_id: matchedCustomer?.id || null,
           status: isFromMe ? 'em_atendimento' : 'novo', 
