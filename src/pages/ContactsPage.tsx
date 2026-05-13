@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { 
   Users, Search, Filter, 
   MessageSquare, ChevronRight, FilterX,
-  Loader2, ChevronLeft, Building2,  UserCog, ClipboardList, Info, Mail, PhoneCall, ShieldCheck
+  Loader2, ChevronLeft, Building2, UserCog, ClipboardList, Info, Mail, PhoneCall, ShieldCheck, Download
 } from "lucide-react";
 
 export default function ContactsPage() {
