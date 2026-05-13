@@ -97,6 +97,21 @@ export default function ContactsPage() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="relative overflow-hidden border-none shadow-xl shadow-primary/5 group">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <CardContent className="pt-6 relative">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2.5 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors">
+                <Users className="w-5 h-5 text-primary" />
+              </div>
+            </div>
+            <p className="text-3xl font-bold tracking-tight">{individualContacts.length}</p>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">Contatos individuais</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card className="border-none shadow-xl shadow-primary/5 overflow-hidden">
         <CardHeader className="bg-muted/20 pb-4 border-b">
           <div className="relative">
