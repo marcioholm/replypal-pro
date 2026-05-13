@@ -253,6 +253,14 @@ export default function HygienePage() {
                 </div>
               </div>
               <Button 
+                variant="outline"
+                onClick={() => navigate("/contacts/technical")}
+                className="rounded-2xl h-14 px-6 gap-2 font-bold border-2 border-primary/20 hover:bg-primary/5 transition-all hover:scale-105 active:scale-95"
+              >
+                <Layers className="w-5 h-5 text-primary" />
+                Central Técnica
+              </Button>
+              <Button 
                 onClick={handleGlobalWhatsappAudit} 
                 disabled={isVerifying}
                 className="rounded-2xl h-14 px-6 gap-2 font-bold shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95"
