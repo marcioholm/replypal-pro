@@ -1,6 +1,6 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Info, Edit2, Check, ShieldCheck, Trash2, MoreHorizontal, MapPin } from "lucide-react";
+import { Info, Edit2, Check, ShieldCheck, Trash2, MoreHorizontal, MapPin, Merge } from "lucide-react";
 import { AuditBadge, WhatsappBadge } from "./AuditBadges";
 import { cn } from "@/lib/utils";
 

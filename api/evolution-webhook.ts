@@ -169,10 +169,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         data.sender?.profilePicUrl;
 
       // 1. Verificar se o número pertence a um cliente cadastrado
+      const searchPhones = [phone];
+      if (phone.startsWith('55')) searchPhones.push(phone.substring(2));
+      else searchPhones.push('55' + phone);
+
       const { data: matchedCustomer } = await supabase
         .from('clientes')
         .select('id, nome_fantasia, responsavel')
-        .or(`whatsapp.eq.${phone},telefone.eq.${phone}`)
+        .or(`whatsapp.in.(${searchPhones.join(',')}),telefone.in.(${searchPhones.join(',')})`)
         .maybeSingle();
 
       // 2. Garantir que a conversa existe
