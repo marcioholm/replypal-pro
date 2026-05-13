@@ -151,6 +151,31 @@ export function SmartHygieneDialog() {
     }
   };
 
+  const handleMerge = async (phone: string, list: (Customer & { audit: AuditResult })[]) => {
+    setLoading(true);
+    try {
+      const master = list.find(c => c.cnpj && c.cnpj.trim().length > 0) || 
+                     list.find(c => c.name && c.name !== c.whatsapp) || 
+                     list[0];
+      
+      const others = list.filter(c => c.id !== master.id);
+
+      const { error } = await supabase
+        .from("clientes")
+        .delete()
+        .in("id", others.map(o => o.id));
+
+      if (error) throw error;
+
+      others.forEach(o => store.deleteCustomer(o.id));
+      toast.success(`Contatos para ${phone} mesclados!`);
+    } catch (err: any) {
+      toast.error("Erro ao mesclar: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -267,116 +292,72 @@ export function SmartHygieneDialog() {
 
         {/* Tabela de Auditoria */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
-          {filteredData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-32 text-center">
-              <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mb-6 dark:bg-green-950/20">
-                <CheckCircle2 className="w-10 h-10 text-green-500" />
-              </div>
-              <h3 className="text-2xl font-bold mb-2">Tudo limpo por aqui!</h3>
-              <p className="text-muted-foreground max-w-sm">Nenhuma inconsistência encontrada para os filtros selecionados.</p>
+          {activeTab === "duplicates" ? (
+            <div className="space-y-6">
+              {Object.entries(
+                filteredData.reduce((acc, curr) => {
+                  const phone = curr.audit.normalizedPhone;
+                  if (!acc[phone]) acc[phone] = [];
+                  acc[phone].push(curr);
+                  return acc;
+                }, {} as Record<string, (Customer & { audit: AuditResult })[]>)
+              ).map(([phone, list]) => (
+                <div key={phone} className="border rounded-3xl overflow-hidden bg-card shadow-sm border-purple-100">
+                  <div className="bg-purple-50/50 px-6 py-4 border-b border-purple-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-purple-500/10 rounded-xl">
+                        <Merge className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-mono font-black text-sm text-purple-900 tracking-tight">{phone}</span>
+                        <span className="text-[10px] font-bold text-purple-600/70 uppercase tracking-widest">{list.length} registros duplicados</span>
+                      </div>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-10 px-4 gap-2 rounded-xl border-purple-200 bg-white text-purple-700 hover:bg-purple-50 font-bold shadow-sm"
+                      onClick={() => handleMerge(phone, list)}
+                      disabled={loading}
+                    >
+                      <Merge className="h-4 w-4" />
+                      Mesclar Grupo
+                    </Button>
+                  </div>
+                  <AnomaliesTable 
+                    list={list} 
+                    selectedIds={selectedIds}
+                    setSelectedIds={setSelectedIds}
+                    onDelete={handleDelete}
+                    onEdit={(c: any) => { setEditingId(c.id); setEditValue(c.whatsapp || c.phone || ""); }}
+                    onApplySuggestion={handleApplySuggestion}
+                    loading={loading}
+                  />
+                </div>
+              ))}
+              {filteredData.length === 0 && <EmptyState message="Nenhum duplicado encontrado!" />}
             </div>
+          ) : filteredData.length === 0 ? (
+            <EmptyState message="Tudo limpo por aqui!" />
           ) : (
             <div className="border rounded-[24px] overflow-hidden bg-card shadow-sm">
-              <Table>
-                <TableHeader className="bg-muted/40 h-14">
-                  <TableRow className="hover:bg-transparent border-none">
-                    <TableHead className="w-12 pl-6">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-muted-foreground/30 accent-primary"
-                        checked={selectedIds.length >= Math.min(filteredData.length, paginatedData.length) && paginatedData.length > 0}
-                        onChange={(e) => {
-                          if (e.target.checked) setSelectedIds(paginatedData.map(d => d.id));
-                          else setSelectedIds([]);
-                        }}
-                      />
-                    </TableHead>
-                    <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Contato</TableHead>
-                    <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Status / Inconsistência</TableHead>
-                    <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Número Atual</TableHead>
-                    <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Sugestão de Correção</TableHead>
-                    <TableHead className="text-right pr-6 font-bold text-xs uppercase tracking-widest text-muted-foreground">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedData.map((d) => (
-                    <TableRow key={d.id} className="group hover:bg-muted/10 h-20 transition-all border-muted/20">
-                      <TableCell className="pl-6">
-                        <input 
-                          type="checkbox" 
-                          className="rounded border-muted-foreground/30 accent-primary"
-                          checked={selectedIds.includes(d.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) setSelectedIds([...selectedIds, d.id]);
-                            else setSelectedIds(selectedIds.filter(id => id !== d.id));
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-sm text-foreground/90">{d.name}</span>
-                          <span className="text-[10px] text-muted-foreground font-mono uppercase">{d.cnpj || "CPF/Avulso"}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <AuditBadge severity={d.audit.severity} />
-                          {d.audit.issues.map((issue, idx) => (
-                            <span key={idx} className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
-                              <Info className="w-2.5 h-2.5 opacity-50" />
-                              {issue.message}
-                            </span>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2 group/phone">
-                          <span className="font-mono text-sm tracking-tight">{d.whatsapp || d.phone}</span>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover/phone:opacity-100 transition-opacity rounded-lg" onClick={() => { setEditingId(d.id); setEditValue(d.whatsapp || d.phone || ""); }}>
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {d.audit.suggestion ? (
-                          <button 
-                            onClick={() => handleApplySuggestion(d.id, d.audit.suggestion!)}
-                            className="flex flex-col items-start gap-1 group/sug text-left hover:bg-primary/5 p-2 rounded-lg transition-all"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-sm text-primary/80 font-bold tracking-tight">
-                                {formatWithHighlight(d.audit.suggestion, d.audit.issues.find(i => i.highlightRange)?.highlightRange)}
-                              </span>
-                              <div className="p-1 bg-primary/10 rounded-full group-hover/sug:bg-primary/20 transition-colors">
-                                <Check className="w-3 h-3 text-primary" />
-                              </div>
-                            </div>
-                            <span className="text-[9px] font-bold text-primary/60 uppercase tracking-widest">Aplicar Sugestão</span>
-                          </button>
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground/50 italic font-medium">Nenhuma sugestão</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right pr-6">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive hover:bg-destructive/10 rounded-xl" onClick={() => handleDelete(d.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <AnomaliesTable 
+                list={paginatedData} 
+                selectedIds={selectedIds}
+                setSelectedIds={setSelectedIds}
+                onDelete={handleDelete}
+                onEdit={(c: any) => { setEditingId(c.id); setEditValue(c.whatsapp || c.phone || ""); }}
+                onApplySuggestion={handleApplySuggestion}
+                loading={loading}
+                showMasterCheckbox={true}
+                filteredData={filteredData}
+              />
             </div>
           )}
         </div>
 
         {/* Audit Pagination Footer */}
-        {filteredData.length > pageSize && (
+        {activeTab !== "duplicates" && filteredData.length > pageSize && (
           <div className="px-8 py-4 border-t bg-muted/20 flex items-center justify-between">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               Exibindo {Math.min(filteredData.length, (currentPage - 1) * pageSize + 1)} - {Math.min(filteredData.length, currentPage * pageSize)} de {filteredData.length}
@@ -499,62 +480,118 @@ export function SmartHygieneDialog() {
   }
 }
 
-function MetricCard({ label, value, icon: Icon, color }: { label: string; value: number; icon: any; color: string }) {
-  const colors: any = {
-    primary: "bg-primary/10 text-primary",
-    green: "bg-green-500/10 text-green-500",
-    red: "bg-red-500/10 text-red-500",
-    amber: "bg-amber-500/10 text-amber-500",
-    purple: "bg-purple-500/10 text-purple-500",
-    blue: "bg-blue-500/10 text-blue-500",
-  };
-
+function AnomaliesTable({ 
+  list, selectedIds, setSelectedIds, onDelete, onEdit, 
+  onApplySuggestion, loading, showMasterCheckbox, filteredData 
+}: any) {
   return (
-    <div className="bg-background rounded-[24px] p-5 border shadow-sm group hover:shadow-md transition-all hover:-translate-y-0.5">
-      <div className="flex items-center justify-between mb-4">
-        <div className={cn("p-2 rounded-xl transition-colors", colors[color])}>
-          <Icon className="w-4 h-4" />
-        </div>
-        <Badge variant="ghost" className="text-[10px] opacity-50 font-bold uppercase tracking-widest">Card</Badge>
+    <Table>
+      <TableHeader className="bg-muted/40 h-14">
+        <TableRow className="hover:bg-transparent border-none">
+          <TableHead className="w-12 pl-6">
+            {showMasterCheckbox && (
+              <input 
+                type="checkbox" 
+                className="rounded border-muted-foreground/30 accent-primary"
+                checked={selectedIds.length >= Math.min(filteredData.length, list.length) && list.length > 0}
+                onChange={(e) => {
+                  if (e.target.checked) setSelectedIds(list.map((d: any) => d.id));
+                  else setSelectedIds([]);
+                }}
+              />
+            )}
+          </TableHead>
+          <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Contato</TableHead>
+          <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Status / Inconsistência</TableHead>
+          <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Número Atual</TableHead>
+          <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Sugestão de Correção</TableHead>
+          <TableHead className="text-right pr-6 font-bold text-xs uppercase tracking-widest text-muted-foreground">Ações</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {list.map((d: any) => (
+          <TableRow key={d.id} className="group hover:bg-muted/10 h-20 transition-all border-muted/20">
+            <TableCell className="pl-6">
+              <input 
+                type="checkbox" 
+                className="rounded border-muted-foreground/30 accent-primary"
+                checked={selectedIds.includes(d.id)}
+                onChange={(e) => {
+                  if (e.target.checked) setSelectedIds([...selectedIds, d.id]);
+                  else setSelectedIds(selectedIds.filter((id: string) => id !== d.id));
+                }}
+              />
+            </TableCell>
+            <TableCell>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm text-foreground/90">{d.name}</span>
+                <span className="text-[10px] text-muted-foreground font-mono uppercase">{d.cnpj || "CPF/Avulso"}</span>
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="flex flex-col gap-1">
+                <AuditBadge severity={d.audit.severity} />
+                {d.audit.issues.map((issue: any, idx: number) => (
+                  <span key={idx} className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                    <Info className="w-2.5 h-2.5 opacity-50" />
+                    {issue.message}
+                  </span>
+                ))}
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="flex items-center gap-2 group/phone">
+                <span className="font-mono text-sm tracking-tight">{d.whatsapp || d.phone}</span>
+                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover/phone:opacity-100 transition-opacity rounded-lg" onClick={() => onEdit(d)}>
+                  <Edit2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </TableCell>
+            <TableCell>
+              {d.audit.suggestion ? (
+                <button 
+                  onClick={() => onApplySuggestion(d.id, d.audit.suggestion!)}
+                  className="flex flex-col items-start gap-1 group/sug text-left hover:bg-primary/5 p-2 rounded-lg transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm text-primary/80 font-bold tracking-tight">
+                      {formatWithHighlight(d.audit.suggestion, d.audit.issues.find((i: any) => i.highlightRange)?.highlightRange)}
+                    </span>
+                    <div className="p-1 bg-primary/10 rounded-full group-hover/sug:bg-primary/20 transition-colors">
+                      <Check className="w-3 h-3 text-primary" />
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-bold text-primary/60 uppercase tracking-widest">Aplicar Sugestão</span>
+                </button>
+              ) : (
+                <span className="text-[10px] text-muted-foreground/50 italic font-medium">Nenhuma sugestão</span>
+              )}
+            </TableCell>
+            <TableCell className="text-right pr-6">
+              <div className="flex items-center justify-end gap-1">
+                <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive hover:bg-destructive/10 rounded-xl" onClick={() => onDelete(d.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-32 text-center">
+      <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mb-6 dark:bg-green-950/20">
+        <CheckCircle2 className="w-10 h-10 text-green-500" />
       </div>
-      <div className="space-y-0.5">
-        <h4 className="text-3xl font-black tracking-tight">{value}</h4>
-        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground opacity-70">{label}</p>
-      </div>
+      <h3 className="text-2xl font-bold mb-2">{message}</h3>
+      <p className="text-muted-foreground max-w-sm">Nenhuma inconsistência encontrada para os filtros selecionados.</p>
     </div>
-  );
-}
-
-function AuditBadge({ severity }: { severity: Severity }) {
-  const configs: Record<Severity, { label: string; className: string }> = {
-    CRITICAL: { label: "Crítico", className: "bg-red-500/10 text-red-600 border-red-200" },
-    ATTENTION: { label: "Atenção", className: "bg-amber-500/10 text-amber-600 border-amber-200" },
-    DUPLICATE: { label: "Duplicado", className: "bg-purple-500/10 text-purple-600 border-purple-200" },
-    OK: { label: "Válido", className: "bg-green-500/10 text-green-600 border-green-200" },
-  };
-
-  return (
-    <Badge variant="outline" className={cn("rounded-md px-2 py-0 h-5 text-[9px] font-black uppercase tracking-widest", configs[severity].className)}>
-      {configs[severity].label}
-    </Badge>
-  );
-}
-
-function ZapIcon(props: any) {
-  return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
-  );
-}
-
-function formatWithHighlight(text: string, range?: [number, number]) {
-  if (!range) return text;
-  const start = range[0];
-  const end = range[1];
-  return (
-    <>
-      {text.substring(0, start)}
-      <span className="bg-red-500/20 text-red-700 px-0.5 rounded mx-0.5 border border-red-200">{text.substring(start, end)}</span>
-      {text.substring(end)}
-    </>
   );
 }
