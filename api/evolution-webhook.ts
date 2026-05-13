@@ -248,6 +248,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const isFromMe = !!key?.fromMe;
       
       const DEFAULT_TENANT = '11111111-1111-1111-1111-111111111111';
+      const instName = instPayload || req.headers['x-instance-name'] as string || "";
+      let tId = DEFAULT_TENANT;
+      if (instName) {
+        const { data: tCfg } = await supabase.from('tenants').select('id').eq('evolution_instance', instName).maybeSingle();
+        if (tCfg) tId = tCfg.id;
+      }
       // Capturar avatar do cliente de várias fontes possíveis (v1, v2 e data wrapper)
       const profilePic = data.profilePicUrl || 
                         messageContent?.profilePicUrl || 
@@ -273,16 +279,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log(`[Webhook] Nenhum cliente encontrado para ${phone}`);
       }
 
-      // 2. Garantir que a conversa existe
-      let { data: conv } = await supabase.from('conversas').select('*').eq('client_phone', phone).maybeSingle();
+      // 2. Garantir que a conversa existe (Buscar por variações do telefone para evitar duplicidade)
+      const searchConvPhones = [phone];
+      if (phone.startsWith('55')) searchConvPhones.push(phone.substring(2));
+      else searchConvPhones.push('55' + phone);
+
+      let { data: conv } = await supabase
+        .from('conversas')
+        .select('*')
+        .in('client_phone', searchConvPhones)
+        .eq('tenant_id', tId) // tId precisa estar definido antes
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (!conv) {
-        const instName = instPayload || req.headers['x-instance-name'] as string || "";
-        let tId = DEFAULT_TENANT;
-        if (instName) {
-          const { data: tCfg } = await supabase.from('tenants').select('id').eq('evolution_instance', instName).maybeSingle();
-          if (tCfg) tId = tCfg.id;
-        }
         const now = new Date();
         const slaDeadline = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 horas de SLA por padrão
 
