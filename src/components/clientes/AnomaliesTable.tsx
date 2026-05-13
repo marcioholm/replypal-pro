@@ -22,7 +22,7 @@ interface AnomaliesTableProps {
 
 export function AnomaliesTable({ 
   list, selectedIds, setSelectedIds, onDelete, onEdit, 
-  onApplySuggestion, onCheckWhatsapp, loading, showMasterCheckbox, filteredData,
+  onApplySuggestion, onCheckWhatsapp, onMerge, loading, showMasterCheckbox, filteredData,
   showLocation, showWhatsappStatus
 }: AnomaliesTableProps) {
 
