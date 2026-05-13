@@ -42,14 +42,19 @@ export default function HygienePage() {
 
       setLoading(true);
       try {
+        // Aumentando o limite para carregar toda a base (até 10k por enquanto)
         const { data, error } = await supabase
           .from("clientes")
           .select("*")
-          .eq("tenant_id", tenantId);
+          .eq("tenant_id", tenantId)
+          .limit(10000);
 
         if (error) throw error;
         
         if (data) {
+          // Limpar store antes de repopular para evitar duplicados visuais se houver erro no reload
+          // store.clearCustomers(); // Opcional, dependendo da implementação do store
+          
           data.forEach(c => {
             store.addDbCustomer({
               id: c.id,
@@ -84,6 +89,38 @@ export default function HygienePage() {
 
     fetchCustomers();
   }, [user?.tenantId]);
+
+  const handleApplyBulkSuggestions = async () => {
+    const toApply = auditData.filter(d => selectedIds.includes(d.id) && d.audit.suggestion);
+    if (toApply.length === 0) {
+      toast.info("Nenhum dos selecionados tem sugestão disponível.");
+      return;
+    }
+
+    if (!confirm(`Deseja aplicar sugestões de correção em ${toApply.length} contatos?`)) return;
+
+    setLoading(true);
+    let count = 0;
+    try {
+      for (const item of toApply) {
+        const { error } = await supabase
+          .from("clientes")
+          .update({ whatsapp: item.audit.suggestion })
+          .eq("id", item.id);
+        
+        if (!error) {
+          store.updateCustomer(item.id, { whatsapp: item.audit.suggestion });
+          count++;
+        }
+      }
+      toast.success(`${count} contatos atualizados com sucesso!`);
+      setSelectedIds([]);
+    } catch (err) {
+      toast.error("Erro ao aplicar em massa.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const auditData = useMemo(() => {
     return store.customers.map(c => ({
@@ -327,6 +364,58 @@ export default function HygienePage() {
 
       <div className="flex-1 overflow-auto p-8">
         <div className="max-w-[1600px] mx-auto space-y-8">
+          {/* Floating Bulk Actions Bar */}
+          {selectedIds.length > 0 && (
+            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-10 duration-300">
+              <div className="bg-slate-900 text-white px-8 py-5 rounded-[32px] shadow-2xl flex items-center gap-8 border border-white/10 backdrop-blur-xl">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary h-10 w-10 rounded-2xl flex items-center justify-center font-black text-lg">
+                    {selectedIds.length}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-bold text-sm">Selecionados</span>
+                    <span className="text-[10px] text-white/50 font-black uppercase tracking-widest">Ação em massa disponível</span>
+                  </div>
+                </div>
+
+                <div className="h-10 w-px bg-white/10" />
+
+                <div className="flex items-center gap-3">
+                  <Button 
+                    onClick={handleApplyBulkSuggestions}
+                    disabled={loading}
+                    className="bg-primary hover:bg-primary/90 text-white rounded-2xl h-12 px-6 gap-2 font-bold transition-all active:scale-95"
+                  >
+                    <Check className="w-4 h-4" />
+                    Aplicar Sugestões
+                  </Button>
+                  
+                  <Button 
+                    variant="ghost"
+                    onClick={() => {
+                      if (confirm(`Excluir ${selectedIds.length} contatos permanentemente?`)) {
+                        // Implementar delete mass se necessário
+                        toast.info("Ação de exclusão em massa.");
+                      }
+                    }}
+                    className="hover:bg-red-500/10 text-red-400 hover:text-red-400 rounded-2xl h-12 px-6 gap-2 font-bold transition-all"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Excluir Selecionados
+                  </Button>
+
+                  <Button 
+                    variant="ghost"
+                    onClick={() => setSelectedIds([])}
+                    className="hover:bg-white/10 text-white rounded-2xl h-12 px-6 font-bold transition-all"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Progress Overlay if verifying */}
           {isVerifying && (
             <Card className="border-primary/20 bg-primary/5 shadow-xl animate-in zoom-in-95 duration-300 rounded-[32px] overflow-hidden border-2">
