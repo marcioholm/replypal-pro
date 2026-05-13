@@ -13,7 +13,8 @@ import {
   ShieldCheck, AlertTriangle, AlertCircle, CheckCircle2, 
   Search, Filter, Trash2, Merge, Edit2, Check, X, 
   Loader2, ArrowRight, Download, History, Info,
-  ChevronDown, MoreHorizontal, MousePointer2
+  ChevronDown, MoreHorizontal, MousePointer2,
+  ChevronLeft, ChevronRight, Zap
 } from "lucide-react";
 import { useStore, Customer } from "@/lib/store";
 import { analyzeContact, AuditResult, Severity } from "@/lib/contactAudit";
@@ -29,9 +30,9 @@ export function SmartHygieneDialog() {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isBulkConfirmOpen, setIsBulkConfirmOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<"apply" | "delete" | "ignore" | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
 
   const store = useStore();
 
@@ -90,6 +91,15 @@ export function SmartHygieneDialog() {
 
     return data;
   }, [auditData, activeTab, search]);
+
+  const totalPages = Math.ceil(filteredData.length / pageSize);
+  const paginatedData = useMemo(() => {
+    return filteredData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  }, [filteredData, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, search]);
 
   const handleApplySuggestion = async (id: string, suggestion: string) => {
     setLoading(true);
@@ -226,15 +236,31 @@ export function SmartHygieneDialog() {
 
         {/* Bulk Action Bar (Floating if selection exists) */}
         {selectedIds.length > 0 && (
-          <div className="bg-primary px-8 py-3 flex items-center justify-between animate-in slide-in-from-top duration-300">
-            <div className="flex items-center gap-3 text-primary-foreground">
-              <CheckCircle2 className="w-5 h-5" />
-              <span className="font-bold">{selectedIds.length} contatos selecionados</span>
+          <div className="bg-primary px-8 py-4 flex items-center justify-between animate-in slide-in-from-top duration-300">
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-3 text-primary-foreground">
+                <CheckCircle2 className="w-5 h-5" />
+                <span className="font-bold">{selectedIds.length} selecionados</span>
+              </div>
+              {selectedIds.length < filteredData.length && (
+                <button 
+                  onClick={() => setSelectedIds(filteredData.map(d => d.id))}
+                  className="text-[10px] text-white/80 hover:text-white underline font-bold uppercase tracking-widest text-left"
+                >
+                  Selecionar todos os {filteredData.length} itens desta aba
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" className="font-bold h-9 px-4 rounded-lg" onClick={() => { setBulkAction("apply"); setIsBulkConfirmOpen(true); }}>Aplicar Sugestões</Button>
-              <Button variant="secondary" size="sm" className="font-bold h-9 px-4 rounded-lg bg-red-100 text-red-700 hover:bg-red-200" onClick={() => { setBulkAction("delete"); setIsBulkConfirmOpen(true); }}>Excluir</Button>
-              <Button variant="ghost" size="sm" className="font-bold h-9 px-4 text-white hover:bg-white/10" onClick={() => setSelectedIds([])}>Cancelar</Button>
+              <Button variant="secondary" size="sm" className="font-bold h-10 px-6 rounded-xl shadow-lg" onClick={() => { setBulkAction("apply"); setIsBulkConfirmOpen(true); }}>
+                <Zap className="w-4 h-4 mr-2" />
+                Aplicar Sugestões
+              </Button>
+              <Button variant="secondary" size="sm" className="font-bold h-10 px-6 rounded-xl bg-red-100 text-red-700 hover:bg-red-200" onClick={() => { setBulkAction("delete"); setIsBulkConfirmOpen(true); }}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Excluir
+              </Button>
+              <Button variant="ghost" size="sm" className="font-bold h-10 px-4 text-white hover:bg-white/10" onClick={() => setSelectedIds([])}>Cancelar</Button>
             </div>
           </div>
         )}
@@ -258,9 +284,9 @@ export function SmartHygieneDialog() {
                       <input 
                         type="checkbox" 
                         className="rounded border-muted-foreground/30 accent-primary"
-                        checked={selectedIds.length === filteredData.length && filteredData.length > 0}
+                        checked={selectedIds.length >= Math.min(filteredData.length, paginatedData.length) && paginatedData.length > 0}
                         onChange={(e) => {
-                          if (e.target.checked) setSelectedIds(filteredData.map(d => d.id));
+                          if (e.target.checked) setSelectedIds(paginatedData.map(d => d.id));
                           else setSelectedIds([]);
                         }}
                       />
@@ -273,7 +299,7 @@ export function SmartHygieneDialog() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredData.map((d) => (
+                  {paginatedData.map((d) => (
                     <TableRow key={d.id} className="group hover:bg-muted/10 h-20 transition-all border-muted/20">
                       <TableCell className="pl-6">
                         <input 
@@ -348,6 +374,37 @@ export function SmartHygieneDialog() {
             </div>
           )}
         </div>
+
+        {/* Audit Pagination Footer */}
+        {filteredData.length > pageSize && (
+          <div className="px-8 py-4 border-t bg-muted/20 flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Exibindo {Math.min(filteredData.length, (currentPage - 1) * pageSize + 1)} - {Math.min(filteredData.length, currentPage * pageSize)} de {filteredData.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="h-10 w-10 p-0 rounded-xl" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum = currentPage;
+                  if (currentPage <= 3) pageNum = i + 1;
+                  else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                  else pageNum = currentPage - 2 + i;
+                  if (pageNum <= 0 || pageNum > totalPages) return null;
+                  return (
+                    <Button key={pageNum} variant={currentPage === pageNum ? "default" : "outline"} size="sm" className="h-10 w-10 p-0 rounded-xl text-xs font-bold" onClick={() => setCurrentPage(pageNum)}>
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button variant="outline" size="sm" className="h-10 w-10 p-0 rounded-xl" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Edit Modal (Inner) */}
         {editingId && (
