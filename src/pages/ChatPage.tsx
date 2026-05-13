@@ -18,7 +18,7 @@ import {
   Send, Phone, Video, MoreVertical, Search, Paperclip, Smile, Mic, 
   ChevronLeft, Clock, Zap, MessageSquare, Shield, User, Users, FileText, 
   Trash2, AlertCircle, RefreshCw, Check, X, Play, StopCircle, Trash,
-  ArrowLeft, ArrowRightLeft, StickyNote, Tag, History, CheckCircle2, Plus, Loader2, CheckCircle
+  ArrowLeft, ArrowRightLeft, StickyNote, Tag, History, CheckCircle2, Plus, Loader2, CheckCircle, UserPlus
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
