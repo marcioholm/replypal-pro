@@ -168,7 +168,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         data.data?.profilePicUrl || 
                         data.sender?.profilePicUrl;
 
-      // 1. Garantir que a conversa existe
+      // 1. Verificar se o número pertence a um cliente cadastrado
+      const { data: matchedCustomer } = await supabase
+        .from('clientes')
+        .select('id, nome_fantasia')
+        .or(`whatsapp.eq.${phone},telefone.eq.${phone}`)
+        .maybeSingle();
+
+      // 2. Garantir que a conversa existe
       let { data: conv } = await supabase.from('conversas').select('*').eq('client_phone', phone).maybeSingle();
 
       if (!conv) {
@@ -182,8 +189,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const slaDeadline = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 horas de SLA por padrão
 
         const { data: nConv, error: cErr } = await supabase.from('conversas').upsert({
-          client_name: isFromMe ? phone : (pushName || phone), 
+          client_name: matchedCustomer?.nome_fantasia || (isFromMe ? phone : (pushName || phone)), 
           client_phone: phone, 
+          customer_id: matchedCustomer?.id || null,
           status: isFromMe ? 'em_atendimento' : 'novo', 
           last_message_time: now.toISOString(), 
           tenant_id: tId,
