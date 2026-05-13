@@ -41,59 +41,62 @@ export default function HygienePage() {
       if (!tenantId) return;
 
       setLoading(true);
-      store.customers = []; // Limpar antes de começar
-
+      
+      // Limpar usando o método correto para notificar a UI
+      store.customers = [];
+      // Se houver um método clear no store, use-o, senão force o recarregamento via addDbCustomer
+      
       try {
-        let allData: any[] = [];
         let from = 0;
         const step = 1000;
         let hasMore = true;
+        let totalLoaded = 0;
 
         while (hasMore) {
           const { data, error } = await supabase
             .from("clientes")
             .select("*")
             .eq("tenant_id", tenantId)
-            .range(from, from + step - 1);
+            .range(from, from + step - 1)
+            .order("nome_fantasia", { ascending: true });
 
           if (error) throw error;
           
           if (data && data.length > 0) {
-            allData = [...allData, ...data];
+            const mappedBatch = data.map(c => ({
+              id: c.id,
+              name: c.nome_fantasia || c.razao_social || "Sem Nome",
+              razaoSocial: c.razao_social || "",
+              cnpj: c.cnpj || "",
+              responsibleName: c.responsavel || "",
+              whatsapp: c.whatsapp || "",
+              phone: c.telefone || "",
+              email: c.email || "",
+              city: c.cidade || "",
+              state: c.estado || "",
+              regime: c.regime_tributario as any,
+              status: c.status as any,
+              priority: (c.prioridade || "Média") as any,
+              tenantId: c.tenant_id,
+              operational_status: c.operational_status as any,
+              internal_responsible_name: c.internal_responsible_name,
+              sector: c.sector as any,
+              fantasy_name: c.nome_fantasia,
+              whatsapp_status: c.whatsapp_status,
+              createdAt: new Date(c.created_at)
+            }));
+
+            // Adicionar ao store lote por lote para a UI não travar
+            mappedBatch.forEach(item => store.addDbCustomer(item));
+            
+            totalLoaded += data.length;
             from += step;
-            // Se veio menos que o passo, é porque acabou
             if (data.length < step) hasMore = false;
-            // Segurança para não entrar em loop infinito se o banco for gigante
-            if (allData.length > 20000) hasMore = false; 
+            if (totalLoaded > 15000) hasMore = false; 
           } else {
             hasMore = false;
           }
         }
-
-        allData.forEach(c => {
-          store.addDbCustomer({
-            id: c.id,
-            name: c.nome_fantasia || c.razao_social || "Sem Nome",
-            razaoSocial: c.razao_social || "",
-            cnpj: c.cnpj || "",
-            responsibleName: c.responsavel || "",
-            whatsapp: c.whatsapp || "",
-            phone: c.telefone || "",
-            email: c.email || "",
-            city: c.cidade || "",
-            state: c.estado || "",
-            regime: c.regime_tributario as any,
-            status: c.status as any,
-            priority: (c.prioridade || "Média") as any,
-            tenantId: c.tenant_id,
-            operational_status: c.operational_status as any,
-            internal_responsible_name: c.internal_responsible_name,
-            sector: c.sector as any,
-            fantasy_name: c.nome_fantasia,
-            whatsapp_status: c.whatsapp_status,
-            createdAt: new Date(c.created_at)
-          });
-        });
       } catch (err) {
         console.error("Erro ao carregar higiene em lotes:", err);
         toast.error("Erro ao carregar base completa.");
