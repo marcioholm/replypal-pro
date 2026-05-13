@@ -327,7 +327,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (s === 'READ' || s === 4 || s === 'PLAYED' || s === 5) dbS = 'read';
         await supabase.from('mensagens').update({ status: dbS }).eq('external_message_id', k.id);
       }
-    } else if (normalizedEvent === 'contacts.upsert' || normalizedEvent === 'contacts.update') {
+    } else if (normalizedEvent === 'contacts.upsert' || normalizedEvent === 'contacts.update' || normalizedEvent === 'contacts.set') {
       const contacts = Array.isArray(data) ? data : [data];
       for (const c of contacts) {
         const remoteJid = c.id || c.remoteJid;
@@ -339,11 +339,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const pic = c.profilePicUrl || c.imgUrl || c.data?.profilePicUrl;
         const name = c.pushName || c.name || c.data?.pushName;
         
-        if (phone && (pic || name)) {
+        if (phone) {
           const upd: any = {};
           if (pic) upd.client_avatar = pic;
-          if (name) upd.client_name = name;
-          await supabase.from('conversas').update(upd).eq('client_phone', phone);
+          
+          // Verificar se número pertence a um cliente para não sobrescrever com nome genérico do WhatsApp
+          const searchPhones = [phone];
+          if (phone.startsWith('55')) searchPhones.push(phone.substring(2));
+          else searchPhones.push('55' + phone);
+
+          const { data: matchedCustomer } = await supabase
+            .from('clientes')
+            .select('id, nome_fantasia, responsavel')
+            .or(`whatsapp.in.(${searchPhones.join(',')}),telefone.in.(${searchPhones.join(',')})`)
+            .maybeSingle();
+
+          if (matchedCustomer) {
+            upd.client_name = matchedCustomer.responsavel || matchedCustomer.nome_fantasia;
+            upd.customer_id = matchedCustomer.id;
+          } else if (name) {
+            upd.client_name = name;
+          }
+
+          if (Object.keys(upd).length > 0) {
+            await supabase.from('conversas').update(upd).eq('client_phone', phone);
+          }
         }
       }
     } else if (normalizedEvent === 'presence.update') {
