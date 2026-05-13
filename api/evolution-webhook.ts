@@ -173,11 +173,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (phone.startsWith('55')) searchPhones.push(phone.substring(2));
       else searchPhones.push('55' + phone);
 
+      console.log(`[Webhook] Buscando cliente para: ${phone} (Variações: ${searchPhones.join(', ')})`);
+
       const { data: matchedCustomer } = await supabase
         .from('clientes')
         .select('id, nome_fantasia, responsavel')
         .or(`whatsapp.in.(${searchPhones.join(',')}),telefone.in.(${searchPhones.join(',')})`)
         .maybeSingle();
+
+      if (matchedCustomer) {
+        console.log(`[Webhook] Cliente encontrado: ${matchedCustomer.responsavel || matchedCustomer.nome_fantasia}`);
+      } else {
+        console.log(`[Webhook] Nenhum cliente encontrado para ${phone}`);
+      }
 
       // 2. Garantir que a conversa existe
       let { data: conv } = await supabase.from('conversas').select('*').eq('client_phone', phone).maybeSingle();
