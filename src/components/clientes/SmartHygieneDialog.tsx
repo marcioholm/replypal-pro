@@ -30,6 +30,8 @@ export function SmartHygieneDialog() {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkConfirmOpen, setIsBulkConfirmOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<"apply" | "delete" | "ignore" | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
