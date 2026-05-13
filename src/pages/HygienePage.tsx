@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore, Customer, WhatsappStatus } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { analyzeContact, AuditResult } from "@/lib/contactAudit";
 import { checkWhatsappNumber } from "@/lib/whatsappCheck";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -23,6 +24,7 @@ import { AnomaliesTable } from "@/components/clientes/AnomaliesTable";
 
 export default function HygienePage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const store = useStore();
   const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState("");
