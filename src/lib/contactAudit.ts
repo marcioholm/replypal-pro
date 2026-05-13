@@ -94,11 +94,10 @@ export function analyzeContact(customer: Customer): AuditResult {
       isLandline = true;
       issues.push({ 
         type: "landline", 
-        message: "Este contato parece ser um telefone fixo. Avalie se deseja manter, editar para WhatsApp ou remover da base.", 
-        severity: "ATTENTION"
+        message: "Telefone corporativo/fixo identificado.", 
+        severity: "OK"
       });
-      score -= 5;
-      if (severity !== "CRITICAL") severity = "ATTENTION";
+      // Não reduzimos o score por ser fixo
     } else if (["6", "7", "8", "9"].includes(firstDigit)) {
       let suggested = isDDI ? "55" + cleaned.substring(2, 4) + "9" + cleaned.substring(4) : cleaned.substring(0, 2) + "9" + cleaned.substring(2);
       issues.push({ 

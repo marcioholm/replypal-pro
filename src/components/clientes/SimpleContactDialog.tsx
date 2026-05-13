@@ -26,6 +26,8 @@ export function SimpleContactDialog({ initialPhone, initialName, onSuccess, trig
     name: initialName || "",
     phone: initialPhone || "",
     email: "",
+    sector: "Atendimento",
+    operational_status: "Revisão pendente",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,7 +54,9 @@ export function SimpleContactDialog({ initialPhone, initialName, onSuccess, trig
           prioridade: "Média",
           service_level: "Padrão",
           preferred_channel: "WhatsApp",
-          origin: "Manual"
+          origin: "Manual",
+          sector: formData.sector,
+          operational_status: formData.operational_status
         }, { onConflict: "whatsapp,tenant_id" })
         .select()
         .single();
@@ -74,6 +78,8 @@ export function SimpleContactDialog({ initialPhone, initialName, onSuccess, trig
         status: data.status as any,
         priority: (data.prioridade || "Média") as any,
         tenantId: data.tenant_id,
+        sector: data.sector as any,
+        operational_status: data.operational_status as any,
         createdAt: new Date(data.created_at)
       });
 
@@ -135,6 +141,39 @@ export function SimpleContactDialog({ initialPhone, initialName, onSuccess, trig
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="sector">Setor / Vínculo</Label>
+              <select 
+                id="sector"
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={formData.sector}
+                onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
+              >
+                <option value="Fiscal">Fiscal</option>
+                <option value="Financeiro">Financeiro</option>
+                <option value="RH">RH</option>
+                <option value="Atendimento">Atendimento</option>
+                <option value="Comercial">Comercial</option>
+                <option value="Legal">Legal</option>
+                <option value="Sócio">Sócio</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <select 
+                id="status"
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={formData.operational_status}
+                onChange={(e) => setFormData({ ...formData, operational_status: e.target.value })}
+              >
+                <option value="Ativo">Ativo</option>
+                <option value="Revisão pendente">Revisão pendente</option>
+                <option value="Dados incompletos">Dados incompletos</option>
+                <option value="Contato principal">Contato principal</option>
+              </select>
+            </div>
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>

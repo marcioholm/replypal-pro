@@ -11,6 +11,9 @@ export type SLAStatus = "ok" | "em_risco" | "estourado";
 export type ClosingReason = "resolvido" | "aguardando_cliente" | "transferido" | "sem_resposta" | "outro";
 export type MessageType = "text" | "image" | "audio" | "video" | "document" | "sticker";
 export type WhatsappStatus = "não verificado" | "possui WhatsApp" | "não possui WhatsApp" | "erro na verificação" | "verificação pendente";
+export type ContactRole = "Cliente" | "Sócio" | "Financeiro" | "RH" | "Fiscal" | "Compras" | "Comercial" | "Responsável" | "Colaborador" | "Parceiro";
+export type InternalSector = "Fiscal" | "Financeiro" | "RH" | "Atendimento" | "Comercial" | "Legal";
+export type OperationalStatus = "Ativo" | "Sem retorno" | "Dados incompletos" | "Número inválido" | "WhatsApp não encontrado" | "Revisão pendente" | "Contato principal" | "Contato secundário";
 
 export interface User {
   id: string;
@@ -20,6 +23,7 @@ export interface User {
   tenantId: string;
   avatar?: string;
   whatsapp?: string;
+  sector?: InternalSector;
 }
 
 export interface Tenant {
@@ -36,6 +40,16 @@ export interface Tag {
   id: string;
   name: string;
   color: string;
+}
+
+export interface Contact {
+  id: string;
+  name: string;
+  role: ContactRole;
+  whatsapp: string;
+  email: string;
+  isPrimary: boolean;
+  notes?: string;
 }
 
 export interface QuickReply {
@@ -79,6 +93,14 @@ export interface Customer {
   whatsapp_checked_at?: Date;
   whatsapp_check_provider?: string;
   whatsapp_check_error?: string;
+  
+  // Novos campos contábeis
+  operational_status?: OperationalStatus;
+  internal_responsible_id?: string; // ID do User responsável
+  internal_responsible_name?: string;
+  sector?: InternalSector; // Setor principal da empresa
+  fantasy_name?: string;
+  
   createdAt: Date;
 }
 
