@@ -199,6 +199,7 @@ interface Store {
   addNote: (conversationId: string, content: string, user: User) => void;
   addTag: (conversationId: string, tagId: string) => void;
   removeTag: (conversationId: string, tagId: string) => void;
+  deleteCustomer: (id: string) => void;
 }
 
 // 2. Configurações Globais
@@ -405,6 +406,10 @@ function getStore(): Store {
         if (conv) {
           s.addDbConversation({ id: conversationId, tags: conv.tags.filter(t => t !== tagId) } as any);
         }
+      },
+      deleteCustomer(id) {
+        s.customers = s.customers.filter(c => c.id !== id);
+        notify();
       }
     };
     globalStore = s;
