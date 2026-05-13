@@ -40,51 +40,63 @@ export default function HygienePage() {
       const tenantId = user?.tenantId;
       if (!tenantId) return;
 
-      // Limpar contatos atuais para garantir carga completa e fresca
-      store.customers = []; 
-
       setLoading(true);
-      try {
-        // Aumentando o limite para carregar toda a base (até 10k por enquanto)
-        const { data, error } = await supabase
-          .from("clientes")
-          .select("*")
-          .eq("tenant_id", tenantId)
-          .limit(10000);
+      store.customers = []; // Limpar antes de começar
 
-        if (error) throw error;
-        
-        if (data) {
-          // Limpar store antes de repopular para evitar duplicados visuais se houver erro no reload
-          // store.clearCustomers(); // Opcional, dependendo da implementação do store
+      try {
+        let allData: any[] = [];
+        let from = 0;
+        const step = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from("clientes")
+            .select("*")
+            .eq("tenant_id", tenantId)
+            .range(from, from + step - 1);
+
+          if (error) throw error;
           
-          data.forEach(c => {
-            store.addDbCustomer({
-              id: c.id,
-              name: c.nome_fantasia || c.razao_social || "Sem Nome",
-              razaoSocial: c.razao_social || "",
-              cnpj: c.cnpj || "",
-              responsibleName: c.responsavel || "",
-              whatsapp: c.whatsapp || "",
-              phone: c.telefone || "",
-              email: c.email || "",
-              city: c.cidade || "",
-              state: c.estado || "",
-              regime: c.regime_tributario as any,
-              status: c.status as any,
-              priority: (c.prioridade || "Média") as any,
-              tenantId: c.tenant_id,
-              operational_status: c.operational_status as any,
-              internal_responsible_name: c.internal_responsible_name,
-              sector: c.sector as any,
-              fantasy_name: c.nome_fantasia,
-              whatsapp_status: c.whatsapp_status,
-              createdAt: new Date(c.created_at)
-            });
-          });
+          if (data && data.length > 0) {
+            allData = [...allData, ...data];
+            from += step;
+            // Se veio menos que o passo, é porque acabou
+            if (data.length < step) hasMore = false;
+            // Segurança para não entrar em loop infinito se o banco for gigante
+            if (allData.length > 20000) hasMore = false; 
+          } else {
+            hasMore = false;
+          }
         }
+
+        allData.forEach(c => {
+          store.addDbCustomer({
+            id: c.id,
+            name: c.nome_fantasia || c.razao_social || "Sem Nome",
+            razaoSocial: c.razao_social || "",
+            cnpj: c.cnpj || "",
+            responsibleName: c.responsavel || "",
+            whatsapp: c.whatsapp || "",
+            phone: c.telefone || "",
+            email: c.email || "",
+            city: c.cidade || "",
+            state: c.estado || "",
+            regime: c.regime_tributario as any,
+            status: c.status as any,
+            priority: (c.prioridade || "Média") as any,
+            tenantId: c.tenant_id,
+            operational_status: c.operational_status as any,
+            internal_responsible_name: c.internal_responsible_name,
+            sector: c.sector as any,
+            fantasy_name: c.nome_fantasia,
+            whatsapp_status: c.whatsapp_status,
+            createdAt: new Date(c.created_at)
+          });
+        });
       } catch (err) {
-        console.error("Erro ao carregar higiene:", err);
+        console.error("Erro ao carregar higiene em lotes:", err);
+        toast.error("Erro ao carregar base completa.");
       } finally {
         setLoading(false);
       }
