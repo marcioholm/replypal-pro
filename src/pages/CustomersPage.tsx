@@ -116,6 +116,7 @@ export default function CustomersPage() {
     return matchesSearch && matchesStatus && matchesRegime && matchesPriority && matchesOrigin && matchesType;
   });
 
+  const companies = filteredCustomers.filter(c => c.cnpj && c.cnpj.trim().length > 0);
   const companiesCount = store.customers.filter(c => c.cnpj && c.cnpj.trim().length > 0).length;
   const individualCount = store.customers.filter(c => !c.cnpj || c.cnpj.trim().length === 0).length;
 
@@ -310,29 +311,26 @@ export default function CustomersPage() {
               <TableBody>
                 {loading ? (
                   <TableRow><TableCell colSpan={5} className="h-64 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
-                ) : filteredCustomers.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="h-64 text-center text-muted-foreground">Nenhum cliente encontrado com os filtros atuais.</TableCell></TableRow>
+                ) : companies.length === 0 ? (
+                  <TableRow><TableCell colSpan={5} className="h-64 text-center text-muted-foreground">Nenhuma empresa encontrada.</TableCell></TableRow>
                 ) : (
-                  filteredCustomers.map((c) => (
+                  companies.map((c) => (
                     <TableRow key={c.id} className="group hover:bg-muted/30 transition-all cursor-pointer border-b border-border/30" onClick={() => navigate(`/customers/${c.id}`)}>
                       <TableCell className="pl-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-xs shadow-md transition-transform group-hover:scale-110",
-                            c.cnpj ? "bg-gradient-to-br from-primary to-primary/60" : "bg-gradient-to-br from-info to-info/60"
-                          )}>
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-white font-bold text-xs shadow-md">
                             {c.name.substring(0, 2).toUpperCase()}
                           </div>
                           <div className="min-w-0">
                             <p className="font-semibold text-sm tracking-tight truncate">{c.name}</p>
-                            <p className="text-[10px] text-muted-foreground uppercase font-medium truncate">{c.razaoSocial || (c.cnpj ? '' : 'Pessoa Física')}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-medium truncate">{c.razaoSocial}</p>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
-                          <p className="text-xs font-mono text-foreground font-medium">{c.cnpj || c.whatsapp || 'Sem identificação'}</p>
-                          <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.city || 'Cidade'} - {c.state || 'UF'}</p>
+                          <p className="text-xs font-mono text-foreground font-medium">{c.cnpj}</p>
+                          <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.city} - {c.state}</p>
                         </div>
                       </TableCell>
                       <TableCell>
