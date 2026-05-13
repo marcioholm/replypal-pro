@@ -965,6 +965,19 @@ export default function ChatPage() {
             {!isAssigned && conv.status !== "resolvido" && (
               <Button size="sm" onClick={handleAssume}>Assumir</Button>
             )}
+            {!customer && (
+              <SimpleContactDialog 
+                initialPhone={conv.clientPhone} 
+                initialName={conv.clientName === conv.clientPhone ? "" : conv.clientName}
+                onSuccess={handleCustomerCreated}
+                trigger={
+                  <Button size="sm" variant="success" className="gap-2 bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20">
+                    <UserPlus className="h-4 w-4" />
+                    Salvar Contato
+                  </Button>
+                }
+              />
+            )}
             {isAssigned && conv.status !== "resolvido" && (
               <>
                 <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
@@ -1208,17 +1221,17 @@ export default function ChatPage() {
                 <div className="text-center py-8 space-y-3">
                   <p className="text-sm text-muted-foreground mb-4">Cliente não cadastrado.</p>
                   
-                  <SimpleContactDialog 
-                    initialPhone={conv.clientPhone} 
-                    initialName={conv.clientName === conv.clientPhone ? "" : conv.clientName}
-                    onSuccess={handleCustomerCreated}
-                    trigger={
-                      <Button className="w-full gap-2">
-                        <UserPlus className="h-4 w-4" />
-                        Salvar como Contato
-                      </Button>
-                    }
-                  />
+                    <SimpleContactDialog 
+                      initialPhone={conv.clientPhone} 
+                      initialName={conv.clientName === conv.clientPhone ? "" : conv.clientName}
+                      onSuccess={handleCustomerCreated}
+                      trigger={
+                        <Button className="w-full gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
+                          <UserPlus className="h-4 w-4" />
+                          Adicionar Contato (Rápido)
+                        </Button>
+                      }
+                    />
 
                   <Button variant="ghost" onClick={handleAutoCreateCustomer} className="w-full text-xs">
                     Cadastro Completo (Empresa)
