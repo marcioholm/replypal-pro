@@ -126,26 +126,89 @@ function toNum(val: any) {
   return typeof val === 'number' ? val : 0;
 }
 
-function canonicalPhone(phone: string): string {
+function analyzeAndHygienize(phone: string) {
+  const original = phone;
   let cleaned = phone.replace(/\D/g, "");
-  if (!cleaned) return "";
-  
-  // Add 55 if missing (assuming Brazil for this CRM)
-  if (cleaned.length <= 11 && !cleaned.startsWith("55")) {
+  let ddi = "55";
+  let ddd = "";
+  let status_normalizacao = "NORMALIZADO";
+  let tipo_numero = "DESCONHECIDO";
+  let status_validacao = "VALIDO";
+  let motivo_validacao = "";
+
+  if (!cleaned) {
+    return { status_normalizacao: "FORMATO_INVALIDO", status_validacao: "INVALIDO", motivo_validacao: "Vazio" };
+  }
+
+  // 1. DDI & DDD Extraction
+  if (cleaned.startsWith("55")) {
+    ddi = "55";
+    if (cleaned.length >= 4) ddd = cleaned.substring(2, 4);
+  } else {
+    ddi = "55";
+    if (cleaned.length >= 2) ddd = cleaned.substring(0, 2);
     cleaned = "55" + cleaned;
   }
 
-  // Handle 9th digit for Brazil
-  if (cleaned.startsWith("55") && cleaned.length === 12) {
-    const ddd = cleaned.substring(2, 4);
-    const firstDigit = cleaned[4];
-    // If it's a mobile (6-9) and missing the 9th digit
-    if (["6", "7", "8", "9"].includes(firstDigit)) {
-      cleaned = "55" + ddd + "9" + cleaned.substring(4);
+  if (!ddd || ddd.length < 2) {
+    status_normalizacao = "PENDENTE_DDD";
+    status_validacao = "PENDENTE_REVISAO";
+    motivo_validacao = "DDD não identificado";
+  }
+
+  // 2. Tipo de Número & Validação
+  const numberPart = cleaned.startsWith("55") ? cleaned.substring(4) : cleaned.substring(2);
+  const firstDigit = numberPart[0];
+
+  if (["2", "3", "4", "5"].includes(firstDigit)) {
+    tipo_numero = "FIXO";
+  } else if (["6", "7", "8", "9"].includes(firstDigit)) {
+    tipo_numero = "MOVEL";
+  } else {
+    tipo_numero = "INVALIDO";
+    status_validacao = "INVALIDO";
+    motivo_validacao = "Início de número inválido";
+  }
+
+  // 3. Regras de Comprimento (Brazil)
+  if (tipo_numero === "MOVEL") {
+    if (numberPart.length === 8) {
+      status_validacao = "SEM_NONO_DIGITO";
+      motivo_validacao = "Celular sem o dígito 9";
+    } else if (numberPart.length === 9) {
+      if (firstDigit !== "9") {
+        status_validacao = "INVALIDO";
+        motivo_validacao = "Celular com 9 dígitos não inicia com 9";
+      }
+    } else if (numberPart.length > 9) {
+      status_validacao = "DIGITOS_EXCEDENTES";
+      motivo_validacao = "Número muito longo";
+    } else {
+      status_validacao = "INCOMPLETO";
+      motivo_validacao = "Número muito curto";
+    }
+  } else if (tipo_numero === "FIXO") {
+    if (numberPart.length !== 8) {
+      status_validacao = "INCOMPLETO";
+      motivo_validacao = "Fixo deve ter 8 dígitos";
     }
   }
-  
-  return cleaned;
+
+  return {
+    ddi,
+    ddd,
+    telefone: original,
+    telefone_formatado: cleaned,
+    status_normalizacao,
+    tipo_numero,
+    status_validacao,
+    motivo_validacao
+  };
+}
+
+function canonicalPhone(phone: string): string {
+  const result = analyzeAndHygienize(phone);
+  return result.telefone_formatado || phone;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -352,44 +415,82 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     } else if (normalizedEvent === 'contacts.upsert' || normalizedEvent === 'contacts.update' || normalizedEvent === 'contacts.set') {
       const contacts = Array.isArray(data) ? data : [data];
+      const instName = data.instance || req.headers['x-instance-name'] as string || "";
+      
+      let tId = '11111111-1111-1111-1111-111111111111';
+      if (instName) {
+        const { data: tCfg } = await supabase.from('tenants').select('id').eq('evolution_instance', instName).maybeSingle();
+        if (tCfg) tId = tCfg.id;
+      }
+
+      console.log(`[Webhook] Sincronizando ${contacts.length} contatos da instância ${instName}`);
+
       for (const c of contacts) {
         const remoteJid = c.id || c.remoteJid;
         if (!remoteJid) continue;
         
         const isGrp = remoteJid.endsWith('@g.us');
-        const rawPhone = isGrp ? remoteJid : remoteJid.split('@')[0];
-        const phone = isGrp ? rawPhone : canonicalPhone(rawPhone);
+        if (isGrp) continue; // Pular grupos na tabela de contatos técnicos por enquanto
+
+        const rawPhone = remoteJid.split('@')[0];
+        const hygiene = analyzeAndHygienize(rawPhone);
         
         const pic = c.profilePicUrl || c.imgUrl || c.data?.profilePicUrl;
-        const name = c.pushName || c.name || c.data?.pushName;
+        const pushName = c.pushName || c.name || c.data?.pushName;
         
-        if (phone) {
-          const upd: any = {};
-          if (pic) upd.client_avatar = pic;
-          
-          // Verificar se número pertence a um cliente para não sobrescrever com nome genérico do WhatsApp
-          const searchPhones = [phone];
-          if (phone.startsWith('55')) searchPhones.push(phone.substring(2));
-          else searchPhones.push('55' + phone);
+        // Upsert na tabela de contatos técnicos
+        const contactData = {
+          tenant_id: tId,
+          instance_name: instName,
+          jid: remoteJid,
+          telefone: rawPhone,
+          telefone_formatado: hygiene.telefone_formatado,
+          nome: pushName,
+          nome_exibicao: pushName,
+          foto_perfil: pic,
+          ddi: hygiene.ddi,
+          ddd: hygiene.ddd,
+          status_normalizacao: hygiene.status_normalizacao,
+          tipo_numero: hygiene.tipo_numero,
+          status_validacao: hygiene.status_validacao,
+          motivo_validacao: hygiene.motivo_validacao,
+          updated_at: new Date().toISOString()
+        };
 
-          const { data: matchedCustomer } = await supabase
-            .from('clientes')
-            .select('id, nome_fantasia, responsavel')
-            .or(`whatsapp.in.(${searchPhones.join(',')}),telefone.in.(${searchPhones.join(',')})`)
-            .maybeSingle();
+        await supabase.from('contacts').upsert(contactData, { onConflict: 'jid,tenant_id' });
 
-          if (matchedCustomer) {
-            upd.client_name = matchedCustomer.responsavel || matchedCustomer.nome_fantasia;
-            upd.customer_id = matchedCustomer.id;
-          } else if (name) {
-            upd.client_name = name;
-          }
+        // Também atualizar o nome na conversa se ela existir
+        const updConv: any = {};
+        if (pic) updConv.client_avatar = pic;
+        
+        // Priorizar nome do CRM (clientes) se existir
+        const { data: matchedCustomer } = await supabase
+          .from('clientes')
+          .select('id, nome_fantasia, responsavel')
+          .or(`whatsapp.eq.${hygiene.telefone_formatado},telefone.eq.${hygiene.telefone_formatado}`)
+          .maybeSingle();
 
-          if (Object.keys(upd).length > 0) {
-            await supabase.from('conversas').update(upd).eq('client_phone', phone);
-          }
+        if (matchedCustomer) {
+          updConv.client_name = matchedCustomer.responsavel || matchedCustomer.nome_fantasia;
+          updConv.customer_id = matchedCustomer.id;
+        } else if (pushName) {
+          updConv.client_name = pushName;
+        }
+
+        if (Object.keys(updConv).length > 0) {
+          await supabase.from('conversas').update(updConv).eq('client_phone', hygiene.telefone_formatado).eq('tenant_id', tId);
         }
       }
+
+      // Log de Sincronização
+      await supabase.from('contact_sync_logs').insert({
+        tenant_id: tId,
+        instance_name: instName,
+        evento_recebido: normalizedEvent,
+        quantidade_contatos: contacts.length,
+        status: 'SUCCESS'
+      });
+
     } else if (normalizedEvent === 'presence.update') {
       const presences = data.presences || {};
       for (const jid in presences) {
