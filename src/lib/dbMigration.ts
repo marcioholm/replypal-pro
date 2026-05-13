@@ -268,6 +268,66 @@ BEGIN
         
         ALTER TABLE clientes ADD CONSTRAINT clientes_whatsapp_tenant_id_key UNIQUE (whatsapp, tenant_id); 
     END IF; 
+
+    -- Sincronizar conversas existentes com a tabela de clientes (vincular nomes e IDs)
+    -- 1. Primeiro normalizamos os números nas conversas
+    UPDATE conversas SET client_phone = REGEXP_REPLACE(client_phone, '\D', '', 'g') WHERE client_phone ~ '\D';
+    
+    -- 2. Atualizamos as conversas que ainda estão sem nome ou sem vínculo
+    UPDATE conversas c
+    SET 
+        customer_id = cl.id,
+        client_name = cl.nome_fantasia
+    FROM clientes cl
+    WHERE c.client_phone = cl.whatsapp
+    AND c.tenant_id = cl.tenant_id
+    AND (c.customer_id IS NULL OR c.client_name ~ '^[0-9]+$' OR c.client_name = c.client_phone);
+
+    -- 3. Criar gatilhos para sincronização automática futura
+    -- Sincronizar quando uma nova conversa entra
+    CREATE OR REPLACE FUNCTION public.sync_conversa_with_cliente() RETURNS TRIGGER AS $$
+    DECLARE
+        target_id UUID;
+        target_name TEXT;
+    BEGIN
+        SELECT id, nome_fantasia INTO target_id, target_name
+        FROM public.clientes
+        WHERE whatsapp = REGEXP_REPLACE(NEW.client_phone, '\D', '', 'g')
+        AND tenant_id = NEW.tenant_id
+        LIMIT 1;
+        
+        IF target_id IS NOT NULL THEN
+            NEW.customer_id := target_id;
+            NEW.client_name := target_name;
+        END IF;
+        
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    DROP TRIGGER IF EXISTS trg_sync_conversa ON public.conversas;
+    CREATE TRIGGER trg_sync_conversa
+    BEFORE INSERT OR UPDATE OF client_phone ON public.conversas
+    FOR EACH ROW EXECUTE FUNCTION public.sync_conversa_with_cliente();
+
+    -- Sincronizar quando um novo cliente é cadastrado/importado
+    CREATE OR REPLACE FUNCTION public.sync_cliente_with_conversas() RETURNS TRIGGER AS $$
+    BEGIN
+        UPDATE public.conversas
+        SET 
+            customer_id = NEW.id,
+            client_name = NEW.nome_fantasia
+        WHERE client_phone = NEW.whatsapp
+        AND tenant_id = NEW.tenant_id
+        AND (customer_id IS NULL OR client_name ~ '^[0-9]+$' OR client_name = client_phone);
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    DROP TRIGGER IF EXISTS trg_sync_cliente ON public.clientes;
+    CREATE TRIGGER trg_sync_cliente
+    AFTER INSERT OR UPDATE OF whatsapp, nome_fantasia ON public.clientes
+    FOR EACH ROW EXECUTE FUNCTION public.sync_cliente_with_conversas();
 END $$;
 `;
 
