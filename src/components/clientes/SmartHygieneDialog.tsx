@@ -66,6 +66,14 @@ export function SmartHygieneDialog() {
     return results;
   }, [store.customers, open]);
 
+  const metrics = useMemo(() => {
+    const total = auditData.length;
+    const valid = auditData.filter(d => d.audit.severity === "OK").length;
+    const critical = auditData.filter(d => d.audit.severity === "CRITICAL").length;
+    const attention = auditData.filter(d => d.audit.severity === "ATTENTION").length;
+    const fixed = auditData.filter(d => d.audit.isLandline).length;
+    const duplicates = auditData.filter(d => d.audit.severity === "DUPLICATE").length;
+    const withSuggestions = auditData.filter(d => d.audit.suggestion).length;
     const withWhatsapp = auditData.filter(d => d.whatsapp_status === "possui WhatsApp").length;
     const noWhatsapp = auditData.filter(d => d.whatsapp_status === "não possui WhatsApp").length;
     const notChecked = auditData.filter(d => !d.whatsapp_status || d.whatsapp_status === "não verificado").length;
