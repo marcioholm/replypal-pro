@@ -28,6 +28,7 @@ import { ScheduleMessageDialog } from "@/components/chat/ScheduleMessageDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CustomerForm } from "@/components/CustomerForm";
+import { SimpleContactDialog } from "@/components/clientes/SimpleContactDialog";
 import { Customer } from "@/lib/store";
 
 export default function ChatPage() {
@@ -1206,7 +1207,22 @@ export default function ChatPage() {
               ) : (
                 <div className="text-center py-8 space-y-3">
                   <p className="text-sm text-muted-foreground mb-4">Cliente não cadastrado.</p>
-                  <Button onClick={handleAutoCreateCustomer} className="w-full">Cadastrar Novo</Button>
+                  
+                  <SimpleContactDialog 
+                    initialPhone={conv.clientPhone} 
+                    initialName={conv.clientName === conv.clientPhone ? "" : conv.clientName}
+                    onSuccess={handleCustomerCreated}
+                    trigger={
+                      <Button className="w-full gap-2">
+                        <UserPlus className="h-4 w-4" />
+                        Salvar como Contato
+                      </Button>
+                    }
+                  />
+
+                  <Button variant="ghost" onClick={handleAutoCreateCustomer} className="w-full text-xs">
+                    Cadastro Completo (Empresa)
+                  </Button>
                   
                   <Dialog open={linkCnpjOpen} onOpenChange={setLinkCnpjOpen}>
                     <DialogTrigger asChild>
