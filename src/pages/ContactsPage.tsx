@@ -15,7 +15,7 @@ import { useEffect } from "react";
 import { 
   Users, UserPlus, Search, Filter, 
   MessageSquare, ChevronRight, Briefcase, FilterX,
-  Loader2, UserCheck
+  Loader2, UserCheck, ChevronLeft
 } from "lucide-react";
 
 export default function ContactsPage() {
@@ -24,6 +24,8 @@ export default function ContactsPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 30;
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -31,16 +33,38 @@ export default function ContactsPage() {
       if (!tenantId || tenantId.length < 5) return;
 
       try {
-        const { data } = await supabase
-          .from("clientes")
-          .select("*")
-          .eq("tenant_id", tenantId);
+        let allData: any[] = [];
+        let from = 0;
+        let to = 999;
+        let finished = false;
 
-        if (data) {
-          data.forEach(c => {
+        while (!finished) {
+          const { data, error } = await supabase
+            .from("clientes")
+            .select("*")
+            .eq("tenant_id", tenantId)
+            .range(from, to);
+
+          if (error) throw error;
+          
+          if (data && data.length > 0) {
+            allData = [...allData, ...data];
+            if (data.length < 1000) {
+              finished = true;
+            } else {
+              from += 1000;
+              to += 1000;
+            }
+          } else {
+            finished = true;
+          }
+        }
+
+        if (allData.length > 0) {
+          allData.forEach(c => {
             store.addDbCustomer({
               id: c.id,
-              name: c.nome_fantasia,
+              name: c.nome_fantasia || "Sem Nome",
               razaoSocial: c.razao_social || "",
               cnpj: c.cnpj || "",
               responsibleName: c.responsavel || "",
@@ -72,7 +96,19 @@ export default function ContactsPage() {
     .filter(c => 
       c.name.toLowerCase().includes(search.toLowerCase()) || 
       c.whatsapp.includes(search)
-    );
+    )
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  const totalPages = Math.ceil(individualContacts.length / pageSize);
+  const paginatedContacts = individualContacts.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto animate-in fade-in duration-700">
@@ -138,18 +174,18 @@ export default function ContactsPage() {
               <TableBody>
                 {loading ? (
                   <TableRow><TableCell colSpan={4} className="h-64 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
-                ) : individualContacts.length === 0 ? (
+                ) : paginatedContacts.length === 0 ? (
                   <TableRow><TableCell colSpan={4} className="h-64 text-center text-muted-foreground italic">Nenhum contato avulso encontrado.</TableCell></TableRow>
                 ) : (
-                  individualContacts.map((c) => (
+                  paginatedContacts.map((c) => (
                     <TableRow key={c.id} className="group hover:bg-muted/30 transition-all cursor-pointer border-b border-border/30" onClick={() => navigate(`/customers/${c.id}`)}>
                       <TableCell className="pl-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-xs border shadow-sm">
-                            {c.name.substring(0, 2).toUpperCase()}
+                            {(c.name || "??").substring(0, 2).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-semibold text-sm tracking-tight truncate">{c.name}</p>
+                            <p className="font-semibold text-sm tracking-tight truncate">{c.name || "Sem Nome"}</p>
                             <p className="text-[10px] text-muted-foreground uppercase font-medium truncate">{c.email || 'Sem e-mail'}</p>
                           </div>
                         </div>
@@ -176,6 +212,57 @@ export default function ContactsPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination Footer */}
+          {individualContacts.length > pageSize && (
+            <div className="p-4 border-t bg-muted/10 flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Exibindo {Math.min(individualContacts.length, (currentPage - 1) * pageSize + 1)} - {Math.min(individualContacts.length, currentPage * pageSize)} de {individualContacts.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 w-8 p-0 rounded-lg"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum = currentPage;
+                    if (currentPage <= 3) pageNum = i + 1;
+                    else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                    else pageNum = currentPage - 2 + i;
+
+                    if (pageNum <= 0 || pageNum > totalPages) return null;
+
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-lg text-xs font-bold"
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 w-8 p-0 rounded-lg"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
