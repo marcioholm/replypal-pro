@@ -10,6 +10,7 @@ export type ConversationStatus = "novo" | "pendente" | "respondido" | "resolvido
 export type SLAStatus = "ok" | "em_risco" | "estourado";
 export type ClosingReason = "resolvido" | "aguardando_cliente" | "transferido" | "sem_resposta" | "outro";
 export type MessageType = "text" | "image" | "audio" | "video" | "document" | "sticker";
+export type WhatsappStatus = "não verificado" | "possui WhatsApp" | "não possui WhatsApp" | "erro na verificação" | "verificação pendente";
 
 export interface User {
   id: string;
@@ -74,6 +75,10 @@ export interface Customer {
   driveFolderUrl?: string;
   drivePayrollUrl?: string;
   driveBillingUrl?: string;
+  whatsapp_status?: WhatsappStatus;
+  whatsapp_checked_at?: Date;
+  whatsapp_check_provider?: string;
+  whatsapp_check_error?: string;
   createdAt: Date;
 }
 

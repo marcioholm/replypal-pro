@@ -22,6 +22,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
+import { checkWhatsappNumber, WhatsappCheckResult } from "@/lib/whatsappCheck";
 
 export function SmartHygieneDialog() {
   const [open, setOpen] = useState(false);
@@ -34,6 +35,8 @@ export function SmartHygieneDialog() {
   const [isBulkConfirmOpen, setIsBulkConfirmOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<"apply" | "delete" | "ignore" | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationProgress, setVerificationProgress] = useState({ current: 0, total: 0 });
   const pageSize = 50;
 
   const store = useStore();
@@ -63,17 +66,12 @@ export function SmartHygieneDialog() {
     return results;
   }, [store.customers, open]);
 
-  const metrics = useMemo(() => {
-    const total = auditData.length;
-    const valid = auditData.filter(d => d.audit.severity === "OK").length;
-    const critical = auditData.filter(d => d.audit.severity === "CRITICAL").length;
-    const attention = auditData.filter(d => d.audit.severity === "ATTENTION").length;
-    const fixed = auditData.filter(d => d.audit.isLandline).length;
-    const duplicates = auditData.filter(d => d.audit.severity === "DUPLICATE").length;
-    const withSuggestions = auditData.filter(d => d.audit.suggestion).length;
+    const withWhatsapp = auditData.filter(d => d.whatsapp_status === "possui WhatsApp").length;
+    const noWhatsapp = auditData.filter(d => d.whatsapp_status === "não possui WhatsApp").length;
+    const notChecked = auditData.filter(d => !d.whatsapp_status || d.whatsapp_status === "não verificado").length;
     const qualityScore = total > 0 ? Math.round((valid / total) * 100) : 100;
 
-    return { total, valid, critical, attention, fixed, duplicates, withSuggestions, qualityScore };
+    return { total, valid, critical, attention, fixed, duplicates, withSuggestions, withWhatsapp, noWhatsapp, notChecked, qualityScore };
   }, [auditData]);
 
   const filteredData = useMemo(() => {
@@ -83,6 +81,7 @@ export function SmartHygieneDialog() {
     else if (activeTab === "critical") data = data.filter(d => d.audit.severity === "CRITICAL");
     else if (activeTab === "attention") data = data.filter(d => d.audit.severity === "ATTENTION");
     else if (activeTab === "fixed") data = data.filter(d => d.audit.isLandline);
+    else if (activeTab === "whatsapp") data = data.filter(d => d.whatsapp_status && d.whatsapp_status !== "não verificado");
     else if (activeTab === "suggestions") data = data.filter(d => d.audit.suggestion);
 
     if (search) {
@@ -232,6 +231,7 @@ export function SmartHygieneDialog() {
             <MetricCard label="Atenção" value={metrics.attention} icon={AlertTriangle} color="amber" />
             <MetricCard label="Duplicados" value={metrics.duplicates} icon={Merge} color="purple" />
             <MetricCard label="Telefones Fixos" value={metrics.fixed} icon={Phone} color="blue" />
+            <MetricCard label="WhatsApp Ativo" value={metrics.withWhatsapp} icon={ShieldCheck} color="green" />
             <MetricCard label="Sugestões" value={metrics.withSuggestions} icon={ZapIcon} color="blue" />
           </div>
         </div>
@@ -245,6 +245,7 @@ export function SmartHygieneDialog() {
               <TabsTrigger value="attention" className="rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Atenção</TabsTrigger>
               <TabsTrigger value="duplicates" className="rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Duplicados</TabsTrigger>
               <TabsTrigger value="fixed" className="rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Fixos</TabsTrigger>
+              <TabsTrigger value="whatsapp" className="rounded-lg px-6 font-bold text-xs uppercase tracking-wider">WhatsApp</TabsTrigger>
               <TabsTrigger value="suggestions" className="rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Sugestões</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -283,6 +284,10 @@ export function SmartHygieneDialog() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="secondary" size="sm" className="font-bold h-10 px-6 rounded-xl bg-green-100 text-green-700 hover:bg-green-200" onClick={() => handleBulkCheckWhatsapp(selectedIds)}>
+                <ShieldCheck className="w-4 h-4 mr-2" />
+                Verificar WhatsApp
+              </Button>
               <Button variant="secondary" size="sm" className="font-bold h-10 px-6 rounded-xl shadow-lg" onClick={() => { setBulkAction("apply"); setIsBulkConfirmOpen(true); }}>
                 <Zap className="w-4 h-4 mr-2" />
                 Aplicar Sugestões
@@ -292,6 +297,22 @@ export function SmartHygieneDialog() {
                 Excluir
               </Button>
               <Button variant="ghost" size="sm" className="font-bold h-10 px-4 text-white hover:bg-white/10" onClick={() => setSelectedIds([])}>Cancelar</Button>
+            </div>
+          </div>
+        )}
+
+        {/* Progress bar for Bulk Verification */}
+        {isVerifying && (
+          <div className="px-8 py-4 border-b bg-muted/20">
+            <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 flex flex-col gap-2 max-w-4xl mx-auto">
+              <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-primary">
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Verificando WhatsApp dos contatos...
+                </span>
+                <span>{verificationProgress.current} / {verificationProgress.total} ({Math.round((verificationProgress.current / verificationProgress.total) * 100)}%)</span>
+              </div>
+              <Progress value={(verificationProgress.current / verificationProgress.total) * 100} className="h-2 bg-primary/20" />
             </div>
           </div>
         )}
@@ -352,10 +373,27 @@ export function SmartHygieneDialog() {
                 onDelete={handleDelete}
                 onEdit={(c: any) => { setEditingId(c.id); setEditValue(c.whatsapp || c.phone || ""); }}
                 onApplySuggestion={handleApplySuggestion}
+                onCheckWhatsapp={handleCheckWhatsapp}
                 loading={loading}
                 showMasterCheckbox={true}
                 filteredData={filteredData}
                 showLocation={true}
+              />
+            </div>
+          ) : activeTab === "whatsapp" ? (
+            <div className="border rounded-[24px] overflow-hidden bg-card shadow-sm">
+              <AnomaliesTable 
+                list={paginatedData} 
+                selectedIds={selectedIds}
+                setSelectedIds={setSelectedIds}
+                onDelete={handleDelete}
+                onEdit={(c: any) => { setEditingId(c.id); setEditValue(c.whatsapp || c.phone || ""); }}
+                onApplySuggestion={handleApplySuggestion}
+                onCheckWhatsapp={handleCheckWhatsapp}
+                loading={loading}
+                showMasterCheckbox={true}
+                filteredData={filteredData}
+                showWhatsappStatus={true}
               />
             </div>
           ) : filteredData.length === 0 ? (
@@ -503,7 +541,8 @@ export function SmartHygieneDialog() {
 
 function AnomaliesTable({ 
   list, selectedIds, setSelectedIds, onDelete, onEdit, 
-  onApplySuggestion, loading, showMasterCheckbox, filteredData 
+  onApplySuggestion, onCheckWhatsapp, loading, showMasterCheckbox, filteredData,
+  showLocation, showWhatsappStatus
 }: any) {
   return (
     <Table>
@@ -523,7 +562,7 @@ function AnomaliesTable({
             )}
           </TableHead>
           <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Contato</TableHead>
-          <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Status / Inconsistência</TableHead>
+          <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Status / WhatsApp</TableHead>
           {showLocation && <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Localização (DDD)</TableHead>}
           <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Número Atual</TableHead>
           <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Sugestão de Correção</TableHead>
@@ -551,8 +590,11 @@ function AnomaliesTable({
               </div>
             </TableCell>
             <TableCell>
-              <div className="flex flex-col gap-1">
-                <AuditBadge severity={d.audit.severity} />
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <AuditBadge severity={d.audit.severity} />
+                  {d.whatsapp_status && <WhatsappBadge status={d.whatsapp_status} />}
+                </div>
                 {d.audit.issues.map((issue: any, idx: number) => (
                   <span key={idx} className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
                     <Info className="w-2.5 h-2.5 opacity-50" />
@@ -598,10 +640,20 @@ function AnomaliesTable({
               )}
             </TableCell>
             <TableCell className="text-right pr-6">
-              <div className="flex items-center justify-end gap-1">
-                <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive hover:bg-destructive/10 rounded-xl" onClick={() => onDelete(d.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center justify-end gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-10 w-10 text-primary hover:bg-primary/10 rounded-xl" 
+                    onClick={() => onCheckWhatsapp(d.id, d.whatsapp || d.phone)}
+                    title="Verificar WhatsApp"
+                    disabled={loading}
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive hover:bg-destructive/10 rounded-xl" onClick={() => onDelete(d.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl">
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
@@ -677,6 +729,24 @@ function formatWithHighlight(text: string, range?: [number, number]) {
       <span className="bg-red-500/20 text-red-700 px-0.5 rounded mx-0.5 border border-red-200">{text.substring(start, end)}</span>
       {text.substring(end)}
     </>
+  );
+}
+
+function WhatsappBadge({ status }: { status: string }) {
+  const configs: any = {
+    "não verificado": { label: "Não Verificado", className: "bg-muted text-muted-foreground border-muted-foreground/20" },
+    "possui WhatsApp": { label: "Ativo", className: "bg-green-500/10 text-green-600 border-green-200" },
+    "não possui WhatsApp": { label: "Sem WhatsApp", className: "bg-red-500/10 text-red-600 border-red-200" },
+    "erro na verificação": { label: "Erro na Consulta", className: "bg-amber-500/10 text-amber-600 border-amber-200" },
+    "verificação pendente": { label: "Pendente", className: "bg-blue-500/10 text-blue-600 border-blue-200" },
+  };
+
+  const config = configs[status] || configs["não verificado"];
+
+  return (
+    <Badge variant="outline" className={cn("rounded-md px-2 py-0 h-5 text-[9px] font-black uppercase tracking-widest", config.className)}>
+      {config.label}
+    </Badge>
   );
 }
 
