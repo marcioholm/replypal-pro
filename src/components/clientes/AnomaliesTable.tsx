@@ -3,6 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Info, Edit2, Check, ShieldCheck, Trash2, MoreHorizontal, MapPin, Merge } from "lucide-react";
 import { AuditBadge, WhatsappBadge } from "./AuditBadges";
 import { cn } from "@/lib/utils";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 
 interface AnomaliesTableProps {
   list: any[];
@@ -167,9 +175,32 @@ export function AnomaliesTable({
                     <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive hover:bg-destructive/10 rounded-xl transition-all" onClick={() => onDelete(d.id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl transition-all">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl transition-all">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                        <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 py-2">Ações Rápidas</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onEdit(d)} className="gap-2 cursor-pointer rounded-lg mx-1">
+                          <Edit2 className="w-4 h-4" /> Editar Contato
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onCheckWhatsapp(d.id, d.whatsapp || d.phone)} className="gap-2 cursor-pointer rounded-lg mx-1">
+                          <ShieldCheck className="w-4 h-4 text-emerald-500" /> Validar WhatsApp
+                        </DropdownMenuItem>
+                        {d.audit.severity === "DUPLICATE" && onMerge && (
+                          <DropdownMenuItem onClick={() => onMerge(d.id)} className="gap-2 cursor-pointer text-purple-600 font-medium rounded-lg mx-1">
+                            <Merge className="w-4 h-4" /> Mesclar Duplicado
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onDelete(d.id)} className="gap-2 cursor-pointer text-destructive focus:text-destructive rounded-lg mx-1">
+                          <Trash2 className="w-4 h-4" /> Excluir Registro
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
               </TableCell>
             </TableRow>
