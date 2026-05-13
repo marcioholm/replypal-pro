@@ -14,7 +14,7 @@ import {
   Search, Filter, Trash2, Merge, Edit2, Check, X, 
   Loader2, ArrowRight, Download, History, Info,
   ChevronDown, MoreHorizontal, MousePointer2,
-  ChevronLeft, ChevronRight, Zap
+  ChevronLeft, ChevronRight, Zap, Phone, MapPin
 } from "lucide-react";
 import { useStore, Customer } from "@/lib/store";
 import { analyzeContact, AuditResult, Severity } from "@/lib/contactAudit";
@@ -68,11 +68,12 @@ export function SmartHygieneDialog() {
     const valid = auditData.filter(d => d.audit.severity === "OK").length;
     const critical = auditData.filter(d => d.audit.severity === "CRITICAL").length;
     const attention = auditData.filter(d => d.audit.severity === "ATTENTION").length;
+    const fixed = auditData.filter(d => d.audit.isLandline).length;
     const duplicates = auditData.filter(d => d.audit.severity === "DUPLICATE").length;
     const withSuggestions = auditData.filter(d => d.audit.suggestion).length;
     const qualityScore = total > 0 ? Math.round((valid / total) * 100) : 100;
 
-    return { total, valid, critical, attention, duplicates, withSuggestions, qualityScore };
+    return { total, valid, critical, attention, fixed, duplicates, withSuggestions, qualityScore };
   }, [auditData]);
 
   const filteredData = useMemo(() => {
@@ -81,6 +82,7 @@ export function SmartHygieneDialog() {
     if (activeTab === "duplicates") data = data.filter(d => d.audit.severity === "DUPLICATE");
     else if (activeTab === "critical") data = data.filter(d => d.audit.severity === "CRITICAL");
     else if (activeTab === "attention") data = data.filter(d => d.audit.severity === "ATTENTION");
+    else if (activeTab === "fixed") data = data.filter(d => d.audit.isLandline);
     else if (activeTab === "suggestions") data = data.filter(d => d.audit.suggestion);
 
     if (search) {
@@ -223,12 +225,13 @@ export function SmartHygieneDialog() {
           </div>
 
           {/* Cards de Métricas Estilo HubSpot */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
             <MetricCard label="Total" value={metrics.total} icon={MousePointer2} color="primary" />
             <MetricCard label="Válidos" value={metrics.valid} icon={CheckCircle2} color="green" />
             <MetricCard label="Críticos" value={metrics.critical} icon={AlertCircle} color="red" />
             <MetricCard label="Atenção" value={metrics.attention} icon={AlertTriangle} color="amber" />
             <MetricCard label="Duplicados" value={metrics.duplicates} icon={Merge} color="purple" />
+            <MetricCard label="Telefones Fixos" value={metrics.fixed} icon={Phone} color="blue" />
             <MetricCard label="Sugestões" value={metrics.withSuggestions} icon={ZapIcon} color="blue" />
           </div>
         </div>
@@ -241,6 +244,7 @@ export function SmartHygieneDialog() {
               <TabsTrigger value="critical" className="rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Críticos</TabsTrigger>
               <TabsTrigger value="attention" className="rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Atenção</TabsTrigger>
               <TabsTrigger value="duplicates" className="rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Duplicados</TabsTrigger>
+              <TabsTrigger value="fixed" className="rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Fixos</TabsTrigger>
               <TabsTrigger value="suggestions" className="rounded-lg px-6 font-bold text-xs uppercase tracking-wider">Sugestões</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -338,6 +342,21 @@ export function SmartHygieneDialog() {
                 </div>
               ))}
               {filteredData.length === 0 && <EmptyState message="Nenhum duplicado encontrado!" />}
+            </div>
+          ) : activeTab === "fixed" ? (
+            <div className="border rounded-[24px] overflow-hidden bg-card shadow-sm">
+              <AnomaliesTable 
+                list={paginatedData} 
+                selectedIds={selectedIds}
+                setSelectedIds={setSelectedIds}
+                onDelete={handleDelete}
+                onEdit={(c: any) => { setEditingId(c.id); setEditValue(c.whatsapp || c.phone || ""); }}
+                onApplySuggestion={handleApplySuggestion}
+                loading={loading}
+                showMasterCheckbox={true}
+                filteredData={filteredData}
+                showLocation={true}
+              />
             </div>
           ) : filteredData.length === 0 ? (
             <EmptyState message="Tudo limpo por aqui!" />
@@ -505,6 +524,7 @@ function AnomaliesTable({
           </TableHead>
           <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Contato</TableHead>
           <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Status / Inconsistência</TableHead>
+          {showLocation && <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Localização (DDD)</TableHead>}
           <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Número Atual</TableHead>
           <TableHead className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Sugestão de Correção</TableHead>
           <TableHead className="text-right pr-6 font-bold text-xs uppercase tracking-widest text-muted-foreground">Ações</TableHead>
@@ -541,6 +561,14 @@ function AnomaliesTable({
                 ))}
               </div>
             </TableCell>
+            {showLocation && (
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-xs font-bold text-muted-foreground">{d.audit.location || "N/A"}</span>
+                </div>
+              </TableCell>
+            )}
             <TableCell>
               <div className="flex items-center gap-2 group/phone">
                 <span className="font-mono text-sm tracking-tight">{d.whatsapp || d.phone}</span>

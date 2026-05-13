@@ -18,19 +18,25 @@ export interface AuditResult {
   suggestion?: string;
   score: number; // 0 to 100
   normalizedPhone: string;
+  isLandline?: boolean;
+  location?: string;
 }
 
-const VALID_DDDS = [
-  "11", "12", "13", "14", "15", "16", "17", "18", "19",
-  "21", "22", "24", "27", "28",
-  "31", "32", "33", "34", "35", "37", "38",
-  "41", "42", "43", "44", "45", "46", "47", "48", "49",
-  "51", "53", "54", "55",
-  "61", "62", "63", "64", "65", "66", "67", "68", "69",
-  "71", "73", "74", "75", "77", "79",
-  "81", "82", "83", "84", "85", "86", "87", "88", "89",
-  "91", "92", "93", "94", "95", "96", "97", "98", "99"
-];
+const DDD_MAP: Record<string, string> = {
+  "11": "São Paulo, SP", "12": "S. J. dos Campos, SP", "13": "Santos, SP", "14": "Bauru, SP", "15": "Sorocaba, SP",
+  "16": "Ribeirão Preto, SP", "17": "S. J. do Rio Preto, SP", "18": "Presidente Prudente, SP", "19": "Campinas, SP",
+  "21": "Rio de Janeiro, RJ", "22": "Campos dos Goytacazes, RJ", "24": "Petrópolis, RJ", "27": "Vitória, ES", "28": "Cachoeiro de Itapemirim, ES",
+  "31": "Belo Horizonte, MG", "32": "Juiz de Fora, MG", "33": "Governador Valadares, MG", "34": "Uberlândia, MG", "35": "Poços de Caldas, MG", "37": "Divinópolis, MG", "38": "Montes Claros, MG",
+  "41": "Curitiba, PR", "42": "Ponta Grossa, PR", "43": "Londrina, PR", "44": "Maringá, PR", "45": "Cascavel, PR", "46": "Francisco Beltrão, PR",
+  "47": "Joinville, SC", "48": "Florianópolis, SC", "49": "Chapecó, SC",
+  "51": "Porto Alegre, RS", "53": "Pelotas, RS", "54": "Caxias do Sul, RS", "55": "Santa Maria, RS",
+  "61": "Brasília, DF", "62": "Goiânia, GO", "63": "Palmas, TO", "64": "Rio Verde, GO", "65": "Cuiabá, MT", "66": "Rondonópolis, MT", "67": "Campo Grande, MS", "68": "Rio Branco, AC", "69": "Porto Velho, RO",
+  "71": "Salvador, BA", "73": "Itabuna, BA", "74": "Juazeiro, BA", "75": "Feira de Santana, BA", "77": "Vitória da Conquista, BA", "79": "Aracaju, SE",
+  "81": "Recife, PE", "82": "Maceió, AL", "83": "João Pessoa, PB", "84": "Natal, RN", "85": "Fortaleza, CE", "86": "Teresina, PI", "87": "Petrolina, PE", "88": "Juazeiro do Norte, CE", "89": "Picos, PI",
+  "91": "Belém, PA", "92": "Manaus, AM", "93": "Santarém, PA", "94": "Marabá, PA", "95": "Boa Vista, RR", "96": "Macapá, AP", "97": "Coari, AM", "98": "São Luís, MA", "99": "Imperatriz, MA"
+};
+
+const VALID_DDDS = Object.keys(DDD_MAP);
 
 export function analyzeContact(customer: Customer): AuditResult {
   const issues: AuditIssue[] = [];
@@ -40,12 +46,13 @@ export function analyzeContact(customer: Customer): AuditResult {
   
   let score = 100;
   let severity: Severity = "OK";
+  let isLandline = false;
+  let location = "";
 
-  // 1. Critical Issues
+  // 1. Basic Validation
   if (!cleaned) {
     issues.push({ type: "empty", message: "Número vazio", severity: "CRITICAL" });
-    score = 0;
-    severity = "CRITICAL";
+    return { status: "Vazio", severity: "CRITICAL", issues, score: 0, normalizedPhone: "" };
   } else if (/[a-zA-Z]/.test(rawPhone)) {
     issues.push({ type: "letters", message: "Contém letras", severity: "CRITICAL" });
     score -= 50;
@@ -56,58 +63,81 @@ export function analyzeContact(customer: Customer): AuditResult {
     severity = "CRITICAL";
   }
 
-  // 2. DDD Validation (for Brazil)
+  // 2. DDD and Location Extraction
+  let ddd = "";
   if (cleaned.length >= 10) {
-    // Extrair DDD (considerando ou não o 55)
-    let ddd = "";
     if (cleaned.startsWith("55") && cleaned.length >= 12) {
       ddd = cleaned.substring(2, 4);
     } else if (!cleaned.startsWith("55")) {
       ddd = cleaned.substring(0, 2);
     }
 
-    if (ddd && !VALID_DDDS.includes(ddd)) {
-      issues.push({ type: "invalid_ddd", message: `DDD inexistente (${ddd})`, severity: "CRITICAL" });
-      score -= 40;
+    if (ddd) {
+      if (!VALID_DDDS.includes(ddd)) {
+        issues.push({ type: "invalid_ddd", message: `DDD inexistente (${ddd})`, severity: "CRITICAL" });
+        score -= 40;
+        severity = "CRITICAL";
+      } else {
+        location = DDD_MAP[ddd];
+      }
+    }
+  }
+
+  // 3. Length & Format Business Rules
+  // (DDD + 8 digits) OR (55 + DDD + 8 digits)
+  if (cleaned.length === 10 || (cleaned.startsWith("55") && cleaned.length === 12)) {
+    const isDDI = cleaned.startsWith("55");
+    const numPart = isDDI ? cleaned.substring(4) : cleaned.substring(2);
+    const firstDigit = numPart[0];
+
+    if (["2", "3", "4", "5"].includes(firstDigit)) {
+      isLandline = true;
+      issues.push({ 
+        type: "landline", 
+        message: "Este contato parece ser um telefone fixo. Avalie se deseja manter, editar para WhatsApp ou remover da base.", 
+        severity: "ATTENTION"
+      });
+      score -= 5;
+      if (severity !== "CRITICAL") severity = "ATTENTION";
+    } else if (["6", "7", "8", "9"].includes(firstDigit)) {
+      let suggested = isDDI ? "55" + cleaned.substring(2, 4) + "9" + cleaned.substring(4) : cleaned.substring(0, 2) + "9" + cleaned.substring(2);
+      issues.push({ 
+        type: "missing_ninth", 
+        message: "Possível celular antigo sem 9º dígito.", 
+        severity: "CRITICAL",
+        suggestion: suggested
+      });
+      score -= 20;
       severity = "CRITICAL";
     }
   }
 
-  // 3. Attention Issues
-  // Sem 9º dígito (Brasil: 55 + DDD + 8 dígitos = 12 total, ou DDD + 8 dígitos = 10 total)
-  if (cleaned.length === 10 || (cleaned.startsWith("55") && cleaned.length === 12)) {
-    const isFixed = false; // Poderia adicionar lógica para identificar se é fixo (começa com 2, 3, 4, 5)
-    
-    // Simplificando: se tem 10/12 e não parece fixo, sugerir 9º dígito
-    let suggested = "";
-    if (cleaned.length === 10) {
-      suggested = cleaned.substring(0, 2) + "9" + cleaned.substring(2);
-    } else {
-      suggested = "55" + cleaned.substring(2, 4) + "9" + cleaned.substring(4);
-    }
+  // (DDD + 9 digits) OR (55 + DDD + 9 digits)
+  if (cleaned.length === 11 || (cleaned.startsWith("55") && cleaned.length === 13)) {
+    const isDDI = cleaned.startsWith("55");
+    const numPart = isDDI ? cleaned.substring(4) : cleaned.substring(2);
+    const firstDigit = numPart[0];
 
-    issues.push({ 
-      type: "missing_ninth", 
-      message: "Provável ausência do 9º dígito", 
-      severity: "ATTENTION",
-      suggestion: suggested
-    });
-    score -= 10;
-    if (severity !== "CRITICAL") severity = "ATTENTION";
+    if (firstDigit !== "9") {
+      issues.push({ 
+        type: "invalid_ninth", 
+        message: "Número de 9 dígitos não inicia com 9. Revisar validade.", 
+        severity: "ATTENTION"
+      });
+      score -= 15;
+      if (severity !== "CRITICAL") severity = "ATTENTION";
+    }
   }
 
   // Números Longos
   if (cleaned.length > 13) {
-    // Exemplo: 554142999896358 -> 55 41 [42] 999896358
-    // Tentar sugerir remoção de dígitos repetidos
     let suggested = cleaned;
     let highlight: [number, number] | undefined = undefined;
 
-    // Detectar 42 duplicado ou similar após o DDD
     if (cleaned.startsWith("55")) {
       const ddd = cleaned.substring(2, 4);
       const afterDdd = cleaned.substring(4, 6);
-      if (ddd === afterDdd || (ddd === "41" && afterDdd === "42")) { // Caso comum 4142
+      if (ddd === afterDdd || (ddd === "41" && afterDdd === "42")) {
         suggested = "55" + ddd + cleaned.substring(6);
         highlight = [4, 6];
       }
@@ -124,14 +154,14 @@ export function analyzeContact(customer: Customer): AuditResult {
     if (severity !== "CRITICAL") severity = "ATTENTION";
   }
 
-  // 4. Duplicate Check is handled at the group level, but we mark it here if known
-  
   return {
-    status: severity === "OK" ? "Válido" : "Inconsistente",
+    status: severity === "OK" ? "Válido" : (isLandline ? "Fixo" : "Inconsistente"),
     severity,
     issues,
     suggestion: issues.find(i => i.suggestion)?.suggestion,
     score: Math.max(0, score),
-    normalizedPhone: normalized
+    normalizedPhone: normalized,
+    isLandline,
+    location
   };
 }
