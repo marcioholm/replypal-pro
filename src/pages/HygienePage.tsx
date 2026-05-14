@@ -15,7 +15,7 @@ import {
   CheckCircle2, Phone, Search, Download, 
   RefreshCw, Layers, ChevronLeft, ChevronRight,
   Filter, Smartphone, Home, XCircle, Info, Edit2,
-  Trash2, Check, Zap
+  Trash2, Check, Zap, Merge
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
