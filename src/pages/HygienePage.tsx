@@ -140,6 +140,58 @@ export default function HygienePage() {
     }
   };
 
+  const handleBulkMergeDuplicates = async () => {
+    const selectedDuplicates = auditData.filter(d => selectedIds.includes(d.id) && d.audit.severity === "DUPLICATE");
+    if (selectedDuplicates.length === 0) {
+      toast.info("Nenhum duplicado selecionado.");
+      return;
+    }
+
+    if (!confirm(`Deseja unificar ${selectedDuplicates.length} registros duplicados? O sistema manterá o registro mais antigo como principal.`)) return;
+
+    setLoading(true);
+    let count = 0;
+    try {
+      // Agrupar por telefone para processar
+      const groups = new Map<string, any[]>();
+      selectedDuplicates.forEach(d => {
+        const phone = d.audit.normalizedPhone;
+        if (!groups.has(phone)) groups.set(phone, []);
+        groups.get(phone)?.push(d);
+      });
+
+      for (const [phone, items] of groups.entries()) {
+        // Buscar o "Master" (o mais antigo da base inteira com esse telefone)
+        const allWithThisPhone = auditData.filter(c => c.audit.normalizedPhone === phone)
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        
+        const master = allWithThisPhone[0];
+        const toMerge = items.filter(i => i.id !== master.id);
+
+        for (const item of toMerge) {
+          const { error } = await supabase
+            .from("clientes")
+            .update({ 
+              status: "Encerrado",
+              observations: (item.observations || "") + `\n[SISTEMA] Mesclado com duplicado master ID: ${master.id}`
+            })
+            .eq("id", item.id);
+          
+          if (!error) {
+            store.updateCustomer(item.id, { status: "Encerrado" });
+            count++;
+          }
+        }
+      }
+      toast.success(`${count} registros unificados com sucesso!`);
+      setSelectedIds([]);
+    } catch (err) {
+      toast.error("Erro ao unificar duplicados.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const auditData = useMemo(() => {
     return store.customers.map(c => ({
       ...c,
@@ -406,6 +458,15 @@ export default function HygienePage() {
                   >
                     <Check className="w-4 h-4" />
                     Aplicar Sugestões
+                  </Button>
+
+                  <Button 
+                    onClick={handleBulkMergeDuplicates}
+                    disabled={loading}
+                    className="bg-purple-600 hover:bg-purple-700 text-white rounded-2xl h-12 px-6 gap-2 font-bold transition-all active:scale-95"
+                  >
+                    <Zap className="w-4 h-4" />
+                    Mesclar Duplicados
                   </Button>
                   
                   <Button 
