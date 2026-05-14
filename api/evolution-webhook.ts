@@ -526,6 +526,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const phone = jid.split('@')[0];
         await supabase.from('conversas').update({ is_typing: isTyping }).eq('client_phone', phone);
       }
+    } else if (normalizedEvent === 'messages.reaction') {
+      // Registrar reação na mensagem
+      const reaction = data.reaction || data;
+      if (reaction && reaction.key && reaction.key.id) {
+        const messageId = reaction.key.id;
+        const emoji = reaction.text;
+        
+        // Atualizar a mensagem com a última reação
+        await supabase.from('mensagens').update({
+          reaction: emoji
+        }).eq('external_message_id', messageId);
+      }
     }
     return res.status(200).json({ success: true });
   } catch (error) {
