@@ -1,6 +1,6 @@
 import { Message, formatTime } from '@/lib/store';
 import { AudioPlayer } from './AudioPlayer';
-import { Clock, FileText, Download, ExternalLink, Image as ImageIcon, PlayCircle, MapPin, User as UserIcon, Smile, Reply, Share2 } from 'lucide-react';
+import { Clock, FileText, Download, ExternalLink, Image as ImageIcon, PlayCircle, MapPin, User as UserIcon, Smile, Reply, Share2, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 
