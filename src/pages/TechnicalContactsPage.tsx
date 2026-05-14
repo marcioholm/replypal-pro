@@ -50,11 +50,35 @@ export default function TechnicalContactsPage() {
     }
   };
 
+  const handleSyncTrigger = async () => {
+    if (!user?.tenantId) return;
+    setLoading(true);
+    try {
+      const response = await fetch("/api/sync-evolution-contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId: user.tenantId })
+      });
+      
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Erro ao iniciar sincronismo");
+
+      toast.success(result.message);
+      
+      // Aguardar um pouco e atualizar a lista
+      setTimeout(fetchContacts, 3000);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const metrics = useMemo(() => {
     const total = contacts.length;
     const movel = contacts.filter(c => c.tipo_numero === "MOVEL").length;
     const fixo = contacts.filter(c => c.tipo_numero === "FIXO").length;
-    const invalid = contacts.filter(c => c.status_validacao === "INVALIDO").length;
+    const invalid = contacts.filter(c => (c.status_validacao === "INVALIDO" || c.tipo_numero === "INVALIDO")).length;
     const missing9 = contacts.filter(c => c.status_validacao === "SEM_NONO_DIGITO").length;
     const excess = contacts.filter(c => c.status_validacao === "DIGITOS_EXCEDENTES").length;
     const pending = contacts.filter(c => c.status_validacao === "PENDENTE_REVISAO").length;
@@ -124,7 +148,7 @@ export default function TechnicalContactsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={fetchContacts} disabled={loading} className="gap-2">
+          <Button variant="outline" onClick={handleSyncTrigger} disabled={loading} className="gap-2">
             <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
             Sincronizar Agora
           </Button>

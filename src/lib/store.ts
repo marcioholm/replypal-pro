@@ -137,6 +137,12 @@ export interface Message {
   durationSeconds?: number;
   status?: string;
   external_message_id?: string;
+  reaction?: string;
+  quotedMessage?: {
+    id: string;
+    content: string;
+    sender: string;
+  };
 }
 
 export interface ScheduledMessage {

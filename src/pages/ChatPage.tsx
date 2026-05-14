@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useStore, formatTime, formatDuration, MOCK_TAGS, UserRole, MessageType, ConversationStatus, ClosingReason } from "@/lib/store";
-import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead, syncConversationHistory, checkWhatsApp } from "@/lib/evolution";
+import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead, syncConversationHistory, checkWhatsApp, sendReaction, deleteMessage } from "@/lib/evolution";
 import { webhooks } from "@/lib/webhooks";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -56,6 +56,61 @@ export default function ChatPage() {
   const [isLinking, setIsLinking] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Novos estados de interação
+  const [replyingTo, setReplyingTo] = useState<any>(null);
+  const [forwardingMsg, setForwardingMsg] = useState<any>(null);
+  const [forwardModalOpen, setForwardModalOpen] = useState(false);
+
+  // Ouvidores de eventos do MessageBubble
+  useEffect(() => {
+    const handleReaction = async (e: any) => {
+      const { msgId, externalId } = e.detail;
+      const emoji = prompt("Escolha um emoji (ou deixe vazio para remover):", "❤️");
+      if (emoji !== null && conv?.clientPhone) {
+        const res = await sendReaction(conv.clientPhone, externalId, emoji);
+        if (res.success) {
+          toast.success("Reação enviada!");
+          // O polling ou webhook vai atualizar o banco e a UI
+        }
+      }
+    };
+
+    const handleReply = (e: any) => {
+      setReplyingTo(e.detail.msg);
+    };
+
+    const handleDelete = async (e: any) => {
+      const { msgId, externalId } = e.detail;
+      if (confirm("Deseja realmente apagar esta mensagem para todos?")) {
+        if (conv?.clientPhone) {
+          const res = await deleteMessage(conv.clientPhone, externalId);
+          if (res.success) {
+            toast.success("Mensagem apagada!");
+            await supabase.from("mensagens").delete().eq("id", msgId);
+            // store.deleteMessage(msgId); // Se houver no store
+          }
+        }
+      }
+    };
+
+    const handleForward = (e: any) => {
+      setForwardingMsg(e.detail.msg);
+      setForwardModalOpen(true);
+    };
+
+    window.addEventListener('chat-reaction', handleReaction);
+    window.addEventListener('chat-reply', handleReply);
+    window.addEventListener('chat-delete', handleDelete);
+    window.addEventListener('chat-forward', handleForward);
+
+    return () => {
+      window.removeEventListener('chat-reaction', handleReaction);
+      window.removeEventListener('chat-reply', handleReply);
+      window.removeEventListener('chat-delete', handleDelete);
+      window.removeEventListener('chat-forward', handleForward);
+    };
+  }, [conv?.clientPhone]);
   
   // Media states
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -137,7 +192,9 @@ export default function ChatPage() {
             mimeType: m.mime_type,
             fileSize: m.file_size,
             durationSeconds: m.duration_seconds,
-            external_message_id: m.external_message_id
+            external_message_id: m.external_message_id,
+            reaction: m.reaction,
+            quotedMessage: m.quoted_message
           })));
         }
 
@@ -399,15 +456,25 @@ export default function ChatPage() {
           tenant_id: user.tenantId
         });
       } else {
-        const res = await sendWhatsAppMessage(conv.clientPhone, messageInput, user.name);
+        const res = await sendWhatsAppMessage(conv.clientPhone, messageInput, user.name, replyingTo?.external_message_id);
         if (!res.success) throw new Error(res.error);
         
         const extId = res.data?.key?.id;
 
-        store.sendMessage(id!, messageInput, user, { 
+        const msgData: any = {
           status: 'sent',
-          external_message_id: extId 
-        });
+          external_message_id: extId
+        };
+
+        if (replyingTo) {
+          msgData.quotedMessage = {
+            id: replyingTo.id,
+            content: replyingTo.content,
+            sender: replyingTo.senderName
+          };
+        }
+
+        store.sendMessage(id!, messageInput, user, msgData);
 
         await supabase.from("mensagens").insert({
           conversation_id: id,
@@ -417,7 +484,8 @@ export default function ChatPage() {
           type: 'text',
           external_message_id: extId,
           status: 'sent',
-          tenant_id: user.tenantId
+          tenant_id: user.tenantId,
+          quoted_message: msgData.quotedMessage
         });
       }
 
@@ -428,6 +496,7 @@ export default function ChatPage() {
       }).eq("id", id);
 
       setMessageInput("");
+      setReplyingTo(null);
       setSelectedFile(null);
       setFilePreview(null);
       clearAudio();
@@ -574,6 +643,25 @@ export default function ChatPage() {
       toast.success("Você assumiu esta conversa!");
     } catch (e) {
       toast.error("Erro ao assumir conversa");
+    }
+  };
+
+  const handleForwardMessage = async (targetPhone: string) => {
+    if (!forwardingMsg || !user) return;
+    const toastId = toast.loading("Encaminhando...");
+    try {
+      const originalSender = forwardingMsg.sender === 'client' ? conv?.clientName : forwardingMsg.senderName;
+      const header = `*[Encaminhado por: ${user.name}]* (De: ${originalSender})\n\n`;
+      const forwardedContent = header + (forwardingMsg.content || "[Mídia]");
+
+      const res = await sendWhatsAppMessage(targetPhone, forwardedContent, user.name);
+      if (!res.success) throw new Error(res.error);
+
+      toast.success("Mensagem encaminhada!", { id: toastId });
+      setForwardModalOpen(false);
+      setForwardingMsg(null);
+    } catch (err) {
+      toast.error(`Erro ao encaminhar: ${String(err)}`, { id: toastId });
     }
   };
 
@@ -1046,6 +1134,20 @@ export default function ChatPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-2">
+              {/* Reply Preview */}
+              {replyingTo && (
+                <div className="mb-2 p-3 bg-muted/80 backdrop-blur-sm rounded-xl border-l-4 border-primary flex items-center justify-between animate-in slide-in-from-bottom-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold text-primary uppercase mb-0.5">{replyingTo.senderName}</p>
+                    <p className="text-xs truncate text-muted-foreground">{replyingTo.content}</p>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setReplyingTo(null)}>
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Media/Audio Preview */}
               {(selectedFile || audioBlob) && (
                 <div className="flex items-center gap-3 p-2 bg-primary/5 border rounded-lg animate-in slide-in-from-bottom-2">
                   {selectedFile?.type.startsWith('image/') ? (
@@ -1407,6 +1509,38 @@ export default function ChatPage() {
             }}
             onSuccess={handleCustomerCreated}
           />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={forwardModalOpen} onOpenChange={setForwardModalOpen}>
+        <DialogContent className="rounded-[32px] max-w-md">
+          <DialogHeader>
+            <DialogTitle>Encaminhar Mensagem</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder="Pesquisar contato..." className="pl-9 rounded-2xl" />
+            </div>
+            
+            <div className="max-h-[300px] overflow-y-auto space-y-1">
+              {store.conversations.map(c => (
+                <button 
+                  key={c.id} 
+                  onClick={() => handleForwardMessage(c.clientPhone)}
+                  className="w-full flex items-center gap-3 p-3 hover:bg-muted rounded-2xl transition-colors text-left"
+                >
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                    {c.clientAvatar ? <img src={c.clientAvatar} className="w-full h-full rounded-full object-cover" /> : c.clientName.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{c.clientName}</p>
+                    <p className="text-xs text-muted-foreground">{c.clientPhone}</p>
+                  </div>
+                  <ArrowRightLeft className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                </button>
+              ))}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

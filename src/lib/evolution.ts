@@ -80,12 +80,12 @@ export async function fetchChats() {
   }
 }
 
-export async function sendWhatsAppMessage(phone: string, message: string, agentName?: string) {
+export async function sendWhatsAppMessage(phone: string, message: string, agentName?: string, quotedMessageId?: string) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
   const instance = EVO_CONFIG.getInstance();
   
-  console.log(`[Evolution] Enviando mensagem. Instância: ${instance}, Para: ${phone}`);
+  console.log(`[Evolution] Enviando mensagem. Instância: ${instance}, Para: ${phone}, Quoted: ${quotedMessageId || "Nenhum"}`);
   
   if (!url || !key) return { success: false, error: "API não configurada" };
   
@@ -98,16 +98,26 @@ export async function sendWhatsAppMessage(phone: string, message: string, agentN
     : message;
   
   try {
+    const payload: any = {
+      number: phoneNumber,
+      text: messageWithSign,
+    };
+
+    if (quotedMessageId) {
+      payload.quoted = {
+        key: {
+          id: quotedMessageId
+        }
+      };
+    }
+
     const res = await fetch(`${apiUrl}/message/sendText/${instance}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "apikey": key,
       },
-      body: JSON.stringify({
-        number: phoneNumber,
-        text: messageWithSign,
-      }),
+      body: JSON.stringify(payload),
     });
     
     if (!res.ok) {
@@ -119,6 +129,55 @@ export async function sendWhatsAppMessage(phone: string, message: string, agentN
     }
     const data = await res.json();
     return { success: true, data };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+export async function sendReaction(phone: string, messageId: string, emoji: string) {
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = EVO_CONFIG.getInstance();
+  if (!url || !key) return { success: false, error: "API não configurada" };
+  
+  try {
+    const res = await fetch(`${getApiUrl()}/message/sendReaction/${instance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key },
+      body: JSON.stringify({
+        number: phone.replace(/\D/g, ""),
+        text: emoji,
+        messageId: messageId
+      })
+    });
+    
+    if (res.ok) return { success: true };
+    return { success: false, error: "Erro ao enviar reação" };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+export async function deleteMessage(phone: string, messageId: string) {
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = EVO_CONFIG.getInstance();
+  if (!url || !key) return { success: false, error: "API não configurada" };
+  
+  try {
+    const res = await fetch(`${getApiUrl()}/chat/deleteMessage/${instance}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", "apikey": key },
+      body: JSON.stringify({
+        number: phone.replace(/\D/g, ""),
+        remoteJid: `${phone.replace(/\D/g, "")}@s.whatsapp.net`,
+        id: messageId,
+        fromMe: true
+      })
+    });
+    
+    if (res.ok) return { success: true };
+    return { success: false, error: "Erro ao apagar mensagem" };
   } catch (err) {
     return { success: false, error: String(err) };
   }
