@@ -116,20 +116,26 @@ export default function ChatPage() {
     if (!reactionMenuOpen || !conv?.clientPhone) return;
     
     const targetMsg = messages.find(m => m.id === reactionMenuOpen.id);
+    const externalId = reactionMenuOpen.externalId;
+    
+    // Fechar o menu IMEDIATAMENTE para dar feedback visual
+    setReactionMenuOpen(null);
     
     try {
       const res = await sendReaction(
         conv.clientPhone, 
-        reactionMenuOpen.externalId, 
+        externalId, 
         emoji,
         targetMsg?.message_key_json
       );
       if (res.success) {
         toast.success("Reação enviada!");
-        setReactionMenuOpen(null);
+      } else {
+        toast.error("Erro ao reagir: " + (res.error || "Desconhecido"));
       }
     } catch (err) {
       toast.error("Erro ao reagir");
+      console.error(err);
     }
   };
 

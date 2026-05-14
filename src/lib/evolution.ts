@@ -141,32 +141,45 @@ export async function sendReaction(phone: string, messageId: string, emoji: stri
   if (!url || !key) return { success: false, error: "API não configurada" };
   
   try {
+    const remoteJid = messageKey?.remoteJid || `${phone.replace(/\D/g, "")}@s.whatsapp.net`;
+    
+    // Evolution v2 Payload
     const payload: any = {
-      number: phone.replace(/\D/g, ""),
-      reaction: emoji,
-      messageId: messageId,
-      remoteJid: messageKey?.remoteJid || `${phone.replace(/\D/g, "")}@s.whatsapp.net`
+      key: {
+        remoteJid: remoteJid,
+        fromMe: messageKey ? messageKey.fromMe : false,
+        id: messageId,
+        participant: messageKey?.participant || null
+      },
+      reaction: emoji
     };
 
-    if (messageKey) {
-      payload.key = {
-        remoteJid: messageKey.remoteJid,
-        fromMe: messageKey.fromMe,
-        id: messageKey.id,
-        participant: messageKey.participant
-      };
-    }
+    console.log("[Evolution] Enviando reação v2:", payload);
 
-    console.log("[Evolution] Enviando reação:", payload);
-
-    const res = await fetch(`${getApiUrl()}/message/reaction/${instance}`, {
+    const res = await fetch(`${getApiUrl()}/message/sendReaction/${instance}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify(payload)
     });
     
     if (res.ok) return { success: true };
-    const errorData = await res.text();
+    
+    // Fallback para v1/v2 antigo se falhar
+    const resFallback = await fetch(`${getApiUrl()}/message/reaction/${instance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key },
+      body: JSON.stringify({
+        number: phone.replace(/\D/g, ""),
+        reaction: emoji,
+        messageId: messageId,
+        remoteJid: remoteJid,
+        ...payload
+      })
+    });
+
+    if (resFallback.ok) return { success: true };
+
+    const errorData = await resFallback.text();
     console.error("Evolution Reaction Error:", errorData);
     return { success: false, error: `Erro API: ${errorData}` };
   } catch (err) {
@@ -181,23 +194,39 @@ export async function deleteMessage(phone: string, messageId: string, messageKey
   if (!url || !key) return { success: false, error: "API não configurada" };
   
   try {
+    const remoteJid = messageKey?.remoteJid || `${phone.replace(/\D/g, "")}@s.whatsapp.net`;
+    
+    // Evolution v2 Professional Payload (Revoke para todos)
     const payload = {
-      deleteMessages: [{
-        remoteJid: messageKey?.remoteJid || `${phone.replace(/\D/g, "")}@s.whatsapp.net`,
+      messageKeys: [{
+        remoteJid: remoteJid,
         fromMe: messageKey ? messageKey.fromMe : true,
         id: messageId,
-        participant: messageKey?.participant
+        participant: messageKey?.participant || null
       }]
     };
 
-    const res = await fetch(`${getApiUrl()}/message/delete/${instance}`, {
+    console.log("[Evolution] Revogando mensagem v2:", payload);
+
+    // Tentar o endpoint de deleteMessages (mais robusto no v2)
+    const res = await fetch(`${getApiUrl()}/message/deleteMessages/${instance}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify(payload)
     });
     
     if (res.ok) return { success: true };
-    const errorData = await res.text();
+
+    // Fallback para delete simples
+    const resFallback = await fetch(`${getApiUrl()}/message/delete/${instance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key },
+      body: JSON.stringify(payload)
+    });
+
+    if (resFallback.ok) return { success: true };
+
+    const errorData = await resFallback.text();
     return { success: false, error: errorData };
   } catch (err) {
     return { success: false, error: String(err) };
