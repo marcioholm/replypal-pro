@@ -12,10 +12,10 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { 
   ShieldCheck, AlertCircle, AlertTriangle, 
-  CheckCircle2, Merge, ZapIcon, Phone,
-  Search, Download, Trash2, Edit3, Check, X,
-  MousePointer2, ChevronLeft, Loader2, ArrowRight,
-  MessageSquare, Settings, RefreshCw, Layers, Edit2
+  CheckCircle2, Phone, Search, Download, 
+  RefreshCw, Layers, ChevronLeft, ChevronRight,
+  Filter, Smartphone, Home, XCircle, Info, Edit2,
+  Trash2, Check, Zap
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
