@@ -1,6 +1,5 @@
 import { Message, formatTime } from '@/lib/store';
-import { lazy, Suspense } from 'react';
-const AudioPlayer = lazy(() => import('./AudioPlayer').then(m => ({ default: m.AudioPlayer })));
+import { AudioPlayer } from './AudioPlayer';
 import { Clock, FileText, Download, ExternalLink, Image as ImageIcon, PlayCircle, MapPin, User as UserIcon, Smile, Reply, Share2, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
@@ -16,11 +15,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
   const renderContent = () => {
     switch (msg.type) {
       case 'audio':
-        return (
-          <Suspense fallback={<div className="h-10 flex items-center text-[10px] opacity-50 italic">Carregando áudio...</div>}>
-            <AudioPlayer url={msg.mediaUrl || ''} sender={msg.sender} />
-          </Suspense>
-        );
+        return <AudioPlayer url={msg.mediaUrl || ''} sender={msg.sender} />;
       
       case 'image':
         return (

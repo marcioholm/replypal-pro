@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useStore, formatTime, formatDuration, MOCK_TAGS, UserRole, MessageType, ConversationStatus, ClosingReason } from "@/lib/store";
 import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead, syncConversationHistory, checkWhatsApp, sendReaction, deleteMessage } from "@/lib/evolution";
@@ -22,16 +22,16 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
+import { MessageBubble } from "@/components/chat/MessageBubble";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { ScheduleMessageDialog } from "@/components/chat/ScheduleMessageDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { CustomerForm } from "@/components/CustomerForm";
+import { SimpleContactDialog } from "@/components/clientes/SimpleContactDialog";
 import { Customer } from "@/lib/store";
 
-// Lazy Components
-const MessageBubble = lazy(() => import("@/components/chat/MessageBubble").then(m => ({ default: m.MessageBubble })));
-const ScheduleMessageDialog = lazy(() => import("@/components/chat/ScheduleMessageDialog").then(m => ({ default: m.ScheduleMessageDialog })));
-const CustomerForm = lazy(() => import("@/components/CustomerForm").then(m => ({ default: m.CustomerForm })));
-const SimpleContactDialog = lazy(() => import("@/components/clientes/SimpleContactDialog").then(m => ({ default: m.SimpleContactDialog })));
+// Lazy Components - Keep only non-critical ones if any
 
 export default function ChatPage() {
   const { id } = useParams<{ id: string }>();
@@ -1060,19 +1060,17 @@ export default function ChatPage() {
               <Button size="sm" onClick={handleAssume}>Assumir</Button>
             )}
             {!customer && (
-              <Suspense fallback={<Button size="sm" variant="outline" disabled className="gap-2 opacity-50"><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</Button>}>
-                <SimpleContactDialog 
-                  initialPhone={conv.clientPhone} 
-                  initialName={conv.clientName === conv.clientPhone ? "" : conv.clientName}
-                  onSuccess={handleCustomerCreated}
-                  trigger={
-                    <Button size="sm" variant="success" className="gap-2 bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20">
-                      <UserPlus className="h-4 w-4" />
-                      Salvar Contato
-                    </Button>
-                  }
-                />
-              </Suspense>
+              <SimpleContactDialog 
+                initialPhone={conv.clientPhone} 
+                initialName={conv.clientName === conv.clientPhone ? "" : conv.clientName}
+                onSuccess={handleCustomerCreated}
+                trigger={
+                  <Button size="sm" variant="success" className="gap-2 bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20">
+                    <UserPlus className="h-4 w-4" />
+                    Salvar Contato
+                  </Button>
+                }
+              />
             )}
             {isAssigned && conv.status !== "resolvido" && (
               <>
@@ -1124,11 +1122,9 @@ export default function ChatPage() {
 
         {/* Messages List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-transparent">
-          <Suspense fallback={<div className="flex justify-center p-4"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
-            {messages.map((msg) => (
-              <MessageBubble key={msg.id} msg={msg} clientName={conv.clientName} />
-            ))}
-          </Suspense>
+          {messages.map((msg) => (
+            <MessageBubble key={msg.id} msg={msg} clientName={conv.clientName} />
+          ))}
           <div ref={messagesEndRef} />
         </div>
 
@@ -1220,17 +1216,15 @@ export default function ChatPage() {
                   <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="text-muted-foreground hover:text-primary">
                     <Paperclip className="w-5 h-5" />
                   </Button>
-                  <Suspense fallback={<Button variant="ghost" size="icon" disabled className="text-muted-foreground/30"><Clock className="w-5 h-5" /></Button>}>
-                    <ScheduleMessageDialog 
-                      initialMessage={messageInput}
-                      onSchedule={handleSchedule} 
-                      trigger={
-                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-                          <Clock className="w-5 h-5" />
-                        </Button>
-                      } 
-                    />
-                  </Suspense>
+                  <ScheduleMessageDialog 
+                    initialMessage={messageInput}
+                    onSchedule={handleSchedule} 
+                    trigger={
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                        <Clock className="w-5 h-5" />
+                      </Button>
+                    } 
+                  />
                   <Popover open={showQuickReplies} onOpenChange={setShowQuickReplies}>
                     <PopoverTrigger asChild>
                       <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
@@ -1335,19 +1329,17 @@ export default function ChatPage() {
                 <div className="text-center py-8 space-y-3">
                   <p className="text-sm text-muted-foreground mb-4">Cliente não cadastrado.</p>
                   
-                    <Suspense fallback={<Button className="w-full gap-2 opacity-50" disabled><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</Button>}>
-                      <SimpleContactDialog 
-                        initialPhone={conv.clientPhone} 
-                        initialName={conv.clientName === conv.clientPhone ? "" : conv.clientName}
-                        onSuccess={handleCustomerCreated}
-                        trigger={
-                          <Button className="w-full gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
-                            <UserPlus className="h-4 w-4" />
-                            Adicionar Contato (Rápido)
-                          </Button>
-                        }
-                      />
-                    </Suspense>
+                    <SimpleContactDialog 
+                      initialPhone={conv.clientPhone} 
+                      initialName={conv.clientName === conv.clientPhone ? "" : conv.clientName}
+                      onSuccess={handleCustomerCreated}
+                      trigger={
+                        <Button className="w-full gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
+                          <UserPlus className="h-4 w-4" />
+                          Adicionar Contato (Rápido)
+                        </Button>
+                      }
+                    />
 
                   <Button variant="ghost" onClick={handleAutoCreateCustomer} className="w-full text-xs">
                     Cadastro Completo (Empresa)
@@ -1490,8 +1482,7 @@ export default function ChatPage() {
           <DialogHeader>
             <DialogTitle>Novo Cliente</DialogTitle>
           </DialogHeader>
-          <Suspense fallback={<div className="p-8 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>}>
-            <CustomerForm 
+          <CustomerForm 
             initialData={{
               id: "",
               name: conv?.clientName || "",
@@ -1524,7 +1515,6 @@ export default function ChatPage() {
             }}
             onSuccess={handleCustomerCreated}
           />
-        </Suspense>
         </DialogContent>
       </Dialog>
       {/* Forward Dialog */}
