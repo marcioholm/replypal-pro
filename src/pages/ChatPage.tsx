@@ -62,6 +62,13 @@ export default function ChatPage() {
   storeRef.current = store;
   const { user } = useAuth();
   
+  const conv = store.getConversation(id || "");
+  const messages = store.getMessages(id || "");
+  const notes = store.getNotes(id || "");
+  const history = store.getHistory(id || "");
+  const customer = store.getCustomer(conv?.customerId);
+  const quickReplies = store.quickReplies;
+
   const [messageInput, setMessageInput] = useState("");
   const [noteInput, setNoteInput] = useState("");
   const [showPanel, setShowPanel] = useState<"customer" | "notes" | "tags" | "history" | null>("customer");
@@ -150,13 +157,6 @@ export default function ChatPage() {
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const conv = store.getConversation(id || "");
-  const messages = store.getMessages(id || "");
-  const notes = store.getNotes(id || "");
-  const history = store.getHistory(id || "");
-  const customer = store.getCustomer(conv?.customerId);
-  const quickReplies = store.quickReplies;
 
   useEffect(() => {
     if (user) {
