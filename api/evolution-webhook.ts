@@ -336,14 +336,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (isReaction) {
         type = 'reaction';
-        content = messageContent.reactionMessage.text || '';
+        const reactionEmoji = messageContent.reactionMessage.text || '';
         const targetId = messageContent.reactionMessage.key?.id;
         
-        // ETAPA 2 & 4 — NÃO CRIAR MENSAGEM PARA REACTIONMESSAGE (Atualizar a original)
         if (targetId) {
-          await supabase.from('mensagens').update({ reaction: content }).eq('external_message_id', targetId);
-          // Se for remoção (vazio), limpamos
-          if (!content) {
+          // Atualizar o campo rápido na mensagem principal para reatividade do front
+          await supabase.from('mensagens').update({ reaction: reactionEmoji }).eq('external_message_id', targetId);
+          
+          // ETAPA 5 — CRIAR REGISTRO NA TABELA MESSAGE_REACTIONS
+          try {
+            await supabase.from('message_reactions').upsert({
+              tenant_id: tenantId,
+              instance_name: instName,
+              wa_message_id: targetId,
+              reaction: reactionEmoji,
+              reacted_by_jid: key.remoteJid,
+              from_me: !!key.fromMe,
+              participant: key.participant || null,
+              raw_payload: messageContent.reactionMessage
+            }, { onConflict: 'wa_message_id,reacted_by_jid' });
+          } catch (e) {
+            console.error("[Webhook] Erro ao salvar em message_reactions:", e);
+          }
+
+          if (!reactionEmoji) {
             await supabase.from('mensagens').update({ reaction: null }).eq('external_message_id', targetId);
           }
           return res.status(200).json({ success: true, detail: 'Reaction processed' });

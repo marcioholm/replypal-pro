@@ -434,6 +434,25 @@ export default function ChatPage() {
                 status: key.fromMe ? "sent" : "delivered",
                 tenant_id: user?.tenantId
               }, { onConflict: "external_message_id" });
+
+              // Se for reação, atualizar a mensagem original e a tabela de auditoria
+              if (type === 'reaction' && waMessageId) {
+                const reactionEmoji = (msgContent.reactionMessage?.text || "").trim();
+                await supabase.from("mensagens").update({ reaction: reactionEmoji }).eq("external_message_id", waMessageId);
+                
+                try {
+                  await supabase.from("message_reactions").upsert({
+                    tenant_id: user?.tenantId,
+                    instance_name: instanceName,
+                    wa_message_id: waMessageId,
+                    reaction: reactionEmoji,
+                    reacted_by_jid: key.remoteJid,
+                    from_me: !!key.fromMe,
+                    participant: key.participant || null,
+                    raw_payload: msgContent.reactionMessage
+                  }, { onConflict: 'wa_message_id,reacted_by_jid' });
+                } catch (e) { /* Coluna pode não existir ainda */ }
+              }
             }
             
             // Recarregar mensagens após sync
