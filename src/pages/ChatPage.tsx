@@ -94,31 +94,6 @@ export default function ChatPage() {
   const [forwardSearch, setForwardSearch] = useState("");
   const [reactionMenuOpen, setReactionMenuOpen] = useState<{ id: string, externalId: string, x: number, y: number } | null>(null);
 
-  const handleForwardMessage = async (targetPhone: string) => {
-    if (!forwardingMsg) return;
-    
-    setLoading(true);
-    try {
-      let res;
-      if (forwardingMsg.type === 'text') {
-        res = await sendWhatsAppMessage(targetPhone, forwardingMsg.content);
-      } else {
-        res = await sendMediaMessage(targetPhone, forwardingMsg.mediaUrl, forwardingMsg.type, forwardingMsg.fileName, forwardingMsg.content);
-      }
-
-      if (res.success) {
-        toast.success("Mensagem encaminhada!");
-        setForwardModalOpen(false);
-        setForwardingMsg(null);
-      } else {
-        toast.error("Erro ao encaminhar: " + res.error);
-      }
-    } catch (err) {
-      toast.error("Erro técnico ao encaminhar");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleReactionSelect = async (emoji: string) => {
     if (!reactionMenuOpen || !conv?.clientPhone) return;
