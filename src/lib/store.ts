@@ -137,6 +137,12 @@ export interface Message {
   durationSeconds?: number;
   status?: string;
   external_message_id?: string;
+  wa_message_id?: string;
+  remote_jid?: string;
+  from_me?: boolean;
+  participant?: string;
+  message_key_json?: any;
+  instance_name?: string;
   reaction?: string;
   quotedMessage?: {
     id: string;

@@ -134,19 +134,28 @@ export async function sendWhatsAppMessage(phone: string, message: string, agentN
   }
 }
 
-export async function sendReaction(phone: string, messageId: string, emoji: string) {
+export async function sendReaction(phone: string, messageId: string, emoji: string, messageKey?: any) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
   const instance = EVO_CONFIG.getInstance();
   if (!url || !key) return { success: false, error: "API não configurada" };
   
   try {
-    const payload = {
+    const payload: any = {
       number: phone.replace(/\D/g, ""),
       reaction: emoji,
       messageId: messageId,
-      remoteJid: `${phone.replace(/\D/g, "")}@s.whatsapp.net`
+      remoteJid: messageKey?.remoteJid || `${phone.replace(/\D/g, "")}@s.whatsapp.net`
     };
+
+    if (messageKey) {
+      payload.key = {
+        remoteJid: messageKey.remoteJid,
+        fromMe: messageKey.fromMe,
+        id: messageKey.id,
+        participant: messageKey.participant
+      };
+    }
 
     console.log("[Evolution] Enviando reação:", payload);
 
@@ -165,25 +174,31 @@ export async function sendReaction(phone: string, messageId: string, emoji: stri
   }
 }
 
-export async function deleteMessage(phone: string, messageId: string) {
+export async function deleteMessage(phone: string, messageId: string, messageKey?: any) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
   const instance = EVO_CONFIG.getInstance();
   if (!url || !key) return { success: false, error: "API não configurada" };
   
   try {
+    const payload = {
+      deleteMessages: [{
+        remoteJid: messageKey?.remoteJid || `${phone.replace(/\D/g, "")}@s.whatsapp.net`,
+        fromMe: messageKey ? messageKey.fromMe : true,
+        id: messageId,
+        participant: messageKey?.participant
+      }]
+    };
+
     const res = await fetch(`${getApiUrl()}/message/delete/${instance}`, {
-      method: "DELETE",
+      method: "POST",
       headers: { "Content-Type": "application/json", "apikey": key },
-      body: JSON.stringify({
-        number: phone.replace(/\D/g, ""),
-        remoteJid: `${phone.replace(/\D/g, "")}@s.whatsapp.net`,
-        messageId: messageId
-      })
+      body: JSON.stringify(payload)
     });
     
     if (res.ok) return { success: true };
-    return { success: false, error: "Erro ao apagar mensagem" };
+    const errorData = await res.text();
+    return { success: false, error: errorData };
   } catch (err) {
     return { success: false, error: String(err) };
   }

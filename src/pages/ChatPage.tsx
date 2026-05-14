@@ -93,13 +93,37 @@ export default function ChatPage() {
   const [forwardModalOpen, setForwardModalOpen] = useState(false);
   const [forwardSearch, setForwardSearch] = useState("");
   const [reactionMenuOpen, setReactionMenuOpen] = useState<{ id: string, externalId: string, x: number, y: number } | null>(null);
+  const [instanceName, setInstanceName] = useState("replypal");
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      if (!user?.tenantId) return;
+      const { data } = await supabase
+        .from("company_settings")
+        .select("instance_name")
+        .eq("tenant_id", user.tenantId)
+        .maybeSingle();
+      
+      if (data?.instance_name) {
+        setInstanceName(data.instance_name);
+      }
+    };
+    fetchSettings();
+  }, [user?.tenantId]);
 
 
   const handleReactionSelect = async (emoji: string) => {
     if (!reactionMenuOpen || !conv?.clientPhone) return;
     
+    const targetMsg = messages.find(m => m.id === reactionMenuOpen.id);
+    
     try {
-      const res = await sendReaction(conv.clientPhone, reactionMenuOpen.externalId, emoji);
+      const res = await sendReaction(
+        conv.clientPhone, 
+        reactionMenuOpen.externalId, 
+        emoji,
+        targetMsg?.message_key_json
+      );
       if (res.success) {
         toast.success("Reação enviada!");
         setReactionMenuOpen(null);
@@ -123,10 +147,12 @@ export default function ChatPage() {
 
     const handleDelete = async (e: any) => {
       const { msgId, externalId } = e.detail;
+      const msg = storeRef.current.getMessages(id || "").find(m => m.id === msgId);
+
       if (confirm("Deseja realmente apagar esta mensagem para todos?")) {
         if (conv?.clientPhone) {
           try {
-            const res = await deleteMessage(conv.clientPhone, externalId);
+            const res = await deleteMessage(conv.clientPhone, externalId, msg?.message_key_json);
             if (res.success) {
               toast.success("Mensagem apagada!");
               await supabase.from("mensagens").delete().eq("id", msgId);
@@ -325,6 +351,12 @@ export default function ChatPage() {
             fileSize: m.file_size,
             durationSeconds: m.duration_seconds,
             external_message_id: m.external_message_id,
+            wa_message_id: m.wa_message_id,
+            remote_jid: m.remote_jid,
+            from_me: m.from_me,
+            participant: m.participant,
+            message_key_json: m.message_key_json,
+            instance_name: m.instance_name,
             reaction: m.reaction,
             quotedMessage: m.quoted_message
           })));
@@ -362,15 +394,17 @@ export default function ChatPage() {
               const text = msgContent.conversation 
                 || msgContent.extendedTextMessage?.text 
                 || msgContent.imageMessage?.caption
+                || (msgContent.reactionMessage ? `Reagiu com ${msgContent.reactionMessage.text}` : "")
                 || "";
               
               if (!text && !msgContent.audioMessage && !msgContent.imageMessage 
-                  && !msgContent.videoMessage && !msgContent.documentMessage) continue;
+                  && !msgContent.videoMessage && !msgContent.documentMessage && !msgContent.reactionMessage) continue;
               
               const type = msgContent.audioMessage ? 'audio'
                 : msgContent.imageMessage ? 'image'
                 : msgContent.videoMessage ? 'video'
                 : msgContent.documentMessage ? 'document'
+                : msgContent.reactionMessage ? 'text'
                 : 'text';
               
               // Upsert — não duplica se já existir
@@ -382,6 +416,12 @@ export default function ChatPage() {
                 type,
                 timestamp: new Date((m.messageTimestamp || Date.now() / 1000) * 1000).toISOString(),
                 external_message_id: key.id,
+                wa_message_id: key.id,
+                remote_jid: key.remoteJid,
+                from_me: key.fromMe,
+                participant: key.participant,
+                message_key_json: key,
+                instance_name: instanceName, // Precisamos garantir que temos o instanceName
                 status: key.fromMe ? "sent" : "delivered",
                 tenant_id: user?.tenantId
               }, { onConflict: "external_message_id" });
@@ -409,7 +449,13 @@ export default function ChatPage() {
                 mimeType: m.mime_type,
                 fileSize: m.file_size,
                 durationSeconds: m.duration_seconds,
-                external_message_id: m.external_message_id
+                external_message_id: m.external_message_id,
+                wa_message_id: m.wa_message_id,
+                remote_jid: m.remote_jid,
+                from_me: m.from_me,
+                participant: m.participant,
+                message_key_json: m.message_key_json,
+                instance_name: m.instance_name
               })));
             }
           }
