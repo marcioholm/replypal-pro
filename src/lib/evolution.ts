@@ -165,14 +165,12 @@ export async function deleteMessage(phone: string, messageId: string) {
   if (!url || !key) return { success: false, error: "API não configurada" };
   
   try {
-    const res = await fetch(`${getApiUrl()}/chat/deleteMessage/${instance}`, {
+    const res = await fetch(`${getApiUrl()}/message/delete/${instance}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify({
         number: phone.replace(/\D/g, ""),
-        remoteJid: `${phone.replace(/\D/g, "")}@s.whatsapp.net`,
-        id: messageId,
-        fromMe: true
+        messageId: messageId
       })
     });
     
