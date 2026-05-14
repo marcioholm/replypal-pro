@@ -255,7 +255,16 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
         )}
       </div>
 
-      <div className={`max-w-[75%] min-w-[120px] mb-3`}>
+      <div className={`max-w-[75%] min-w-[120px] mb-3 relative`}>
+        {/* Badge de reação - Posicionado no topo */}
+        {msg.reaction && (
+          <div className={`absolute -top-2 z-10 flex ${isAgent ? "right-2" : "left-2"}`}>
+            <span className="bg-background border border-border/50 rounded-full px-1.5 py-0.5 text-sm shadow-md animate-in zoom-in-50 duration-300">
+              {msg.reaction}
+            </span>
+          </div>
+        )}
+
         <div className={`rounded-2xl px-4 py-3 shadow-sm relative ${
           isAgent 
             ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-br-md" 
@@ -284,15 +293,6 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
             {getStatusIcon()}
           </div>
         </div>
-        
-        {/* Badge de reação */}
-        {msg.reaction && (
-          <div className={`flex ${isAgent ? "justify-end mr-2" : "justify-start ml-2"} -mt-2`}>
-            <span className="bg-background border border-border/50 rounded-full px-1.5 py-0.5 text-sm shadow-sm">
-              {msg.reaction}
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );
