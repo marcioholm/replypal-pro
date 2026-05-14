@@ -15,10 +15,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Send, Phone, Video, MoreVertical, Search, Paperclip, Smile, Mic, 
-  ChevronLeft, Clock, Zap, MessageSquare, Shield, User, Users, FileText, 
-  Trash2, AlertCircle, RefreshCw, Check, X, Play, StopCircle, Trash,
-  ArrowLeft, ArrowRightLeft, StickyNote, Tag, History, CheckCircle2, Plus, Loader2, CheckCircle, UserPlus
+  ArrowLeft, Search, Paperclip, Clock, Zap, Mic, Send, 
+  RefreshCw, Loader2, User, StickyNote, Tag, History, 
+  UserPlus, X, Users, StopCircle, CheckCircle, Share2, 
+  Smile, Reply, Trash2, ArrowRight
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
@@ -1536,7 +1536,7 @@ export default function ChatPage() {
                     <p className="text-sm font-semibold truncate">{c.clientName}</p>
                     <p className="text-xs text-muted-foreground">{c.clientPhone}</p>
                   </div>
-                  <ArrowRightLeft className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                  <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
                 </button>
               ))}
             </div>

@@ -295,4 +295,4 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
       </div>
     </div>
   );
-}
+}// Force rebuild
