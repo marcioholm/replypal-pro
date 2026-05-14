@@ -217,28 +217,28 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
   };
 
   return (
-    <div className={`flex ${isAgent ? "justify-end" : "justify-start"} animate-fade-in group relative`}>
-      {/* Menu de Ações (Aparece no Hover) */}
-      <div className={`absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex items-center gap-1 p-1 bg-background/80 backdrop-blur-sm rounded-full shadow-lg border border-border/50 ${
-        isAgent ? "-left-12 flex-row-reverse" : "-right-12"
+    <div className={`flex ${isAgent ? "justify-end" : "justify-start"} animate-fade-in group relative mb-4`}>
+      {/* Menu de Ações (Flutuante em cima do balão) */}
+      <div className={`absolute -top-8 opacity-0 group-hover:opacity-100 transition-all duration-200 z-20 flex items-center gap-1 p-1 bg-background/90 backdrop-blur-md rounded-full shadow-xl border border-primary/20 ${
+        isAgent ? "right-0" : "left-0"
       }`}>
         <button 
           onClick={() => window.dispatchEvent(new CustomEvent('chat-reaction', { detail: { msgId: msg.id, externalId: msg.external_message_id } }))}
-          className="p-1.5 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-primary"
+          className="p-1.5 hover:bg-primary/10 rounded-full transition-colors text-muted-foreground hover:text-primary"
           title="Reagir"
         >
           <Smile className="w-4 h-4" />
         </button>
         <button 
           onClick={() => window.dispatchEvent(new CustomEvent('chat-reply', { detail: { msg } }))}
-          className="p-1.5 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-primary"
+          className="p-1.5 hover:bg-primary/10 rounded-full transition-colors text-muted-foreground hover:text-primary"
           title="Responder"
         >
           <Reply className="w-4 h-4" />
         </button>
         <button 
           onClick={() => window.dispatchEvent(new CustomEvent('chat-forward', { detail: { msg } }))}
-          className="p-1.5 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-primary"
+          className="p-1.5 hover:bg-primary/10 rounded-full transition-colors text-muted-foreground hover:text-primary"
           title="Encaminhar"
         >
           <Share2 className="w-4 h-4" />
@@ -260,7 +260,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
             ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-br-md" 
             : "bg-card border border-border/50 rounded-bl-md"
         }`}>
-          {/* Citação (Reply)
+          {/* Citação (Reply) */}
           {msg.quotedMessage && (
             <div className={`mb-2 p-2 rounded-lg border-l-4 text-[11px] overflow-hidden ${
               isAgent ? "bg-black/10 border-white/30 text-white/90" : "bg-muted border-primary text-muted-foreground"
@@ -269,7 +269,6 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
               <p className="truncate opacity-80">{msg.quotedMessage.content}</p>
             </div>
           )}
-          */}
 
           <p className={`text-[10px] font-semibold mb-1 flex justify-between items-center ${isAgent ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
             <span>{isAgent ? msg.senderName : clientName}</span>
