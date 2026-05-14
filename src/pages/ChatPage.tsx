@@ -219,6 +219,56 @@ export default function ChatPage() {
     fetchCustomers();
   }, [user?.tenantId]);
 
+  // Busca dinâmica de clientes para o encaminhamento
+  useEffect(() => {
+    if (!forwardSearch || forwardSearch.length < 2) return;
+
+    const searchContacts = async () => {
+      const tenantId = user?.tenantId;
+      if (!tenantId) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("clientes")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .or(`nome_fantasia.ilike.%${forwardSearch}%,whatsapp.ilike.%${forwardSearch}%`)
+          .limit(10);
+
+        if (error) throw error;
+        if (data) {
+          data.forEach(c => storeRef.current.addDbCustomer({
+            id: c.id,
+            name: c.nome_fantasia || c.razao_social || "Sem Nome",
+            razaoSocial: c.razao_social || "",
+            cnpj: c.cnpj || "",
+            responsibleName: c.responsavel || "",
+            whatsapp: c.whatsapp || "",
+            phone: c.telefone || "",
+            email: c.email || "",
+            city: c.cidade || "",
+            state: c.estado || "",
+            regime: c.regime_tributario as any,
+            status: c.status as any,
+            priority: (c.prioridade || "Média") as any,
+            tenantId: c.tenant_id,
+            operational_status: c.operational_status as any,
+            internal_responsible_name: c.internal_responsible_name,
+            sector: c.sector as any,
+            fantasy_name: c.nome_fantasia,
+            whatsapp_status: c.whatsapp_status,
+            createdAt: new Date(c.created_at)
+          }));
+        }
+      } catch (err) {
+        console.error("Erro na busca de contatos:", err);
+      }
+    };
+
+    const timer = setTimeout(searchContacts, 300);
+    return () => clearTimeout(timer);
+  }, [forwardSearch, user?.tenantId]);
+
   useEffect(() => {
     if (!id) return;
 
@@ -1626,22 +1676,31 @@ export default function ChatPage() {
             
             <div className="max-h-[350px] overflow-y-auto space-y-1 -mx-2 px-2 custom-scrollbar">
               {(() => {
-                // Criar lista unificada de destinos (conversas + clientes)
-                const allDestinations = [
-                  ...store.conversations.map(c => ({ id: c.id, name: c.clientName, phone: c.clientPhone, avatar: c.clientAvatar })),
-                  ...store.customers.map(c => ({ id: c.id, name: c.name, phone: c.whatsapp, avatar: undefined }))
-                ];
+                // Se a busca estiver vazia, mostrar conversas recentes
+                if (!forwardSearch) {
+                  return store.conversations.map(c => (
+                    <button 
+                      key={c.id} 
+                      disabled={loading}
+                      onClick={() => handleForwardMessage(c.clientPhone)}
+                      className="w-full flex items-center gap-3 p-3 hover:bg-primary/5 rounded-2xl transition-all text-left group relative overflow-hidden"
+                    >
+                      <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0 border border-primary/20 group-hover:scale-105 transition-transform">
+                        {c.clientAvatar ? <img src={c.clientAvatar} className="w-full h-full rounded-full object-cover" /> : c.clientName.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{c.clientName}</p>
+                        <p className="text-[11px] text-muted-foreground">{c.clientPhone}</p>
+                      </div>
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                        <ArrowRight className="w-4 h-4 text-primary" />
+                      </div>
+                    </button>
+                  ));
+                }
 
-                // Remover duplicatas por telefone
-                const seenPhones = new Set();
-                const uniqueDestinations = allDestinations.filter(d => {
-                  if (seenPhones.has(d.phone)) return false;
-                  seenPhones.add(d.phone);
-                  return true;
-                });
-
-                // Filtrar por busca
-                const filtered = uniqueDestinations.filter(d => 
+                // Filtrar localmente os clientes carregados
+                const filtered = store.customers.filter(d => 
                   d.name.toLowerCase().includes(forwardSearch.toLowerCase()) || 
                   d.phone.includes(forwardSearch)
                 );
@@ -1663,7 +1722,7 @@ export default function ChatPage() {
                     className="w-full flex items-center gap-3 p-3 hover:bg-primary/5 rounded-2xl transition-all text-left group relative overflow-hidden"
                   >
                     <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0 border border-primary/20 group-hover:scale-105 transition-transform">
-                      {c.avatar ? <img src={c.avatar} className="w-full h-full rounded-full object-cover" /> : c.name.charAt(0)}
+                      {c.name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{c.name}</p>

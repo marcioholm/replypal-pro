@@ -143,9 +143,9 @@ export async function sendReaction(phone: string, messageId: string, emoji: stri
   try {
     const payload = {
       number: phone.replace(/\D/g, ""),
-      remoteJid: `${phone.replace(/\D/g, "")}@s.whatsapp.net`,
       reaction: emoji,
-      messageId: messageId
+      messageId: messageId,
+      remoteJid: `${phone.replace(/\D/g, "")}@s.whatsapp.net`
     };
 
     console.log("[Evolution] Enviando reação:", payload);
