@@ -146,6 +146,7 @@ export async function sendReaction(phone: string, messageId: string, emoji: stri
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify({
         number: phone.replace(/\D/g, ""),
+        remoteJid: `${phone.replace(/\D/g, "")}@s.whatsapp.net`,
         reaction: emoji,
         messageId: messageId
       })
@@ -172,6 +173,7 @@ export async function deleteMessage(phone: string, messageId: string) {
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify({
         number: phone.replace(/\D/g, ""),
+        remoteJid: `${phone.replace(/\D/g, "")}@s.whatsapp.net`,
         messageId: messageId
       })
     });
