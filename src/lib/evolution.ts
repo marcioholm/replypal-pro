@@ -141,15 +141,16 @@ export async function sendReaction(phone: string, messageId: string, emoji: stri
   if (!url || !key) return { success: false, error: "API não configurada" };
   
   try {
+    const payload = {
+      number: phone.replace(/\D/g, ""),
+      reaction: emoji,
+      messageId: messageId
+    };
+
     const res = await fetch(`${getApiUrl()}/message/reaction/${instance}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": key },
-      body: JSON.stringify({
-        number: phone.replace(/\D/g, ""),
-        remoteJid: `${phone.replace(/\D/g, "")}@s.whatsapp.net`,
-        reaction: emoji,
-        messageId: messageId
-      })
+      body: JSON.stringify(payload)
     });
     
     if (res.ok) return { success: true };

@@ -689,9 +689,23 @@ export default function ChatPage() {
     try {
       const originalSender = forwardingMsg.sender === 'client' ? conv?.clientName : forwardingMsg.senderName;
       const header = `*[Encaminhado por: ${user.name}]* (De: ${originalSender})\n\n`;
-      const forwardedContent = header + (forwardingMsg.content || "[Mídia]");
+      const caption = header + (forwardingMsg.content || "");
 
-      const res = await sendWhatsAppMessage(targetPhone, forwardedContent, user.name);
+      let res;
+      if (forwardingMsg.type === 'text' || !forwardingMsg.type) {
+        res = await sendWhatsAppMessage(targetPhone, caption, user.name);
+      } else {
+        // Encaminhar como mídia
+        res = await sendMediaMessage(
+          targetPhone, 
+          forwardingMsg.mediaUrl, 
+          forwardingMsg.type, 
+          forwardingMsg.fileName || "arquivo", 
+          caption,
+          user.name
+        );
+      }
+
       if (!res.success) throw new Error(res.error);
 
       toast.success("Mensagem encaminhada!", { id: toastId });
