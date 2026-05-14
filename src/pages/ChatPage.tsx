@@ -18,7 +18,7 @@ import {
   ArrowLeft, Search, Paperclip, Clock, Zap, Mic, Send, 
   RefreshCw, Loader2, User, StickyNote, Tag, History, 
   UserPlus, X, Users, StopCircle, CheckCircle, Share2, 
-  Smile, Reply, Trash2, ArrowRight, PlayCircle
+  Smile, Reply, Trash2, ArrowRight, PlayCircle, FileText, Play, Pause
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
