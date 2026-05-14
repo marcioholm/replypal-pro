@@ -128,8 +128,18 @@ export default function ChatPage() {
         emoji,
         targetMsg?.message_key_json
       );
+      
       if (res.success) {
         toast.success("Reação enviada!");
+        
+        // Atualização Otimista: Store Local
+        storeRef.current.updateMessageReaction(reactionMenuOpen.id, emoji);
+        
+        // Atualização Otimista: Banco de Dados
+        await supabase.from("mensagens")
+          .update({ reaction: emoji })
+          .eq("id", reactionMenuOpen.id);
+
       } else {
         toast.error("Erro ao reagir: " + (res.error || "Desconhecido"));
       }

@@ -215,6 +215,7 @@ interface Store {
   setMessages: (messages: Message[]) => void;
   addDbMessages: (msgs: Message[]) => void;
   updateMessage: (id: string, updates: Partial<Message>) => void;
+  updateMessageReaction: (messageId: string, reaction: string | null) => void;
   setScheduledMessages: (msgs: ScheduledMessage[]) => void;
   addDbScheduledMessages: (msgs: ScheduledMessage[]) => void;
   updateScheduledMessage: (id: string, updates: Partial<ScheduledMessage>) => void;
@@ -425,6 +426,14 @@ function getStore(): Store {
       },
       updateStatus(conversationId, status) {
         s.addDbConversation({ id: conversationId, status } as any);
+      },
+      updateMessageReaction(messageId, reaction) {
+        const index = s.messages.findIndex(m => m.id === messageId);
+        if (index !== -1) {
+          s.messages[index] = { ...s.messages[index], reaction };
+          s.messages = [...s.messages];
+          notify();
+        }
       },
       sendMessage(conversationId, content, user, options) {
         const id = `temp-${Date.now()}`;
