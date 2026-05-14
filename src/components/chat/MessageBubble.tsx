@@ -260,7 +260,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
             ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-br-md" 
             : "bg-card border border-border/50 rounded-bl-md"
         }`}>
-          {/* Citação (Reply) */}
+          {/* Citação (Reply)
           {msg.quotedMessage && (
             <div className={`mb-2 p-2 rounded-lg border-l-4 text-[11px] overflow-hidden ${
               isAgent ? "bg-black/10 border-white/30 text-white/90" : "bg-muted border-primary text-muted-foreground"
@@ -269,6 +269,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
               <p className="truncate opacity-80">{msg.quotedMessage.content}</p>
             </div>
           )}
+          */}
 
           <p className={`text-[10px] font-semibold mb-1 flex justify-between items-center ${isAgent ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
             <span>{isAgent ? msg.senderName : clientName}</span>

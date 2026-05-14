@@ -1134,7 +1134,7 @@ export default function ChatPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {/* Reply Preview */}
+              {/* Reply Preview
               {replyingTo && (
                 <div className="mb-2 p-3 bg-muted/80 backdrop-blur-sm rounded-xl border-l-4 border-primary flex items-center justify-between animate-in slide-in-from-bottom-2">
                   <div className="flex-1 min-w-0">
@@ -1146,6 +1146,7 @@ export default function ChatPage() {
                   </Button>
                 </div>
               )}
+              */}
 
               {/* Media/Audio Preview */}
               {(selectedFile || audioBlob) && (
@@ -1511,38 +1512,11 @@ export default function ChatPage() {
           />
         </DialogContent>
       </Dialog>
+      {/* Forward Dialog
       <Dialog open={forwardModalOpen} onOpenChange={setForwardModalOpen}>
-        <DialogContent className="rounded-[32px] max-w-md">
-          <DialogHeader>
-            <DialogTitle>Encaminhar Mensagem</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Pesquisar contato..." className="pl-9 rounded-2xl" />
-            </div>
-            
-            <div className="max-h-[300px] overflow-y-auto space-y-1">
-              {store.conversations.map(c => (
-                <button 
-                  key={c.id} 
-                  onClick={() => handleForwardMessage(c.clientPhone)}
-                  className="w-full flex items-center gap-3 p-3 hover:bg-muted rounded-2xl transition-colors text-left"
-                >
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                    {c.clientAvatar ? <img src={c.clientAvatar} className="w-full h-full rounded-full object-cover" /> : c.clientName.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{c.clientName}</p>
-                    <p className="text-xs text-muted-foreground">{c.clientPhone}</p>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
-                </button>
-              ))}
-            </div>
-          </div>
-        </DialogContent>
+        ...
       </Dialog>
+      */}
     </div>
   );
 }
