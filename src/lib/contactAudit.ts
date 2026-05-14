@@ -19,6 +19,7 @@ export interface AuditResult {
   score: number; // 0 to 100
   normalizedPhone: string;
   isLandline?: boolean;
+  isDuplicate?: boolean;
   location?: string;
 }
 
@@ -48,10 +49,11 @@ export function analyzeContact(customer: Customer, allCustomers: Customer[] = []
   let severity: Severity = "OK";
   let isLandline = false;
   let location = "";
+  let isDuplicate = false;
 
   // 0. Duplicate Check
   if (cleaned && allCustomers.length > 0) {
-    const isDuplicate = allCustomers.some(c => 
+    isDuplicate = allCustomers.some(c => 
       c.id !== customer.id && 
       (c.whatsapp?.replace(/\D/g, "") === cleaned || c.phone?.replace(/\D/g, "") === cleaned)
     );
@@ -167,13 +169,14 @@ export function analyzeContact(customer: Customer, allCustomers: Customer[] = []
   }
 
   return {
-    status: severity === "OK" ? "Válido" : (isLandline ? "Fixo" : (severity === "DUPLICATE" ? "Duplicado" : "Inconsistente")),
+    status: severity === "OK" ? "Válido" : (isLandline ? "Fixo" : (isDuplicate ? "Duplicado" : "Inconsistente")),
     severity,
     issues,
     suggestion: issues.find(i => i.suggestion)?.suggestion,
     score: Math.max(0, score),
     normalizedPhone: normalized,
     isLandline,
+    isDuplicate,
     location
   };
 }

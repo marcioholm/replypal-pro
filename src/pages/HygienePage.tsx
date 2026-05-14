@@ -141,7 +141,7 @@ export default function HygienePage() {
   };
 
   const handleBulkMergeDuplicates = async () => {
-    const selectedDuplicates = auditData.filter(d => selectedIds.includes(d.id) && d.audit.severity === "DUPLICATE");
+    const selectedDuplicates = auditData.filter(d => selectedIds.includes(d.id) && d.audit.isDuplicate);
     if (selectedDuplicates.length === 0) {
       toast.info("Nenhum duplicado selecionado.");
       return;
@@ -205,7 +205,7 @@ export default function HygienePage() {
     const critical = auditData.filter(c => c.audit.severity === "CRITICAL").length;
     const attention = auditData.filter(c => c.audit.severity === "ATTENTION").length;
     const fixed = auditData.filter(c => c.audit.isLandline).length;
-    const duplicates = auditData.filter(c => c.audit.severity === "DUPLICATE").length;
+    const duplicates = auditData.filter(c => c.audit.isDuplicate).length;
     const withSuggestions = auditData.filter(c => c.audit.suggestion).length;
     const withWhatsapp = auditData.filter(c => c.whatsapp_status === "possui WhatsApp").length;
     const noWhatsapp = auditData.filter(c => c.whatsapp_status === "não possui WhatsApp").length;
@@ -218,7 +218,7 @@ export default function HygienePage() {
   const filteredData = useMemo(() => {
     let data = auditData;
 
-    if (activeTab === "duplicates") data = data.filter(d => d.audit.severity === "DUPLICATE");
+    if (activeTab === "duplicates") data = data.filter(d => d.audit.isDuplicate);
     else if (activeTab === "critical") data = data.filter(d => d.audit.severity === "CRITICAL");
     else if (activeTab === "attention") data = data.filter(d => d.audit.severity === "ATTENTION");
     else if (activeTab === "fixed") data = data.filter(d => d.audit.isLandline);
