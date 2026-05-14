@@ -15,7 +15,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
   const renderContent = () => {
     switch (msg.type) {
       case 'audio':
-        return <AudioPlayer url={msg.mediaUrl || ''} sender={msg.sender} />;
+        return <div className="p-3 bg-muted/20 rounded-lg text-xs italic opacity-50 border border-dashed border-primary/20">Áudio (Player Desativado para Debug)</div>;
       
       case 'image':
         return (
