@@ -33,36 +33,24 @@ export default function ContactsPage() {
       if (!tenantId || tenantId.length < 5) return;
 
       try {
-        let allData: any[] = [];
+        setLoading(true);
         let from = 0;
-        let to = 999;
-        let finished = false;
+        const step = 1000;
+        let hasMore = true;
+        let totalLoaded = 0;
 
-        while (!finished) {
+        while (hasMore) {
           const { data, error } = await supabase
             .from("clientes")
             .select("*")
             .eq("tenant_id", tenantId)
-            .range(from, to);
+            .range(from, from + step - 1)
+            .order("nome_fantasia", { ascending: true });
 
           if (error) throw error;
           
           if (data && data.length > 0) {
-            allData = [...allData, ...data];
-            if (data.length < 1000) {
-              finished = true;
-            } else {
-              from += 1000;
-              to += 1000;
-            }
-          } else {
-            finished = true;
-          }
-        }
-
-        if (allData.length > 0) {
-          allData.forEach(c => {
-            store.addDbCustomer({
+            const mappedBatch = data.map(c => ({
               id: c.id,
               name: c.nome_fantasia || c.razao_social || "Sem Nome",
               razaoSocial: c.razao_social || "",
@@ -83,11 +71,21 @@ export default function ContactsPage() {
               fantasy_name: c.nome_fantasia,
               whatsapp_status: c.whatsapp_status,
               createdAt: new Date(c.created_at)
-            });
-          });
+            }));
+
+            // Adicionar ao store lote por lote
+            mappedBatch.forEach(item => store.addDbCustomer(item));
+            
+            totalLoaded += data.length;
+            from += step;
+            if (data.length < step) hasMore = false;
+            if (totalLoaded > 15000) hasMore = false; // Teto de segurança
+          } else {
+            hasMore = false;
+          }
         }
       } catch (err) {
-        console.error("Erro ao carregar contatos:", err);
+        console.error("Erro ao carregar contatos em lotes:", err);
       } finally {
         setLoading(false);
       }

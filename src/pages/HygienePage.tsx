@@ -15,7 +15,7 @@ import {
   CheckCircle2, Phone, Search, Download, 
   RefreshCw, Layers, ChevronLeft, ChevronRight,
   Filter, Smartphone, Home, XCircle, Info, Edit2,
-  Trash2, Check, Zap as ZapIcon, Merge, ArrowRight
+  Trash2, Check, Zap, Merge, ArrowRight
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -527,7 +527,7 @@ export default function HygienePage() {
              <MetricCard label="Duplicados" value={metrics.duplicates} icon={Merge} color="purple" />
              <MetricCard label="Fixos" value={metrics.fixed} icon={Phone} color="blue" />
              <MetricCard label="Com WhatsApp" value={metrics.withWhatsapp} icon={ShieldCheck} color="green" />
-             <MetricCard label="Sugestões" value={metrics.withSuggestions} icon={ZapIcon} color="blue" />
+             <MetricCard label="Sugestões" value={metrics.withSuggestions} icon={Zap} color="blue" />
           </div>
 
           {/* Main Content Area */}
