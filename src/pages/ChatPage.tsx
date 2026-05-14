@@ -91,20 +91,55 @@ export default function ChatPage() {
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [forwardingMsg, setForwardingMsg] = useState<any>(null);
   const [forwardModalOpen, setForwardModalOpen] = useState(false);
+  const [forwardSearch, setForwardSearch] = useState("");
+  const [reactionMenuOpen, setReactionMenuOpen] = useState<{ id: string, externalId: string, x: number, y: number } | null>(null);
+
+  const handleForwardMessage = async (targetPhone: string) => {
+    if (!forwardingMsg) return;
+    
+    setLoading(true);
+    try {
+      let res;
+      if (forwardingMsg.type === 'text') {
+        res = await sendWhatsAppMessage(targetPhone, forwardingMsg.content);
+      } else {
+        res = await sendMediaMessage(targetPhone, forwardingMsg.mediaUrl, forwardingMsg.type, forwardingMsg.fileName, forwardingMsg.content);
+      }
+
+      if (res.success) {
+        toast.success("Mensagem encaminhada!");
+        setForwardModalOpen(false);
+        setForwardingMsg(null);
+      } else {
+        toast.error("Erro ao encaminhar: " + res.error);
+      }
+    } catch (err) {
+      toast.error("Erro técnico ao encaminhar");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReactionSelect = async (emoji: string) => {
+    if (!reactionMenuOpen || !conv?.clientPhone) return;
+    
+    try {
+      const res = await sendReaction(conv.clientPhone, reactionMenuOpen.externalId, emoji);
+      if (res.success) {
+        toast.success("Reação enviada!");
+        setReactionMenuOpen(null);
+      }
+    } catch (err) {
+      toast.error("Erro ao reagir");
+    }
+  };
 
   // Ouvidores de eventos do MessageBubble
   useEffect(() => {
-    const handleReaction = async (e: any) => {
-      const { externalId } = e.detail;
-      const emoji = prompt("Escolha um emoji (ou deixe vazio para remover):", "❤️");
-      if (emoji !== null && conv?.clientPhone) {
-        try {
-          const res = await sendReaction(conv.clientPhone, externalId, emoji);
-          if (res.success) toast.success("Reação enviada!");
-        } catch (err) {
-          console.error("Erro ao reagir:", err);
-        }
-      }
+    const handleReaction = (e: any) => {
+      const { msgId, externalId } = e.detail;
+      // Pegar posição do clique ou do evento se possível, senão centralizar
+      setReactionMenuOpen({ id: msgId, externalId, x: window.innerWidth / 2 - 100, y: window.innerHeight / 2 });
     };
 
     const handleReply = (e: any) => {
@@ -1540,37 +1575,67 @@ export default function ChatPage() {
       </Dialog>
       {/* Forward Dialog */}
       <Dialog open={forwardModalOpen} onOpenChange={setForwardModalOpen}>
-        <DialogContent className="rounded-[32px] max-w-md">
-          <DialogHeader>
-            <DialogTitle>Encaminhar Mensagem</DialogTitle>
+        <DialogContent className="rounded-[32px] max-w-md p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">Encaminhar Mensagem</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="p-6 pt-2 space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Pesquisar contato..." className="pl-9 rounded-2xl" />
+              <Input 
+                placeholder="Pesquisar contato..." 
+                className="pl-9 rounded-2xl bg-muted/50 border-none h-12 focus-visible:ring-primary/20" 
+                value={forwardSearch}
+                onChange={(e) => setForwardSearch(e.target.value)}
+              />
             </div>
             
-            <div className="max-h-[300px] overflow-y-auto space-y-1">
-              {store.conversations.map(c => (
+            <div className="max-h-[350px] overflow-y-auto space-y-1 -mx-2 px-2 custom-scrollbar">
+              {store.conversations
+                .filter(c => c.clientName.toLowerCase().includes(forwardSearch.toLowerCase()) || c.clientPhone.includes(forwardSearch))
+                .map(c => (
                 <button 
                   key={c.id} 
+                  disabled={loading}
                   onClick={() => handleForwardMessage(c.clientPhone)}
-                  className="w-full flex items-center gap-3 p-3 hover:bg-muted rounded-2xl transition-colors text-left group"
+                  className="w-full flex items-center gap-3 p-3 hover:bg-primary/5 rounded-2xl transition-all text-left group relative overflow-hidden"
                 >
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                  <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0 border border-primary/20 group-hover:scale-105 transition-transform">
                     {c.clientAvatar ? <img src={c.clientAvatar} className="w-full h-full rounded-full object-cover" /> : c.clientName.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{c.clientName}</p>
-                    <p className="text-xs text-muted-foreground">{c.clientPhone}</p>
+                    <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{c.clientName}</p>
+                    <p className="text-[11px] text-muted-foreground">{c.clientPhone}</p>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                    <ArrowRight className="w-4 h-4 text-primary" />
+                  </div>
                 </button>
               ))}
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Reaction Menu Overlay */}
+      {reactionMenuOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setReactionMenuOpen(null)}>
+          <div 
+            className="bg-background/95 backdrop-blur-xl p-3 rounded-[24px] shadow-2xl border border-primary/20 flex gap-2 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {["❤️", "👍", "😂", "😮", "😢", "🙏", "🔥"].map(emoji => (
+              <button 
+                key={emoji}
+                onClick={() => handleReactionSelect(emoji)}
+                className="text-2xl hover:scale-125 hover:bg-primary/10 p-2 rounded-xl transition-all active:scale-90"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
