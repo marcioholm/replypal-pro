@@ -13,11 +13,12 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
   const isAgent = msg.sender === 'agent';
 
   const renderContent = () => {
-    switch (msg.type) {
-      case 'audio':
+    const type = msg.type?.toUpperCase() || 'TEXT';
+    switch (type) {
+      case 'AUDIO':
         return <AudioPlayer url={msg.mediaUrl || ''} sender={msg.sender} />;
       
-      case 'image':
+      case 'IMAGE':
         return (
           <div className="space-y-2">
             <Dialog>
@@ -65,7 +66,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
           </div>
         );
 
-      case 'video':
+      case 'VIDEO':
         return (
           <div className="space-y-2">
             <div className="rounded-lg overflow-hidden bg-black aspect-video max-w-full relative">
@@ -80,7 +81,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
           </div>
         );
 
-      case 'document':
+      case 'DOCUMENT':
         return (
           <div className={`p-3 rounded-lg border flex items-center gap-3 ${isAgent ? 'bg-white/10 border-white/20' : 'bg-muted/30 border-border/50'}`}>
             <div className={`p-2 rounded-md ${isAgent ? 'bg-white/20' : 'bg-primary/10 text-primary'}`}>
@@ -103,7 +104,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
           </div>
         );
 
-      case 'sticker':
+      case 'STICKER':
         return (
           <div className="w-28 h-28 relative group">
             <img 
@@ -127,7 +128,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
         );
 
       // IMPLEMENTAÇÃO 6: Location
-      case 'location':
+      case 'LOCATION':
         return (
           <a href={msg.mediaUrl || '#'} target="_blank" rel="noopener noreferrer"
             className={`flex items-center gap-3 p-3 rounded-lg border hover:opacity-80 transition-opacity ${
@@ -144,7 +145,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
         );
 
       // IMPLEMENTAÇÃO 6: Contact
-      case 'contact':
+      case 'CONTACT':
         return (
           <div className={`space-y-2 p-3 rounded-lg border ${
             isAgent ? 'bg-white/10 border-white/20' : 'bg-muted/30 border-border/50'

@@ -328,40 +328,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (existingMsg) return res.status(200).json({ success: true, detail: 'Manual message already recorded' });
       }
 
-      let type = 'text', content = '', mediaUrl = null, mimeType = null, fileName = null, fileSize = null, duration = null;
+      let type = 'TEXT', content = '', mediaUrl = null, mimeType = null, fileName = null, fileSize = null, duration = null;
+
+      // ETAPA 1 & 3 — DETECTAR REACTIONMESSAGE E TIPOS ESPECIAIS
+      const isReaction = !!messageContent.reactionMessage;
+      const isRevoke = !!messageContent.protocolMessage && (messageContent.protocolMessage.type === 'REVOKE' || messageContent.protocolMessage.type === 3);
+
+      if (isReaction) {
+        type = 'REACTION';
+        content = messageContent.reactionMessage.text || '';
+        const targetId = messageContent.reactionMessage.key?.id;
+        
+        // ETAPA 2 & 4 — NÃO CRIAR MENSAGEM PARA REACTIONMESSAGE (Atualizar a original)
+        if (targetId) {
+          await supabase.from('mensagens').update({ reaction: content }).eq('external_message_id', targetId);
+          // Se for remoção (vazio), limpamos
+          if (!content) {
+            await supabase.from('mensagens').update({ reaction: null }).eq('external_message_id', targetId);
+          }
+          return res.status(200).json({ success: true, detail: 'Reaction processed' });
+        }
+      }
+
+      if (isRevoke) {
+        type = 'REVOKE';
+        const targetId = messageContent.protocolMessage.key?.id;
+        if (targetId) {
+          await supabase.from('mensagens').delete().eq('external_message_id', targetId);
+          return res.status(200).json({ success: true, detail: 'Message revoked' });
+        }
+      }
 
       const text = messageContent.conversation || messageContent.extendedTextMessage?.text || messageContent.text || '';
       if (text) {
         content = text;
       } else if (messageContent.imageMessage) {
-        type = 'image'; content = messageContent.imageMessage.caption || '';
+        type = 'IMAGE'; content = messageContent.imageMessage.caption || '';
         mimeType = messageContent.imageMessage.mimetype;
         const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.imageMessage.url, 'image.jpg', mimeType, req.body, tenantId);
         mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
       } else if (messageContent.videoMessage) {
-        type = 'video'; content = messageContent.videoMessage.caption || '';
+        type = 'VIDEO'; content = messageContent.videoMessage.caption || '';
         mimeType = messageContent.videoMessage.mimetype;
         const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.videoMessage.url, 'video.mp4', mimeType, req.body, tenantId);
         mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
       } else if (messageContent.audioMessage) {
-        type = 'audio'; content = '';
+        type = 'AUDIO'; content = '';
         mimeType = 'audio/ogg'; 
         const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.audioMessage.url, 'audio.ogg', mimeType, req.body, tenantId);
         mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
       } else if (messageContent.documentMessage || messageContent.documentWithCaptionMessage) {
         const doc = messageContent.documentMessage || messageContent.documentWithCaptionMessage?.message?.documentMessage;
         if (doc) {
-          type = 'document'; fileName = doc.fileName || 'document';
+          type = 'DOCUMENT'; fileName = doc.fileName || 'document';
           content = doc.caption || fileName; mimeType = doc.mimetype;
           const res = await downloadAndUploadMedia(evoUrl, evoKey, doc.url, fileName, mimeType, req.body, tenantId);
           mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
         }
       } else if (messageContent.stickerMessage) {
-        type = 'sticker'; content = '[Figurinha]'; mimeType = 'image/webp';
+        type = 'STICKER'; content = '[Figurinha]'; mimeType = 'image/webp';
         const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.stickerMessage.url, 'sticker.webp', mimeType, req.body, tenantId);
         mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
       } else if (messageContent.contactMessage) {
-        type = 'contact';
+        type = 'CONTACT';
         const contact = messageContent.contactMessage;
         fileName = contact.displayName || 'Contato';
         content = `[Contato] ${fileName}`;
@@ -369,7 +398,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const telMatch = vcard.match(/TEL(?:;[^:]+)*:([+\d\s-]+)/);
         if (telMatch) mediaUrl = telMatch[1].replace(/\D/g, "");
       } else if (messageContent.contactsArrayMessage) {
-        type = 'contact';
+        type = 'CONTACT';
         const contacts = messageContent.contactsArrayMessage.contacts || [];
         const firstContact = contacts[0];
         fileName = contacts.length > 1 ? `${firstContact?.displayName} e mais ${contacts.length - 1}` : (firstContact?.displayName || 'Contatos');
@@ -378,7 +407,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const telMatch = vcard.match(/TEL(?:;[^:]+)*:([+\d\s-]+)/);
         if (telMatch) mediaUrl = telMatch[1].replace(/\D/g, "");
       } else if (messageContent.locationMessage || messageContent.liveLocationMessage) {
-        type = 'location';
+        type = 'LOCATION';
         const loc = messageContent.locationMessage || messageContent.liveLocationMessage;
         const lat = loc.degreesLatitude;
         const lng = loc.degreesLongitude;
@@ -387,6 +416,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         mediaUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
       }
 
+      // ETAPA 6 — SALVAR METADADOS COMPLETOS
       await supabase.from('mensagens').upsert({
         conversation_id: conv?.id, 
         content, 
@@ -397,6 +427,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         mime_type: mimeType, 
         file_name: fileName, 
         external_message_id: key.id, 
+        wa_message_id: key.id,
+        remote_jid: key.remoteJid,
+        from_me: !!key.fromMe,
+        participant: key.participant || null,
+        message_key_json: key,
+        instance_name: instName,
         status: isFromMe ? 'sent' : 'delivered', 
         tenant_id: tenantId
       }, { onConflict: 'external_message_id' });

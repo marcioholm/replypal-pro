@@ -400,12 +400,15 @@ export default function ChatPage() {
               if (!text && !msgContent.audioMessage && !msgContent.imageMessage 
                   && !msgContent.videoMessage && !msgContent.documentMessage && !msgContent.reactionMessage) continue;
               
-              const type = msgContent.audioMessage ? 'audio'
-                : msgContent.imageMessage ? 'image'
-                : msgContent.videoMessage ? 'video'
-                : msgContent.documentMessage ? 'document'
-                : msgContent.reactionMessage ? 'text'
-                : 'text';
+              const type = msgContent.audioMessage ? 'AUDIO'
+                : msgContent.imageMessage ? 'IMAGE'
+                : msgContent.videoMessage ? 'VIDEO'
+                : msgContent.documentMessage ? 'DOCUMENT'
+                : msgContent.reactionMessage ? 'REACTION'
+                : 'TEXT';
+
+              // Se for reação, o wa_message_id da LINHA deve ser o da mensagem original reagida
+              const waMessageId = type === 'reaction' ? (msgContent.reactionMessage?.key?.id || key.id) : key.id;
               
               // Upsert — não duplica se já existir
               await supabase.from("mensagens").upsert({
@@ -416,12 +419,12 @@ export default function ChatPage() {
                 type,
                 timestamp: new Date((m.messageTimestamp || Date.now() / 1000) * 1000).toISOString(),
                 external_message_id: key.id,
-                wa_message_id: key.id,
+                wa_message_id: waMessageId,
                 remote_jid: key.remoteJid,
                 from_me: key.fromMe,
                 participant: key.participant,
                 message_key_json: key,
-                instance_name: instanceName, // Precisamos garantir que temos o instanceName
+                instance_name: instanceName,
                 status: key.fromMe ? "sent" : "delivered",
                 tenant_id: user?.tenantId
               }, { onConflict: "external_message_id" });
@@ -1308,9 +1311,32 @@ export default function ChatPage() {
 
         {/* Messages List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-transparent">
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} msg={msg} clientName={conv.clientName} />
-          ))}
+          {(() => {
+            // Criar mapa de reações
+            const reactionMap: Record<string, string> = {};
+            messages.forEach(m => {
+              if (m.type === 'reaction' && m.wa_message_id && m.content) {
+                // Se o conteúdo for vazio, remove a reação
+                const reactionEmoji = m.content.replace(/^Reagiu com /, "").trim();
+                reactionMap[m.wa_message_id] = reactionEmoji;
+              }
+            });
+
+            // Filtrar mensagens que não devem aparecer como balões
+            return messages
+              .filter(msg => msg.type !== 'reaction' && msg.type !== 'revoke')
+              .map((msg) => {
+                // Anexar reação se existir no mapa
+                const reaction = reactionMap[msg.external_message_id || ''] || msg.reaction;
+                return (
+                  <MessageBubble 
+                    key={msg.id} 
+                    msg={{ ...msg, reaction }} 
+                    clientName={conv.clientName} 
+                  />
+                );
+              });
+          })()}
           <div ref={messagesEndRef} />
         </div>
 
