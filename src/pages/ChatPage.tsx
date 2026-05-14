@@ -62,55 +62,12 @@ export default function ChatPage() {
   const [forwardingMsg, setForwardingMsg] = useState<any>(null);
   const [forwardModalOpen, setForwardModalOpen] = useState(false);
 
+  /*
   // Ouvidores de eventos do MessageBubble
   useEffect(() => {
-    const handleReaction = async (e: any) => {
-      const { msgId, externalId } = e.detail;
-      const emoji = prompt("Escolha um emoji (ou deixe vazio para remover):", "❤️");
-      if (emoji !== null && conv?.clientPhone) {
-        const res = await sendReaction(conv.clientPhone, externalId, emoji);
-        if (res.success) {
-          toast.success("Reação enviada!");
-          // O polling ou webhook vai atualizar o banco e a UI
-        }
-      }
-    };
-
-    const handleReply = (e: any) => {
-      setReplyingTo(e.detail.msg);
-    };
-
-    const handleDelete = async (e: any) => {
-      const { msgId, externalId } = e.detail;
-      if (confirm("Deseja realmente apagar esta mensagem para todos?")) {
-        if (conv?.clientPhone) {
-          const res = await deleteMessage(conv.clientPhone, externalId);
-          if (res.success) {
-            toast.success("Mensagem apagada!");
-            await supabase.from("mensagens").delete().eq("id", msgId);
-            // store.deleteMessage(msgId); // Se houver no store
-          }
-        }
-      }
-    };
-
-    const handleForward = (e: any) => {
-      setForwardingMsg(e.detail.msg);
-      setForwardModalOpen(true);
-    };
-
-    window.addEventListener('chat-reaction', handleReaction);
-    window.addEventListener('chat-reply', handleReply);
-    window.addEventListener('chat-delete', handleDelete);
-    window.addEventListener('chat-forward', handleForward);
-
-    return () => {
-      window.removeEventListener('chat-reaction', handleReaction);
-      window.removeEventListener('chat-reply', handleReply);
-      window.removeEventListener('chat-delete', handleDelete);
-      window.removeEventListener('chat-forward', handleForward);
-    };
+    ...
   }, [conv?.clientPhone]);
+  */
   
   // Media states
   const fileInputRef = useRef<HTMLInputElement>(null);
