@@ -15,7 +15,7 @@ import {
   CheckCircle2, Phone, Search, Download, 
   RefreshCw, Layers, ChevronLeft, ChevronRight,
   Filter, Smartphone, Home, XCircle, Info, Edit2,
-  Trash2, Check, Zap, Merge, ArrowRight
+  Trash2, Check, Zap, Merge, ArrowRight, Loader2
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -140,6 +140,9 @@ export default function HygienePage() {
     }
   };
 
+  const [mergeProgress, setMergeProgress] = useState({ current: 0, total: 0 });
+  const [isMerging, setIsMerging] = useState(false);
+
   const handleBulkMergeDuplicates = async () => {
     const selectedDuplicates = auditData.filter(d => selectedIds.includes(d.id) && d.audit.isDuplicate);
     if (selectedDuplicates.length === 0) {
@@ -150,6 +153,9 @@ export default function HygienePage() {
     if (!confirm(`Deseja unificar ${selectedDuplicates.length} registros duplicados? O sistema manterá o registro mais antigo como principal.`)) return;
 
     setLoading(true);
+    setIsMerging(true);
+    setMergeProgress({ current: 0, total: selectedDuplicates.length });
+    
     let count = 0;
     try {
       // Agrupar por telefone para processar
@@ -160,6 +166,7 @@ export default function HygienePage() {
         groups.get(phone)?.push(d);
       });
 
+      let currentProcessed = 0;
       for (const [phone, items] of groups.entries()) {
         // Buscar o "Master" (o mais antigo da base inteira com esse telefone)
         const allWithThisPhone = auditData.filter(c => c.audit.normalizedPhone === phone)
@@ -181,6 +188,8 @@ export default function HygienePage() {
             store.updateCustomer(item.id, { status: "Encerrado" });
             count++;
           }
+          currentProcessed++;
+          setMergeProgress({ current: currentProcessed, total: selectedDuplicates.length });
         }
       }
       toast.success(`${count} registros unificados com sucesso!`);
@@ -189,6 +198,8 @@ export default function HygienePage() {
       toast.error("Erro ao unificar duplicados.");
     } finally {
       setLoading(false);
+      setIsMerging(false);
+      setMergeProgress({ current: 0, total: 0 });
     }
   };
 
@@ -514,6 +525,29 @@ export default function HygienePage() {
                   </Badge>
                 </div>
                 <Progress value={(verificationProgress.current / verificationProgress.total) * 100} className="h-4 bg-primary/10" />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Progress Overlay if merging */}
+          {isMerging && (
+            <Card className="border-purple-500/20 bg-purple-500/5 shadow-xl animate-in zoom-in-95 duration-300 rounded-[32px] overflow-hidden border-2">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-purple-500/10 rounded-2xl">
+                      <Loader2 className="w-6 h-6 text-purple-600 animate-spin" />
+                    </div>
+                    <div>
+                      <p className="text-lg font-black text-purple-600">Unificando Contatos Duplicados...</p>
+                      <p className="text-sm text-purple-600/60 font-medium">Consolidando registros e mantendo histórico principal</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-purple-600 text-white font-black px-4 py-1.5 rounded-full text-sm">
+                    {mergeProgress.current} / {mergeProgress.total}
+                  </Badge>
+                </div>
+                <Progress value={(mergeProgress.current / mergeProgress.total) * 100} className="h-4 bg-purple-500/10" />
               </CardContent>
             </Card>
           )}
