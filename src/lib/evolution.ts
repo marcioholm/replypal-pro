@@ -141,7 +141,7 @@ export async function sendReaction(phone: string, messageId: string, emoji: stri
   if (!url || !key) return { success: false, error: "API não configurada" };
   
   try {
-    const res = await fetch(`${getApiUrl()}/message/sendReaction/${instance}`, {
+    const res = await fetch(`${getApiUrl()}/message/reaction/${instance}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify({
@@ -152,7 +152,9 @@ export async function sendReaction(phone: string, messageId: string, emoji: stri
     });
     
     if (res.ok) return { success: true };
-    return { success: false, error: "Erro ao enviar reação" };
+    const errorData = await res.text();
+    console.error("Evolution Reaction Error:", errorData);
+    return { success: false, error: `Erro API: ${errorData}` };
   } catch (err) {
     return { success: false, error: String(err) };
   }
