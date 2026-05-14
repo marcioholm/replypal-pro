@@ -146,7 +146,7 @@ export async function sendReaction(phone: string, messageId: string, emoji: stri
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify({
         number: phone.replace(/\D/g, ""),
-        text: emoji,
+        reaction: emoji,
         messageId: messageId
       })
     });

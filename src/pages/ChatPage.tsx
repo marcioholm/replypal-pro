@@ -1566,27 +1566,56 @@ export default function ChatPage() {
             </div>
             
             <div className="max-h-[350px] overflow-y-auto space-y-1 -mx-2 px-2 custom-scrollbar">
-              {store.conversations
-                .filter(c => c.clientName.toLowerCase().includes(forwardSearch.toLowerCase()) || c.clientPhone.includes(forwardSearch))
-                .map(c => (
-                <button 
-                  key={c.id} 
-                  disabled={loading}
-                  onClick={() => handleForwardMessage(c.clientPhone)}
-                  className="w-full flex items-center gap-3 p-3 hover:bg-primary/5 rounded-2xl transition-all text-left group relative overflow-hidden"
-                >
-                  <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0 border border-primary/20 group-hover:scale-105 transition-transform">
-                    {c.clientAvatar ? <img src={c.clientAvatar} className="w-full h-full rounded-full object-cover" /> : c.clientName.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{c.clientName}</p>
-                    <p className="text-[11px] text-muted-foreground">{c.clientPhone}</p>
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-                    <ArrowRight className="w-4 h-4 text-primary" />
-                  </div>
-                </button>
-              ))}
+              {(() => {
+                // Criar lista unificada de destinos (conversas + clientes)
+                const allDestinations = [
+                  ...store.conversations.map(c => ({ id: c.id, name: c.clientName, phone: c.clientPhone, avatar: c.clientAvatar })),
+                  ...store.customers.map(c => ({ id: c.id, name: c.name, phone: c.whatsapp, avatar: undefined }))
+                ];
+
+                // Remover duplicatas por telefone
+                const seenPhones = new Set();
+                const uniqueDestinations = allDestinations.filter(d => {
+                  if (seenPhones.has(d.phone)) return false;
+                  seenPhones.add(d.phone);
+                  return true;
+                });
+
+                // Filtrar por busca
+                const filtered = uniqueDestinations.filter(d => 
+                  d.name.toLowerCase().includes(forwardSearch.toLowerCase()) || 
+                  d.phone.includes(forwardSearch)
+                );
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="py-8 text-center space-y-2 opacity-50">
+                      <Search className="w-8 h-8 mx-auto" />
+                      <p className="text-sm">Nenhum contato encontrado</p>
+                    </div>
+                  );
+                }
+
+                return filtered.map(c => (
+                  <button 
+                    key={c.id} 
+                    disabled={loading}
+                    onClick={() => handleForwardMessage(c.phone)}
+                    className="w-full flex items-center gap-3 p-3 hover:bg-primary/5 rounded-2xl transition-all text-left group relative overflow-hidden"
+                  >
+                    <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0 border border-primary/20 group-hover:scale-105 transition-transform">
+                      {c.avatar ? <img src={c.avatar} className="w-full h-full rounded-full object-cover" /> : c.name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{c.name}</p>
+                      <p className="text-[11px] text-muted-foreground">{c.phone}</p>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                      <ArrowRight className="w-4 h-4 text-primary" />
+                    </div>
+                  </button>
+                ));
+              })()}
             </div>
           </div>
         </DialogContent>
