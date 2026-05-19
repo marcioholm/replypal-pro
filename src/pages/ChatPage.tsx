@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useStore, formatTime, formatDuration, MOCK_TAGS, UserRole, MessageType, ConversationStatus, ClosingReason } from "@/lib/store";
-import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead, syncConversationHistory, checkWhatsApp, sendReaction, deleteMessage } from "@/lib/evolution";
+import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead, syncConversationHistory, checkWhatsApp, sendReaction, deleteMessage, fetchGroupInfo } from "@/lib/evolution";
 import { webhooks } from "@/lib/webhooks";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -72,8 +72,21 @@ export default function ChatPage() {
 
   const [messageInput, setMessageInput] = useState("");
   const [noteInput, setNoteInput] = useState("");
-  const [showPanel, setShowPanel] = useState<"customer" | "notes" | "tags" | "history" | null>("customer");
+  const [showPanel, setShowPanel] = useState<"customer" | "members" | "notes" | "tags" | "history" | null>("customer");
+  const [groupInfo, setGroupInfo] = useState<any>(null);
+  const [loadingGroupInfo, setLoadingGroupInfo] = useState(false);
+  const [memberSearch, setMemberSearch] = useState("");
   const [transferTo, setTransferTo] = useState("");
+
+  const participants = groupInfo?.participants || groupInfo?.data?.participants || [];
+  const subject = groupInfo?.subject || groupInfo?.data?.subject || conv?.clientName || "Grupo";
+  const description = groupInfo?.desc || groupInfo?.data?.desc || "";
+  const size = groupInfo?.size || groupInfo?.data?.size || participants.length;
+
+  const filteredParticipants = participants.filter((p: any) => {
+    const phone = p.id || p.jid || "";
+    return phone.toLowerCase().includes(memberSearch.toLowerCase());
+  });
   const [transferReason, setTransferReason] = useState("");
   const [transferOpen, setTransferOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
@@ -113,6 +126,86 @@ export default function ChatPage() {
     };
     fetchSettings();
   }, [user?.tenantId]);
+
+  useEffect(() => {
+    if (showPanel === "members" && conv?.isGroup && conv?.clientPhone) {
+      const loadGroupInfo = async () => {
+        try {
+          setLoadingGroupInfo(true);
+          const res = await fetchGroupInfo(conv.clientPhone);
+          if (res.success && res.data) {
+            setGroupInfo(res.data);
+          } else {
+            console.error("Erro ao buscar info do grupo:", res?.error);
+          }
+        } catch (err) {
+          console.error("Erro ao buscar info do grupo:", err);
+        } finally {
+          setLoadingGroupInfo(false);
+        }
+      };
+      loadGroupInfo();
+    }
+  }, [showPanel, conv?.isGroup, conv?.clientPhone]);
+
+  useEffect(() => {
+    if (conv?.isGroup) {
+      setShowPanel("members");
+    } else {
+      setShowPanel("customer");
+    }
+  }, [conv?.id, conv?.isGroup]);
+
+  const formatJidToPhone = (jid: string) => {
+    const raw = jid.split("@")[0];
+    if (raw.startsWith("55") && raw.length >= 12) {
+      const ddd = raw.slice(2, 4);
+      const firstPart = raw.slice(4, -4);
+      const lastPart = raw.slice(-4);
+      return `+55 (${ddd}) ${firstPart}-${lastPart}`;
+    }
+    return `+${raw}`;
+  };
+
+  const handleStartPrivateChat = async (participantJid: string) => {
+    const cleanPhone = participantJid.split("@")[0];
+    
+    // Buscar conversa no store
+    const existing = store.conversations.find(c => c.clientPhone.replace(/\D/g, "") === cleanPhone && !c.isGroup);
+    if (existing) {
+      navigate(`/chat/${existing.id}`);
+      return;
+    }
+    
+    // Buscar conversa no DB
+    const { data: dbConv } = await supabase
+      .from("conversas")
+      .select("*")
+      .eq("client_phone", cleanPhone)
+      .eq("tenant_id", user?.tenantId)
+      .eq("is_group", false)
+      .maybeSingle();
+      
+    if (dbConv) {
+      store.addDbConversation({
+        id: dbConv.id,
+        clientName: dbConv.client_name,
+        clientPhone: dbConv.client_phone,
+        customerId: dbConv.customer_id,
+        lastMessage: dbConv.last_message,
+        lastMessageTime: new Date(dbConv.last_message_time),
+        status: dbConv.status as any,
+        assignedTo: dbConv.assigned_to,
+        tenantId: dbConv.tenant_id,
+        isGroup: dbConv.is_group
+      });
+      navigate(`/chat/${dbConv.id}`);
+      return;
+    }
+    
+    // Abrir NewChatDialog pré-preenchido
+    window.dispatchEvent(new CustomEvent("open-new-chat", { detail: { phone: cleanPhone } }));
+  };
 
 
   const handleReactionSelect = async (emoji: string) => {
@@ -303,6 +396,8 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!id) return;
+    setGroupInfo(null);
+    setMemberSearch("");
 
     const loadRealData = async () => {
       if (!conv) setLoading(true);
@@ -1659,6 +1754,7 @@ export default function ChatPage() {
         <div className="flex border-b">
           {[
             { key: "customer" as const, icon: User, label: "Cliente" },
+            ...(conv?.isGroup ? [{ key: "members" as const, icon: Users, label: "Membros" }] : []),
             { key: "notes" as const, icon: StickyNote, label: "Notas" },
             { key: "tags" as const, icon: Tag, label: "Tags" },
             { key: "history" as const, icon: History, label: "Log" },
@@ -1666,7 +1762,7 @@ export default function ChatPage() {
             <button
               key={tab.key}
               onClick={() => setShowPanel(tab.key)}
-              className={`flex-1 py-3 text-[10px] uppercase font-bold flex flex-col items-center gap-1 border-b-2 transition-all ${showPanel === tab.key ? "border-primary text-primary bg-primary/5" : "border-transparent text-muted-foreground hover:bg-muted/50"}`}
+              className={`flex-1 py-3 text-[9px] uppercase font-bold flex flex-col items-center gap-1 border-b-2 transition-all ${showPanel === tab.key ? "border-primary text-primary bg-primary/5" : "border-transparent text-muted-foreground hover:bg-muted/50"}`}
             >
               <tab.icon className="w-4 h-4" />
               {tab.label}
@@ -1779,6 +1875,102 @@ export default function ChatPage() {
                       </div>
                     </DialogContent>
                   </Dialog>
+                </div>
+              )}
+            </div>
+          )}
+
+          {showPanel === "members" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold truncate max-w-[180px]">{subject}</h3>
+                  <p className="text-xs text-muted-foreground">{size} integrantes</p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={async () => {
+                    if (conv?.clientPhone) {
+                      try {
+                        setLoadingGroupInfo(true);
+                        const res = await fetchGroupInfo(conv.clientPhone);
+                        if (res.success && res.data) {
+                          setGroupInfo(res.data);
+                        }
+                      } catch (err) {
+                        console.error(err);
+                      } finally {
+                        setLoadingGroupInfo(false);
+                      }
+                    }
+                  }} 
+                  className="h-8 w-8 rounded-lg hover:bg-muted shrink-0 text-muted-foreground"
+                  disabled={loadingGroupInfo}
+                >
+                  <Activity className={cn("w-4 h-4", loadingGroupInfo && "animate-spin")} />
+                </Button>
+              </div>
+
+              {description && (
+                <div className="p-3 bg-muted/30 rounded-xl border text-xs text-muted-foreground break-words">
+                  <p className="font-bold text-[9px] uppercase text-muted-foreground/70 mb-1">Descrição</p>
+                  {description}
+                </div>
+              )}
+
+              <div className="relative">
+                <Input 
+                  placeholder="Pesquisar integrante..." 
+                  value={memberSearch}
+                  onChange={(e) => setMemberSearch(e.target.value)}
+                  className="h-9 rounded-xl pr-8 text-xs bg-muted/20 border-border/40 focus-visible:ring-1"
+                />
+              </div>
+
+              {loadingGroupInfo ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <p className="text-xs">Carregando integrantes...</p>
+                </div>
+              ) : filteredParticipants.length > 0 ? (
+                <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                  {filteredParticipants.map((p: any) => {
+                    const jid = p.id || p.jid || "";
+                    const isAdmin = p.admin === "admin" || p.admin === "superadmin" || p.admin === true;
+                    const isOwner = p.id === groupInfo?.owner || p.jid === groupInfo?.owner;
+                    
+                    return (
+                      <div key={jid} className="flex items-center justify-between p-2 rounded-xl bg-muted/20 border border-border/10 hover:bg-muted/40 transition-colors">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0 border border-primary/20">
+                            {jid.split("@")[0].slice(-2)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold truncate">{formatJidToPhone(jid)}</p>
+                            {(isAdmin || isOwner) && (
+                              <span className="inline-block text-[8px] font-bold uppercase tracking-widest text-primary/80 mt-0.5">
+                                {isOwner ? "Criador" : "Admin"}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleStartPrivateChat(jid)}
+                          className="h-7 w-7 rounded-lg hover:bg-primary/10 hover:text-primary shrink-0"
+                          title="Enviar mensagem direta"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-xs text-muted-foreground">
+                  Nenhum integrante encontrado.
                 </div>
               )}
             </div>

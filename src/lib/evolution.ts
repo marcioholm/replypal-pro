@@ -521,3 +521,25 @@ export async function checkWhatsApp(phone: string) {
     return { exists: false, error: String(err) };
   }
 }
+
+export async function fetchGroupInfo(groupJid: string) {
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = EVO_CONFIG.getInstance();
+  
+  if (!url || !key) return { success: false, error: "API não configurada" };
+  
+  try {
+    const res = await fetch(`${getApiUrl()}/group/findGroupInfos/${instance}?groupJid=${groupJid}`, {
+      headers: { "apikey": key }
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      return { success: true, data };
+    }
+    return { success: false, error: "Erro ao buscar informações do grupo" };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
