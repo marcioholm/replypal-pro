@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
@@ -94,6 +95,8 @@ export default function ChatPage() {
   const [forwardSearch, setForwardSearch] = useState("");
   const [reactionMenuOpen, setReactionMenuOpen] = useState<{ id: string, externalId: string, x: number, y: number } | null>(null);
   const [instanceName, setInstanceName] = useState("replypal");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [msgToDelete, setMsgToDelete] = useState<{ msgId: string; externalId: string } | null>(null);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -161,23 +164,10 @@ export default function ChatPage() {
       setReplyingTo(e.detail.msg);
     };
 
-    const handleDelete = async (e: any) => {
+    const handleDelete = (e: any) => {
       const { msgId, externalId } = e.detail;
-      const msg = storeRef.current.getMessages(id || "").find(m => m.id === msgId);
-
-      if (confirm("Deseja realmente apagar esta mensagem para todos?")) {
-        if (conv?.clientPhone) {
-          try {
-            const res = await deleteMessage(conv.clientPhone, externalId, msg?.message_key_json);
-            if (res.success) {
-              toast.success("Mensagem apagada!");
-              await supabase.from("mensagens").delete().eq("id", msgId);
-            }
-          } catch (err) {
-            console.error("Erro ao apagar:", err);
-          }
-        }
-      }
+      setMsgToDelete({ msgId, externalId });
+      setDeleteConfirmOpen(true);
     };
 
     const handleForward = (e: any) => {
@@ -352,7 +342,7 @@ export default function ChatPage() {
           .order("timestamp", { ascending: true });
           
         if (dbMsgs) {
-          storeRef.current.addDbMessages(dbMsgs.map(m => ({
+          storeRef.current.syncConversationMessages(id!, dbMsgs.map(m => ({
             id: m.id,
             conversationId: m.conversation_id,
             content: m.content,
@@ -473,7 +463,7 @@ export default function ChatPage() {
               .order("timestamp", { ascending: true });
               
             if (refreshed) {
-              storeRef.current.addDbMessages(refreshed.map(m => ({
+              storeRef.current.syncConversationMessages(id!, refreshed.map(m => ({
                 id: m.id,
                 conversationId: m.conversation_id,
                 content: m.content,
@@ -866,7 +856,7 @@ export default function ChatPage() {
     if (!forwardingMsg || !user) return;
     const toastId = toast.loading("Encaminhando...");
     try {
-      const originalSender = forwardingMsg.sender === 'client' ? conv?.clientName : forwardingMsg.senderName;
+      const originalSender = forwardingMsg.sender === 'client' ? (conv?.clientName || "Cliente") : (forwardingMsg.senderName || "Atendente");
       const header = `*[Encaminhado por: ${user.name}]* (De: ${originalSender})\n\n`;
       const caption = header + (forwardingMsg.content || "");
 
@@ -887,11 +877,140 @@ export default function ChatPage() {
 
       if (!res.success) throw new Error(res.error);
 
+      const cleanPhone = targetPhone.replace(/\D/g, "");
+      if (cleanPhone.length < 10) throw new Error("Telefone inválido");
+
+      let { data: targetConv, error: fetchError } = await supabase
+        .from("conversas")
+        .select("*")
+        .eq("client_phone", cleanPhone)
+        .eq("tenant_id", user.tenantId)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      const lastMsgText = forwardingMsg.type === 'text' || !forwardingMsg.type ? caption : `[${forwardingMsg.type}]`;
+
+      if (!targetConv) {
+        const { data: newConv, error: createError } = await supabase
+          .from("conversas")
+          .insert({
+            client_name: cleanPhone,
+            client_phone: cleanPhone,
+            last_message: lastMsgText,
+            last_message_time: new Date().toISOString(),
+            status: "em_atendimento",
+            assigned_to: user.id,
+            tenant_id: user.tenantId
+          })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        targetConv = newConv;
+      } else {
+        await supabase
+          .from("conversas")
+          .update({
+            last_message: lastMsgText,
+            last_message_time: new Date().toISOString(),
+            status: "em_atendimento",
+            assigned_to: user.id
+          })
+          .eq("id", targetConv.id);
+      }
+
+      const extId = res.data?.key?.id || res.data?.messageId || `fwd-${Date.now()}`;
+
+      const { data: insertedMsg, error: insertError } = await supabase
+        .from("mensagens")
+        .insert({
+          conversation_id: targetConv.id,
+          content: forwardingMsg.type === 'text' || !forwardingMsg.type ? caption : (forwardingMsg.content || `[${forwardingMsg.type}]`),
+          sender: "agent",
+          sender_name: user.name,
+          type: forwardingMsg.type || 'text',
+          media_url: forwardingMsg.mediaUrl || null,
+          file_name: forwardingMsg.fileName || null,
+          mime_type: forwardingMsg.mimeType || null,
+          file_size: forwardingMsg.fileSize || null,
+          external_message_id: extId,
+          status: 'sent',
+          tenant_id: user.tenantId
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      storeRef.current.addDbConversation({
+        id: targetConv.id,
+        clientName: targetConv.client_name,
+        clientPhone: targetConv.client_phone,
+        customerId: targetConv.customer_id,
+        lastMessage: lastMsgText,
+        lastMessageTime: new Date(),
+        status: targetConv.status as any,
+        assignedTo: targetConv.assigned_to,
+        tenantId: targetConv.tenant_id,
+        isGroup: targetConv.is_group
+      });
+
+      if (insertedMsg) {
+        storeRef.current.addDbMessages([{
+          id: insertedMsg.id,
+          conversationId: targetConv.id,
+          content: insertedMsg.content,
+          sender: "agent",
+          senderName: user.name,
+          timestamp: new Date(insertedMsg.timestamp),
+          type: insertedMsg.type as MessageType,
+          mediaUrl: insertedMsg.media_url,
+          fileName: insertedMsg.file_name,
+          mimeType: insertedMsg.mime_type,
+          fileSize: insertedMsg.file_size,
+          status: 'sent',
+          external_message_id: extId
+        }]);
+      }
+
+      await supabase.from("historico").insert({
+        conversation_id: targetConv.id,
+        action: "Mensagem encaminhada",
+        user_id: user.id,
+        user_name: user.name,
+        details: `Mensagem encaminhada por ${user.name} (Original: ${originalSender})`
+      });
+
       toast.success("Mensagem encaminhada!", { id: toastId });
       setForwardModalOpen(false);
       setForwardingMsg(null);
     } catch (err) {
+      console.error(err);
       toast.error(`Erro ao encaminhar: ${String(err)}`, { id: toastId });
+    }
+  };
+
+  const confirmDeleteMessage = async () => {
+    if (!msgToDelete || !conv?.clientPhone) return;
+    const { msgId, externalId } = msgToDelete;
+    const msg = storeRef.current.getMessages(id || "").find(m => m.id === msgId);
+    const toastId = toast.loading("Apagando mensagem...");
+    try {
+      const res = await deleteMessage(conv.clientPhone, externalId, msg?.message_key_json);
+      if (res.success) {
+        toast.success("Mensagem apagada!", { id: toastId });
+        await supabase.from("mensagens").delete().eq("id", msgId);
+        storeRef.current.deleteMessageFromStore(msgId);
+      } else {
+        toast.error(`Erro ao apagar mensagem no WhatsApp: ${res.error || "Erro desconhecido"}`, { id: toastId });
+      }
+    } catch (err) {
+      console.error("Erro ao apagar:", err);
+      toast.error("Erro ao apagar mensagem", { id: toastId });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setMsgToDelete(null);
     }
   };
 
@@ -1869,6 +1988,27 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+
+      {/* Custom AlertDialog for Delete Message confirmation */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent className="rounded-[24px] border border-border/40 bg-card/95 backdrop-blur-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-bold">Apagar Mensagem</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground mt-2">
+              Deseja realmente apagar esta mensagem para todos? Esta ação também removerá a mensagem do WhatsApp do cliente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 gap-2">
+            <AlertDialogCancel className="rounded-xl border border-border/40 font-semibold">Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteMessage} 
+              className="rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground font-semibold"
+            >
+              Apagar para Todos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

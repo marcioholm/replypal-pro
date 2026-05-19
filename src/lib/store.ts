@@ -89,6 +89,8 @@ export interface Customer {
   driveFolderUrl?: string;
   drivePayrollUrl?: string;
   driveBillingUrl?: string;
+  openingDate?: Date;
+  startDate?: Date;
   whatsapp_status?: WhatsappStatus;
   whatsapp_checked_at?: Date;
   whatsapp_check_provider?: string;
@@ -214,6 +216,8 @@ interface Store {
   addDbConversations: (convs: Conversation[]) => void;
   setMessages: (messages: Message[]) => void;
   addDbMessages: (msgs: Message[]) => void;
+  syncConversationMessages: (conversationId: string, msgs: Message[]) => void;
+  deleteMessageFromStore: (messageId: string) => void;
   updateMessage: (id: string, updates: Partial<Message>) => void;
   updateMessageReaction: (messageId: string, reaction: string | null) => void;
   setScheduledMessages: (msgs: ScheduledMessage[]) => void;
@@ -337,6 +341,22 @@ function getStore(): Store {
           s.messages = newMsgs.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
           notify(); 
         }
+      },
+      syncConversationMessages(conversationId, msgs) {
+        const otherMsgs = s.messages.filter(m => m.conversationId !== conversationId);
+        const tempMsgs = s.messages.filter(m => m.conversationId === conversationId && m.id.startsWith("temp-"));
+        const merged = [...msgs];
+        tempMsgs.forEach(t => {
+          if (!merged.find(m => m.external_message_id === t.external_message_id)) {
+            merged.push(t);
+          }
+        });
+        s.messages = [...otherMsgs, ...merged].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+        notify();
+      },
+      deleteMessageFromStore(messageId) {
+        s.messages = s.messages.filter(m => m.id !== messageId && m.external_message_id !== messageId);
+        notify();
       },
       updateMessage(id, updates) {
         const index = s.messages.findIndex(m => m.id === id);
@@ -511,9 +531,9 @@ export function formatDuration(start: Date): string {
   return `${mins}m`;
 }
 
-export function ensureDate(date: any): Date {
-  if (!date) return new Date();
+export function ensureDate(date: any): Date | undefined {
+  if (!date) return undefined;
   if (date instanceof Date) return date;
   const d = new Date(date);
-  return isNaN(d.getTime()) ? new Date() : d;
+  return isNaN(d.getTime()) ? undefined : d;
 }

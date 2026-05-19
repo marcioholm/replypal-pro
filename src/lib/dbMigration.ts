@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS clientes (
   natureza_juridica TEXT,
   cnae TEXT,
   opening_date DATE,
+  start_date DATE,
   has_employees BOOLEAN DEFAULT false,
   employee_count INTEGER DEFAULT 0,
   status TEXT DEFAULT 'Onboarding',
@@ -205,6 +206,8 @@ ALTER TABLE conversas ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
 ALTER TABLE conversas ADD COLUMN IF NOT EXISTS last_message_time TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE conversas ADD COLUMN IF NOT EXISTS tenant_id UUID;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS contacts JSONB DEFAULT '[]';
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS start_date DATE;
+
 
 -- Garantir colunas em mensagens
 ALTER TABLE mensagens ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'text';

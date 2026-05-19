@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS clientes (
   natureza_juridica TEXT,
   cnae TEXT,
   opening_date DATE,
+  start_date DATE,
   has_employees BOOLEAN DEFAULT false,
   employee_count INTEGER DEFAULT 0,
   status TEXT,

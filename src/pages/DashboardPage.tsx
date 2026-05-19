@@ -1,4 +1,6 @@
+import { useState, useEffect } from "react";
 import { useStore, formatDuration, ensureDate } from "@/lib/store";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -6,12 +8,126 @@ import {
   MessageSquare, UserX, CheckCircle, Users, 
   Clock, AlertTriangle, Trophy, Timer, 
   TrendingUp, Cake, CalendarDays, ArrowUpRight, 
-  Activity, BarChart3
+  Activity, BarChart3, Loader2
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 
 export default function DashboardPage() {
   const store = useStore();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!user?.tenantId) return;
+      try {
+        setLoading(true);
+        // 1. Fetch Users
+        const { data: usersData } = await supabase
+          .from("usuarios")
+          .select("*")
+          .eq("tenant_id", user.tenantId);
+
+        if (usersData) {
+          store.setUsers(usersData.map(d => ({
+            id: d.id,
+            name: d.nome,
+            email: d.email,
+            role: d.role as any,
+            tenantId: d.tenant_id,
+            avatar: d.avatar,
+            whatsapp: d.whatsapp
+          })));
+        }
+
+        // 2. Fetch Customers
+        const { data: customersData } = await supabase
+          .from("clientes")
+          .select("*")
+          .eq("tenant_id", user.tenantId);
+
+        if (customersData) {
+          store.setCustomers(customersData.map(c => ({
+            id: c.id,
+            name: c.nome_fantasia,
+            razaoSocial: c.razao_social || "",
+            cnpj: c.cnpj || "",
+            responsibleName: c.responsavel || "",
+            whatsapp: c.whatsapp || "",
+            phone: c.telefone || "",
+            email: c.email || "",
+            city: c.cidade || "",
+            state: c.estado || "",
+            regime: c.regime_tributario as any,
+            naturezaJuridica: c.natureza_juridica || "",
+            cnae: c.cnae || "",
+            openingDate: c.opening_date ? new Date(c.opening_date) : undefined,
+            startDate: c.start_date ? new Date(c.start_date) : undefined,
+            hasEmployees: !!c.has_employees,
+            employeeCount: c.employee_count || 0,
+            status: c.status as any,
+            priority: (c.prioridade || "Média") as any,
+            serviceLevel: (c.service_level || "Padrão") as any,
+            preferredChannel: (c.preferred_channel || "WhatsApp") as any,
+            plan: c.plan || "",
+            monthlyValue: c.monthly_value || 0,
+            financialStatus: c.financial_status as any,
+            origin: c.origin || "Direto",
+            tenantId: c.tenant_id,
+            contacts: c.contacts || [],
+            tags: [],
+            documents: [],
+            createdAt: new Date(c.created_at || Date.now())
+          })));
+        }
+
+        // 3. Fetch Conversations
+        const { data: convsData } = await supabase
+          .from("conversas")
+          .select("*")
+          .eq("tenant_id", user.tenantId);
+
+        if (convsData) {
+          store.setConversations(convsData.map(c => ({
+            id: c.id,
+            clientName: c.client_name || "Cliente sem nome",
+            clientPhone: c.client_phone || "",
+            customerId: c.customer_id,
+            lastMessage: c.last_message || "",
+            lastMessageTime: new Date(c.last_message_time || Date.now()),
+            status: c.status || "novo",
+            assignedTo: c.assigned_to,
+            startedAt: c.started_at ? new Date(c.started_at) : undefined,
+            slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
+            tenantId: c.tenant_id,
+            tags: c.tags || []
+          })));
+        }
+      } catch (err) {
+        console.error("Erro ao carregar dados do dashboard:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user?.tenantId) {
+      fetchDashboardData();
+    }
+  }, [user?.tenantId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[80vh]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Carregando relatórios...</p>
+        </div>
+      </div>
+    );
+  }
+
   const convs = store.conversations || [];
   const customers = store.customers || [];
 
