@@ -80,6 +80,56 @@ export async function fetchChats() {
   }
 }
 
+export async function syncEvolutionGroups(tenantId: string) {
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = EVO_CONFIG.getInstance();
+  
+  if (!url || !key) return { success: false, error: "API não configurada" };
+  
+  const apiUrl = getApiUrl();
+  
+  try {
+    const res = await fetch(`${apiUrl}/group/fetchAllGroups/${instance}?getParticipants=false`, {
+      headers: { "apikey": key },
+    });
+    
+    if (res.ok) {
+      const groups = await res.json();
+      if (!Array.isArray(groups)) return { success: false, error: "Formato inválido" };
+      
+      let count = 0;
+      for (const g of groups) {
+        const remoteJid = g.id || g.remoteJid;
+        const subject = g.subject || g.name || g.subjectOwner;
+        const pic = g.profilePicUrl || g.imgUrl || g.picture;
+        
+        if (!remoteJid || !subject) continue;
+        
+        const now = new Date();
+        const slaDeadline = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+
+        const { error } = await supabase.from('conversas').upsert({
+          client_name: subject,
+          client_phone: remoteJid,
+          status: 'novo',
+          tenant_id: tenantId,
+          client_avatar: pic,
+          is_group: true,
+          sla_deadline: slaDeadline.toISOString(),
+          last_message_time: now.toISOString()
+        }, { onConflict: 'client_phone,tenant_id' });
+        
+        if (!error) count++;
+      }
+      return { success: true, count };
+    }
+    return { success: false, error: "Erro ao buscar grupos da Evolution" };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
 export async function sendWhatsAppMessage(phone: string, message: string, agentName?: string, quotedMessageId?: string) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
@@ -94,7 +144,7 @@ export async function sendWhatsAppMessage(phone: string, message: string, agentN
 
   // Adicionar assinatura se houver nome do agente
   const messageWithSign = agentName 
-    ? `*Atendente: ${agentName}*\n\n${message}` 
+    ? `*${agentName}*\n\n${message}` 
     : message;
   
   try {

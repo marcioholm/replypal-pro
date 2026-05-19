@@ -108,11 +108,11 @@ export default function DashboardPage() {
   ];
 
   const statusDistribution = [
-    { label: "Novos", count: convs.filter((c) => c.status === "novo").length, color: "hsl(215 60% 50%)" },
-    { label: "Aguardando aceite", count: convs.filter((c) => c.status === "aguardando_aceite").length, color: "hsl(38 72% 50%)" },
-    { label: "Em atendimento", count: convs.filter((c) => c.status === "em_atendimento").length, color: "hsl(215 60% 32%)" },
-    { label: "Aguardando cliente", count: convs.filter((c) => c.status === "aguardando_cliente").length, color: "hsl(280 40% 48%)" },
-    { label: "Resolvidos", count: convs.filter((c) => c.status === "resolvido").length, color: "hsl(152 56% 38%)" },
+    { label: "Novos", count: convs.filter((c) => c.status === "novo").length, color: "hsl(28 40% 35%)" },
+    { label: "Aguardando aceite", count: convs.filter((c) => c.status === "aguardando_aceite").length, color: "hsl(38 65% 45%)" },
+    { label: "Em atendimento", count: convs.filter((c) => c.status === "em_atendimento").length, color: "hsl(28 40% 25%)" },
+    { label: "Aguardando cliente", count: convs.filter((c) => c.status === "aguardando_cliente").length, color: "hsl(30 10% 50%)" },
+    { label: "Resolvidos", count: convs.filter((c) => c.status === "resolvido").length, color: "hsl(142 45% 40%)" },
   ];
 
   // Dynamically compute activity data from last 7 days
@@ -139,11 +139,11 @@ export default function DashboardPage() {
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto animate-in fade-in duration-700">
       <div className="flex items-center justify-between">
         <div>
-           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent italic">Relatórios Operacionais</h1>
+           <h1 className="text-3xl font-bold tracking-tight text-foreground">Relatórios Operacionais</h1>
            <p className="text-muted-foreground">Monitoramento em tempo real do atendimento contábil.</p>
         </div>
-        <div className="flex items-center gap-2 p-1.5 bg-muted/50 rounded-lg border border-border/50">
-           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-background rounded-md shadow-sm border border-border/50">
+        <div className="flex items-center gap-2 p-1.5 bg-[#284030]/5 rounded-lg border border-border">
+           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-background rounded-md shadow-sm border border-border">
               <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sistema Live</span>
            </div>
@@ -152,13 +152,13 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {stats.map((s) => (
-          <Card key={s.label} className="hover:shadow-md transition-all border-none shadow-xl shadow-primary/5 group">
+          <Card key={s.label} className="hover:shadow-md transition-all border border-border shadow-sm group bg-white dark:bg-card">
             <CardContent className="pt-6 pb-4">
               <div className="flex items-center justify-between mb-2">
-                <div className={`p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors`}>
+                <div className="p-2 rounded-md bg-secondary text-primary">
                   <s.icon className={`w-5 h-5 ${s.color}`} />
                 </div>
-                <span className="text-2xl font-black italic tracking-tighter">{s.value}</span>
+                <span className="text-2xl font-bold tracking-tight">{s.value}</span>
               </div>
               <p className="text-[10px] font-bold text-muted-foreground uppercase opacity-70 tracking-wider font-mono">{s.label}</p>
             </CardContent>
@@ -167,7 +167,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="border-none shadow-xl shadow-primary/5 overflow-hidden">
+        <Card className="border border-border shadow-sm bg-white dark:bg-card overflow-hidden">
           <CardHeader className="pb-3 bg-muted/20 border-b">
             <CardTitle className="text-xs font-bold uppercase tracking-[0.2em] flex items-center gap-2 text-muted-foreground">
               <Activity className="w-4 h-4" />
@@ -179,25 +179,25 @@ export default function DashboardPage() {
               <AreaChart data={activityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorConversations" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(215 60% 50%)" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(215 60% 50%)" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="hsl(28 40% 30%)" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="hsl(28 40% 30%)" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(152 56% 38%)" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(152 56% 38%)" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="hsl(142 45% 40%)" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="hsl(142 45% 40%)" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(220 10% 44%)' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(220 10% 44%)' }} />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(30 10% 44%)' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(30 10% 44%)' }} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Area type="monotone" dataKey="conversations" stroke="hsl(215 60% 50%)" fill="url(#colorConversations)" strokeWidth={2} dot={false} />
-                <Area type="monotone" dataKey="resolved" stroke="hsl(152 56% 38%)" fill="url(#colorResolved)" strokeWidth={2} dot={false} />
+                <Area type="monotone" dataKey="conversations" stroke="hsl(28 40% 30%)" fill="url(#colorConversations)" strokeWidth={2} dot={false} />
+                <Area type="monotone" dataKey="resolved" stroke="hsl(142 45% 40%)" fill="url(#colorResolved)" strokeWidth={2} dot={false} />
               </AreaChart>
             </ChartContainer>
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-xl shadow-primary/5 overflow-hidden">
+        <Card className="border border-border shadow-sm bg-white dark:bg-card overflow-hidden">
           <CardHeader className="pb-3 bg-muted/20 border-b">
             <CardTitle className="text-xs font-bold uppercase tracking-[0.2em] flex items-center gap-2 text-muted-foreground">
               <BarChart3 className="w-4 h-4" />
@@ -258,11 +258,11 @@ export default function DashboardPage() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Ranking de atendentes */}
-        <Card className="animate-fade-in lg:col-span-2 border-none shadow-xl shadow-primary/5 overflow-hidden">
+        <Card className="animate-fade-in lg:col-span-2 border border-border shadow-sm bg-white dark:bg-card overflow-hidden">
           <CardHeader className="pb-3 bg-muted/20 border-b">
             <CardTitle className="text-xs font-bold uppercase tracking-[0.2em] flex items-center justify-between text-muted-foreground">
               <div className="flex items-center gap-2">
-                <Trophy className="w-4 h-4 text-warning" />
+                <Trophy className="w-4 h-4 text-primary" />
                 Performance da Equipe
               </div>
               <ArrowUpRight className="w-4 h-4 opacity-50" />
@@ -282,22 +282,23 @@ export default function DashboardPage() {
                 </thead>
                 <tbody>
                   {perUser.map((u, i) => (
-                    <tr key={u.id} className="border-b last:border-0 hover:bg-muted/30 transition-all group">
-                      <td className="py-4 px-4">
-                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg text-[10px] font-black italic border ${
-                          i === 0 ? "bg-warning/10 text-warning border-warning/30" : i === 1 ? "bg-muted text-muted-foreground border-border" : i === 2 ? "bg-accent/10 text-accent-foreground border-accent/30" : "text-muted-foreground border-transparent"
-                        }`}>
+                    <tr key={u.id} className="border-b last:border-0 hover:bg-[#284030]/5 dark:hover:bg-primary/5 transition-all">
+                      <td className="py-3 px-4">
+                        <span className={cn(
+                          "inline-flex items-center justify-center w-6 h-6 rounded-md text-[10px] font-bold border",
+                          i === 0 ? "bg-primary/10 text-primary border-primary/20" : "bg-muted text-muted-foreground border-border"
+                        )}>
                           {i + 1}
                         </span>
                       </td>
-                      <td className="py-4 px-4 font-medium">{u.name}</td>
-                      <td className="text-center py-4 px-4"><span className="font-bold">{u.active}</span></td>
-                      <td className="text-center py-4 px-4">
-                        <span className="inline-flex items-center justify-center bg-success/10 text-success px-2 py-1 rounded-md font-bold text-[10px] border border-success/20">
+                      <td className="py-3 px-4 font-medium">{u.name}</td>
+                      <td className="text-center py-3 px-4"><span className="font-bold">{u.active}</span></td>
+                      <td className="text-center py-3 px-4">
+                        <span className="inline-flex items-center justify-center bg-[#284030]/10 text-primary px-2 py-1 rounded-md font-bold text-[10px] border border-primary/20">
                           {u.resolvedCount}
                         </span>
                       </td>
-                      <td className="text-center py-4 px-4">
+                      <td className="text-center py-3 px-4">
                         <div className="flex flex-col items-center">
                           <span className="font-mono text-[10px]">{u.avgTime > 0 ? `${u.avgTime}min` : "—"}</span>
                           <div className="w-full max-w-[60px] h-1 bg-muted rounded-full mt-1 overflow-hidden">
@@ -315,7 +316,7 @@ export default function DashboardPage() {
 
         {/* Anniversaries Column */}
         <div className="space-y-6">
-          <Card className="border-none shadow-xl shadow-primary/5 bg-gradient-to-br from-card to-muted/20 animate-in slide-in-from-bottom-4 duration-500">
+          <Card className="border border-border shadow-sm bg-white dark:bg-card animate-in slide-in-from-bottom-4 duration-500">
             <CardHeader className="pb-3 border-b border-border/50">
               <CardTitle className="text-xs font-bold uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
                 <Cake className="w-4 h-4" />

@@ -52,9 +52,11 @@ export function analyzeContact(customer: Customer, allCustomers: Customer[] = []
   let isDuplicate = false;
 
   // 0. Duplicate Check
-  if (cleaned && allCustomers.length > 0) {
+  // Só consideramos duplicado se o número for minimamente válido (DDD + Número)
+  if (cleaned && cleaned.length >= 10 && allCustomers.length > 0) {
     isDuplicate = allCustomers.some(c => 
       c.id !== customer.id && 
+      c.status !== "Encerrado" && // Ignorar contatos já mesclados/encerrados
       (c.whatsapp?.replace(/\D/g, "") === cleaned || c.phone?.replace(/\D/g, "") === cleaned)
     );
     if (isDuplicate) {
@@ -78,13 +80,61 @@ export function analyzeContact(customer: Customer, allCustomers: Customer[] = []
     severity = "CRITICAL";
   }
 
+  // 1.5 Operator Selection Prefix (CSP) or Leading Zero Check
+  let hasCspIssue = false;
+  let cspSuggestion = "";
+  if (cleaned.startsWith("0") && !cleaned.startsWith("0800") && !cleaned.startsWith("0300")) {
+    let corrected = "";
+    if (cleaned.length === 13 || cleaned.length === 14) {
+      const possibleDdd = cleaned.substring(3, 5);
+      if (VALID_DDDS.includes(possibleDdd)) {
+        corrected = cleaned.substring(3);
+      }
+    } else if (cleaned.length === 11 || cleaned.length === 12) {
+      const possibleDdd = cleaned.substring(1, 3);
+      if (VALID_DDDS.includes(possibleDdd)) {
+        corrected = cleaned.substring(1);
+      }
+    }
+
+    if (corrected) {
+      // Correção do 9º dígito se necessário
+      if (corrected.length === 10) {
+        const dddPart = corrected.substring(0, 2);
+        const numPart = corrected.substring(2);
+        if (["6", "7", "8", "9"].includes(numPart[0])) {
+          corrected = dddPart + "9" + numPart;
+        }
+      }
+      // Normalização com prefixo 55
+      cspSuggestion = normalizePhone(corrected);
+      hasCspIssue = true;
+      issues.push({
+        type: "csp_prefix",
+        message: "Número com zero inicial ou código de operadora",
+        severity: "CRITICAL",
+        suggestion: cspSuggestion
+      });
+      score -= 30;
+      severity = "CRITICAL";
+    }
+  }
+
   // 2. DDD and Location Extraction
   let ddd = "";
   if (cleaned.length >= 10) {
     if (cleaned.startsWith("55") && cleaned.length >= 12) {
       ddd = cleaned.substring(2, 4);
+    } else if (cleaned.startsWith("0") && (cleaned.length === 13 || cleaned.length === 14) && !cleaned.startsWith("0800") && !cleaned.startsWith("0300")) {
+      ddd = cleaned.substring(3, 5);
+    } else if (cleaned.startsWith("0") && (cleaned.length === 11 || cleaned.length === 12) && !cleaned.startsWith("0800") && !cleaned.startsWith("0300")) {
+      ddd = cleaned.substring(1, 3);
     } else if (!cleaned.startsWith("55")) {
-      ddd = cleaned.substring(0, 2);
+      if (cleaned.startsWith("0") && cleaned.length > 2) {
+        ddd = cleaned.substring(1, 3);
+      } else {
+        ddd = cleaned.substring(0, 2);
+      }
     }
 
     if (ddd) {
@@ -100,46 +150,48 @@ export function analyzeContact(customer: Customer, allCustomers: Customer[] = []
 
   // 3. Length & Format Business Rules
   // (DDD + 8 digits) OR (55 + DDD + 8 digits)
-  if (cleaned.length === 10 || (cleaned.startsWith("55") && cleaned.length === 12)) {
-    const isDDI = cleaned.startsWith("55");
-    const numPart = isDDI ? cleaned.substring(4) : cleaned.substring(2);
-    const firstDigit = numPart[0];
+  // Apenas rodamos as regras de comprimento padrão se não houver um problema de CSP pendente
+  if (!hasCspIssue) {
+    if (cleaned.length === 10 || (cleaned.startsWith("55") && cleaned.length === 12)) {
+      const isDDI = cleaned.startsWith("55");
+      const numPart = isDDI ? cleaned.substring(4) : cleaned.substring(2);
+      const firstDigit = numPart[0];
 
-    if (["2", "3", "4", "5"].includes(firstDigit)) {
-      isLandline = true;
-      issues.push({ 
-        type: "landline", 
-        message: "Telefone corporativo/fixo identificado.", 
-        severity: "OK"
-      });
-      // Não reduzimos o score por ser fixo
-    } else if (["6", "7", "8", "9"].includes(firstDigit)) {
-      let suggested = isDDI ? "55" + cleaned.substring(2, 4) + "9" + cleaned.substring(4) : cleaned.substring(0, 2) + "9" + cleaned.substring(2);
-      issues.push({ 
-        type: "missing_ninth", 
-        message: "Possível celular antigo sem 9º dígito.", 
-        severity: "CRITICAL",
-        suggestion: suggested
-      });
-      score -= 20;
-      severity = "CRITICAL";
+      if (["2", "3", "4", "5"].includes(firstDigit)) {
+        isLandline = true;
+        issues.push({ 
+          type: "landline", 
+          message: "Telefone corporativo/fixo identificado.", 
+          severity: "OK"
+        });
+      } else if (["6", "7", "8", "9"].includes(firstDigit)) {
+        let suggested = isDDI ? "55" + cleaned.substring(2, 4) + "9" + cleaned.substring(4) : cleaned.substring(0, 2) + "9" + cleaned.substring(2);
+        issues.push({ 
+          type: "missing_ninth", 
+          message: "Possível celular antigo sem 9º dígito.", 
+          severity: "CRITICAL",
+          suggestion: normalizePhone(suggested)
+        });
+        score -= 20;
+        severity = "CRITICAL";
+      }
     }
-  }
 
-  // (DDD + 9 digits) OR (55 + DDD + 9 digits)
-  if (cleaned.length === 11 || (cleaned.startsWith("55") && cleaned.length === 13)) {
-    const isDDI = cleaned.startsWith("55");
-    const numPart = isDDI ? cleaned.substring(4) : cleaned.substring(2);
-    const firstDigit = numPart[0];
+    // (DDD + 9 digits) OR (55 + DDD + 9 digits)
+    if (cleaned.length === 11 || (cleaned.startsWith("55") && cleaned.length === 13)) {
+      const isDDI = cleaned.startsWith("55");
+      const numPart = isDDI ? cleaned.substring(4) : cleaned.substring(2);
+      const firstDigit = numPart[0];
 
-    if (firstDigit !== "9") {
-      issues.push({ 
-        type: "invalid_ninth", 
-        message: "Número de 9 dígitos não inicia com 9. Revisar validade.", 
-        severity: "ATTENTION"
-      });
-      score -= 15;
-      if (severity !== "CRITICAL") severity = "ATTENTION";
+      if (firstDigit !== "9") {
+        issues.push({ 
+          type: "invalid_ninth", 
+          message: "Número de 9 dígitos não inicia com 9. Revisar validade.", 
+          severity: "ATTENTION"
+        });
+        score -= 15;
+        if (severity !== "CRITICAL") severity = "ATTENTION";
+      }
     }
   }
 
@@ -149,10 +201,10 @@ export function analyzeContact(customer: Customer, allCustomers: Customer[] = []
     let highlight: [number, number] | undefined = undefined;
 
     if (cleaned.startsWith("55")) {
-      const ddd = cleaned.substring(2, 4);
+      const dddPart = cleaned.substring(2, 4);
       const afterDdd = cleaned.substring(4, 6);
-      if (ddd === afterDdd || (ddd === "41" && afterDdd === "42")) {
-        suggested = "55" + ddd + cleaned.substring(6);
+      if (dddPart === afterDdd || (dddPart === "41" && afterDdd === "42")) {
+        suggested = "55" + dddPart + cleaned.substring(6);
         highlight = [4, 6];
       }
     }
@@ -161,7 +213,8 @@ export function analyzeContact(customer: Customer, allCustomers: Customer[] = []
       type: "long", 
       message: "Número com dígitos excedentes", 
       severity: "ATTENTION",
-      suggestion: suggested,
+      // Se tiver erro de operadora (CSP), a sugestão de operadora é prioritária, então não sugerimos o original
+      suggestion: hasCspIssue ? undefined : (suggested !== cleaned ? normalizePhone(suggested) : undefined),
       highlightRange: highlight
     });
     score -= 20;

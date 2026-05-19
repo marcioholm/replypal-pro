@@ -6,93 +6,93 @@
 
 @layer base {
   :root {
-    --background: 220 20% 98%;
-    --foreground: 220 40% 10%;
+    --background: 30 15% 98%;      /* Warm off-white background */
+    --foreground: 30 10% 12%;      /* Warm dark grey text */
 
     --card: 0 0% 100%;
-    --card-foreground: 220 40% 10%;
+    --card-foreground: 30 10% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 40% 10%;
+    --popover-foreground: 30 10% 12%;
 
-    --primary: 168 85% 45%; /* Vibrant Mint Green - Operai Identity */
-    --primary-foreground: 0 0% 100%;
+    --primary: 28 40% 30%;         /* Bronze/Marrom Sasaki */
+    --primary-foreground: 30 15% 98%;
 
-    --secondary: 168 20% 94%;
-    --secondary-foreground: 168 40% 20%;
+    --secondary: 30 15% 94%;       /* Warm light neutral/beige */
+    --secondary-foreground: 28 40% 20%;
 
-    --muted: 168 20% 96%;
-    --muted-foreground: 168 15% 45%;
+    --muted: 30 10% 92%;
+    --muted-foreground: 28 10% 45%;
 
-    --accent: 168 100% 95%;
-    --accent-foreground: 168 100% 25%;
+    --accent: 30 15% 90%;
+    --accent-foreground: 28 40% 20%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 75% 45%;      /* Serious red */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 168 20% 90%;
-    --input: 168 20% 90%;
-    --ring: 168 85% 45%;
+    --border: 30 12% 88%;          /* Soft beige border */
+    --input: 30 12% 88%;
+    --ring: 28 40% 30%;
 
-    --radius: 1rem;
+    --radius: 0.5rem;              /* Sober border-radius */
 
-    --sidebar-background: 168 30% 99%;
-    --sidebar-foreground: 168 40% 20%;
-    --sidebar-primary: 168 85% 40%;
+    --sidebar-background: 28 15% 8%; /* Warm black/dark brown */
+    --sidebar-foreground: 30 10% 90%;
+    --sidebar-primary: 28 40% 35%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 168 100% 94%;
-    --sidebar-accent-foreground: 168 100% 20%;
-    --sidebar-border: 168 20% 92%;
-    --sidebar-ring: 168 85% 40%;
+    --sidebar-accent: 28 20% 15%;
+    --sidebar-accent-foreground: 30 10% 98%;
+    --sidebar-border: 28 15% 12%;
+    --sidebar-ring: 28 40% 35%;
 
-    --success: 152 65% 35%;
+    --success: 142 45% 40%;
     --success-foreground: 0 0% 100%;
-    --warning: 43 85% 45%;
+    --warning: 38 65% 45%;
     --warning-foreground: 0 0% 100%;
-    --info: 199 85% 45%;
+    --info: 215 50% 45%;
     --info-foreground: 0 0% 100%;
 
-    --kanban-new: 168 76% 46%;
-    --kanban-waiting: 43 85% 45%;
-    --kanban-active: 168 76% 35%;
-    --kanban-client: 280 65% 55%;
-    --kanban-resolved: 152 65% 35%;
+    --kanban-new: 28 40% 35%;
+    --kanban-waiting: 38 65% 45%;
+    --kanban-active: 28 40% 25%;
+    --kanban-client: 215 50% 45%;
+    --kanban-resolved: 142 45% 40%;
   }
 
   .dark {
-    --background: 185 100% 2%;
-    --foreground: 185 20% 95%;
+    --background: 28 15% 5%;
+    --foreground: 30 10% 95%;
 
-    --card: 185 100% 4%;
-    --card-foreground: 185 20% 95%;
+    --card: 28 12% 8%;
+    --card-foreground: 30 10% 95%;
 
-    --popover: 185 100% 4%;
-    --popover-foreground: 185 20% 95%;
+    --popover: 28 12% 8%;
+    --popover-foreground: 30 10% 95%;
 
-    --primary: 185 100% 45%;
-    --primary-foreground: 185 100% 5%;
+    --primary: 28 40% 45%;
+    --primary-foreground: 30 15% 5%;
 
-    --secondary: 185 40% 12%;
-    --secondary-foreground: 185 20% 90%;
+    --secondary: 28 15% 12%;
+    --secondary-foreground: 30 10% 90%;
 
-    --muted: 185 40% 10%;
-    --muted-foreground: 185 15% 65%;
+    --muted: 28 10% 12%;
+    --muted-foreground: 28 10% 65%;
 
-    --accent: 185 100% 15%;
-    --accent-foreground: 185 100% 85%;
+    --accent: 28 20% 18%;
+    --accent-foreground: 30 10% 90%;
 
-    --destructive: 0 84% 45%;
+    --destructive: 0 75% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 185 40% 12%;
-    --input: 185 40% 12%;
-    --ring: 185 100% 45%;
+    --border: 28 12% 16%;
+    --input: 28 12% 16%;
+    --ring: 28 40% 45%;
 
-    --sidebar-background: 185 100% 2%;
-    --sidebar-foreground: 185 20% 80%;
-    --sidebar-primary: 185 100% 45%;
-    --sidebar-accent: 185 40% 10%;
-    --sidebar-accent-foreground: 185 100% 90%;
+    --sidebar-background: 28 15% 4%;
+    --sidebar-foreground: 30 10% 85%;
+    --sidebar-primary: 28 40% 45%;
+    --sidebar-accent: 28 15% 10%;
+    --sidebar-accent-foreground: 30 10% 95%;
   }
 }
 
@@ -104,11 +104,7 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
-    background: 
-      radial-gradient(circle at top right, hsl(var(--primary)/0.05) 0%, transparent 40%),
-      radial-gradient(circle at bottom left, hsl(var(--primary)/0.03) 0%, transparent 40%),
-      hsl(var(--background));
-    background-attachment: fixed;
+    background: hsl(var(--background));
     min-height: 100vh;
   }
 

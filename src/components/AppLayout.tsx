@@ -16,10 +16,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   const sidebarWidth = sidebarCollapsed ? 80 : 280;
-  const sidebarOffset = 20 + sidebarWidth;
+  const sidebarOffset = sidebarWidth;
   
   return (
-    <div className="min-h-screen w-full">
+    <div className="min-h-screen w-full bg-background">
       <NotificationManager />
       <div className="relative">
         <AppSidebar 
@@ -32,7 +32,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         >
           <div className="flex flex-row min-h-screen">
             <div className="flex-1 flex flex-col min-w-0">
-              <header className="h-14 flex items-center justify-between border-b border-border/40 bg-white/40 dark:bg-[#021B1A]/40 backdrop-blur-md px-6 shadow-[0_1px_4px_rgba(0,0,0,0.02)]">
+              <header className="h-14 flex items-center justify-between border-b border-border bg-white dark:bg-[#12100e] px-6 shadow-sm">
                 <div className="flex items-center gap-3">
                   <GlobalSearch />
                 </div>

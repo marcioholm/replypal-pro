@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { useNotification } from "@/hooks/useNotifications";
 import { toast } from "sonner";
 
-type Filter = "todas" | "minhas" | "pendentes" | "fila";
+type Filter = "todas" | "minhas" | "pendentes" | "fila" | "grupos";
 
 export default function InboxPage() {
   const store = useStore();
@@ -277,9 +277,11 @@ export default function InboxPage() {
 
   const filtered = useMemo(() => {
     let convs = allConversations.filter(c => {
-      if (filter === "minhas") return c.assignedTo === user?.id;
-      if (filter === "pendentes") return !c.assignedTo || c.status === "novo";
-      if (filter === "fila") return !c.assignedTo && c.status !== "resolvido";
+      if (filter === "minhas") return c.assignedTo === user?.id && !c.isGroup;
+      if (filter === "pendentes") return (!c.assignedTo || c.status === "novo") && !c.isGroup;
+      if (filter === "fila") return !c.assignedTo && c.status !== "resolvido" && !c.isGroup;
+      if (filter === "todas") return !c.isGroup;
+      if (filter === "grupos") return c.isGroup;
       return true;
     }).filter(c => {
       if (!search) return true;
@@ -303,10 +305,11 @@ export default function InboxPage() {
   // Contagens para as abas
   const counts = useMemo(() => {
     return {
-      minhas: allConversations.filter(c => c.assignedTo === user?.id && c.status !== 'resolvido').length,
-      todas: allConversations.filter(c => c.status !== 'resolvido').length,
-      pendentes: allConversations.filter(c => (!c.assignedTo || c.status === 'novo' || c.status === 'aguardando') && c.status !== 'resolvido').length,
-      fila: allConversations.filter(c => !c.assignedTo && c.status !== 'resolvido').length
+      minhas: allConversations.filter(c => c.assignedTo === user?.id && c.status !== 'resolvido' && !c.isGroup).length,
+      todas: allConversations.filter(c => c.status !== 'resolvido' && !c.isGroup).length,
+      pendentes: allConversations.filter(c => (!c.assignedTo || c.status === 'novo' || c.status === 'aguardando') && c.status !== 'resolvido' && !c.isGroup).length,
+      fila: allConversations.filter(c => !c.assignedTo && c.status !== 'resolvido' && !c.isGroup).length,
+      grupos: allConversations.filter(c => c.isGroup && c.status !== 'resolvido').length
     };
   }, [allConversations, user?.id]);
 
@@ -450,6 +453,21 @@ export default function InboxPage() {
                   )}
                 </button>
               )}
+              <button
+                onClick={() => setFilter("grupos")}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
+                  filter === "grupos" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Users className="w-3.5 h-3.5" />
+                Grupos
+                {counts.grupos > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-purple-500/10 text-purple-500 text-[10px] rounded-full">
+                    {counts.grupos}
+                  </span>
+                )}
+              </button>
           </div>
         </div>
 

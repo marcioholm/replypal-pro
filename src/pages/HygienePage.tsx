@@ -150,7 +150,7 @@ export default function HygienePage() {
       return;
     }
 
-    if (!confirm(`Deseja unificar ${selectedDuplicates.length} registros duplicados? O sistema manterá o registro mais antigo como principal.`)) return;
+    if (!confirm(`Deseja unificar os ${selectedDuplicates.length} registros duplicados selecionados? O sistema manterá o registro mais antigo como principal para cada grupo.`)) return;
 
     setLoading(true);
     setIsMerging(true);
@@ -203,11 +203,71 @@ export default function HygienePage() {
     }
   };
 
+  const handleMergeAllDuplicates = async () => {
+    const allDuplicates = auditData.filter(d => d.audit.isDuplicate);
+    if (allDuplicates.length === 0) {
+      toast.info("Nenhum duplicado encontrado na base atual.");
+      return;
+    }
+
+    if (!confirm(`ATENÇÃO: Deseja unificar TODOS os ${metrics.duplicates} registros duplicados encontrados na base? Esta ação manterá apenas o registro mais antigo de cada número e arquivará os demais.`)) return;
+
+    setLoading(true);
+    setIsMerging(true);
+    setMergeProgress({ current: 0, total: allDuplicates.length });
+    
+    let count = 0;
+    try {
+      const groups = new Map<string, any[]>();
+      allDuplicates.forEach(d => {
+        const phone = d.audit.normalizedPhone;
+        if (!groups.has(phone)) groups.set(phone, []);
+        groups.get(phone)?.push(d);
+      });
+
+      let currentProcessed = 0;
+      for (const [phone, items] of groups.entries()) {
+        const allWithThisPhone = auditData.filter(c => c.audit.normalizedPhone === phone)
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        
+        const master = allWithThisPhone[0];
+        // No "Merge All", queremos processar todos os duplicados que não são o master
+        const toMerge = allWithThisPhone.slice(1);
+
+        for (const item of toMerge) {
+          const { error } = await supabase
+            .from("clientes")
+            .update({ 
+              status: "Encerrado",
+              observations: (item.observations || "") + `\n[SISTEMA] Mesclado via Limpeza Global. Master: ${master.id}`
+            })
+            .eq("id", item.id);
+          
+          if (!error) {
+            store.updateCustomer(item.id, { status: "Encerrado" });
+            count++;
+          }
+        }
+        currentProcessed += items.length;
+        setMergeProgress({ current: Math.min(currentProcessed, allDuplicates.length), total: allDuplicates.length });
+      }
+      toast.success(`${count} duplicados unificados globalmente!`);
+    } catch (err) {
+      toast.error("Erro na limpeza global.");
+    } finally {
+      setLoading(false);
+      setIsMerging(false);
+      setMergeProgress({ current: 0, total: 0 });
+    }
+  };
+
   const auditData = useMemo(() => {
-    return store.customers.map(c => ({
-      ...c,
-      audit: analyzeContact(c, store.customers)
-    }));
+    return store.customers
+      .filter(c => c.status !== "Encerrado") // Esconder contatos já resolvidos/arquivados da auditoria
+      .map(c => ({
+        ...c,
+        audit: analyzeContact(c, store.customers)
+      }));
   }, [store.customers]);
 
   const metrics = useMemo(() => {
@@ -424,11 +484,12 @@ export default function HygienePage() {
               </div>
               <Button 
                 variant="outline"
-                onClick={() => navigate("/contacts/technical")}
-                className="rounded-2xl h-14 px-6 gap-2 font-bold border-2 border-primary/20 hover:bg-primary/5 transition-all hover:scale-105 active:scale-95"
+                onClick={handleMergeAllDuplicates}
+                disabled={loading || metrics.duplicates === 0}
+                className="rounded-2xl h-14 px-6 gap-2 font-bold border-2 border-purple-500/20 text-purple-600 hover:bg-purple-50 transition-all hover:scale-105 active:scale-95"
               >
-                <Layers className="w-5 h-5 text-primary" />
-                Central Técnica
+                <Zap className="w-5 h-5" />
+                Limpeza Automática
               </Button>
               <Button 
                 onClick={handleGlobalWhatsappAudit} 

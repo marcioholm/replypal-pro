@@ -13,7 +13,7 @@ import ReciboGenerator from "@/components/settings/ReciboGenerator";
 import { getNotificationConfig, setNotificationConfig } from "@/hooks/useNotifications";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { fetchQRCode, logoutInstance, updateEvolutionConfig } from "@/lib/evolution";
+import { fetchQRCode, logoutInstance, updateEvolutionConfig, syncEvolutionGroups } from "@/lib/evolution";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AlertsPage from "./AlertsPage";
@@ -159,6 +159,12 @@ export default function SettingsPage() {
     } catch {}
   };
 
+  useEffect(() => {
+    if (evolutionUrl && evolutionKey && instanceName && waStatus === "idle") {
+      checkConnection();
+    }
+  }, [evolutionUrl, evolutionKey, instanceName]);
+
   const startPolling = () => {
     if (pollingRef.current) clearInterval(pollingRef.current);
     pollingRef.current = setInterval(async () => {
@@ -263,6 +269,10 @@ const handleConnect = async () => {
   };
 
   const handleDisconnect = async () => {
+    if (user?.role !== 'admin') {
+       toast.error("Apenas administradores podem desconectar o WhatsApp.");
+       return;
+    }
     setWaStatus("idle");
     setQrCodeImage(null);
     setWaConnection(null);
@@ -273,15 +283,19 @@ const handleConnect = async () => {
 
   const handleSaveCompany = () => {
     localStorage.setItem("replypal_company", JSON.stringify(company));
+    window.dispatchEvent(new Event("replypal_company_updated"));
     toast.success("Dados da empresa salvos com sucesso!");
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setCompany((prev) => ({ ...prev, logoUrl: url }));
-      toast.success("Logo carregada com sucesso!");
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCompany((prev) => ({ ...prev, logoUrl: reader.result as string }));
+        toast.success("Logo carregada com sucesso!");
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -405,6 +419,10 @@ const handleConnect = async () => {
   };
 
   const handleFullLogout = async () => {
+    if (user?.role !== 'admin') {
+       toast.error("Apenas administradores podem realizar esta ação.");
+       return;
+    }
     if (!confirm("Tem certeza que deseja desconectar e sair do WhatsApp?")) return;
     toast.info("Desconectando...");
     await logoutInstance();
@@ -1012,19 +1030,36 @@ const handleConnect = async () => {
                     </p>
                   </div>
                   <div className="flex gap-3 pt-2">
-                    <Button variant="outline" size="sm" className="rounded-xl hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all" onClick={handleDisconnect}>
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Desconectar
-                    </Button>
-                    <Button variant="ghost" size="sm" className="rounded-xl text-muted-foreground" onClick={() => {
-                      localStorage.removeItem("evolution_url");
-                      localStorage.removeItem("evolution_key");
-                      localStorage.removeItem("evolution_instance");
-                      localStorage.removeItem("wa_connection_cache");
-                      window.location.reload();
+                    {user?.role === 'admin' && (
+                      <>
+                        <Button variant="outline" size="sm" className="rounded-xl hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all" onClick={handleDisconnect}>
+                          <XCircle className="w-4 h-4 mr-2" />
+                          Desconectar
+                        </Button>
+                        <Button variant="ghost" size="sm" className="rounded-xl text-muted-foreground" onClick={() => {
+                          localStorage.removeItem("evolution_url");
+                          localStorage.removeItem("evolution_key");
+                          localStorage.removeItem("evolution_instance");
+                          localStorage.removeItem("wa_connection_cache");
+                          window.location.reload();
+                        }}>
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Resetar Configurações Locais
+                        </Button>
+                      </>
+                    )}
+                    <Button variant="outline" size="sm" className="rounded-xl border-purple-500/30 text-purple-600 hover:bg-purple-50" onClick={async () => {
+                      if (!user?.tenantId) return;
+                      toast.info("Sincronizando grupos...");
+                      const res = await syncEvolutionGroups(user.tenantId);
+                      if (res.success) {
+                        toast.success(`Sucesso! ${res.count} grupos sincronizados.`);
+                      } else {
+                        toast.error(res.error || "Erro ao sincronizar grupos");
+                      }
                     }}>
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Resetar Configurações Locais
+                      <Users className="w-4 h-4 mr-2" />
+                      Sincronizar Grupos
                     </Button>
                   </div>
                 </div>

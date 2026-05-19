@@ -513,13 +513,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!remoteJid) continue;
         
         const isGrp = remoteJid.endsWith('@g.us');
-        if (isGrp) continue; // Pular grupos na tabela de contatos técnicos por enquanto
+        const pic = c.profilePicUrl || c.imgUrl || c.data?.profilePicUrl || c.picture;
+        const pushName = c.pushName || c.name || c.data?.pushName || c.subject;
+
+        if (isGrp) {
+          if (pushName) {
+            const updConv: any = { client_name: pushName };
+            if (pic) updConv.client_avatar = pic;
+            await supabase.from('conversas').update(updConv).eq('client_phone', remoteJid).eq('tenant_id', tId);
+          }
+          continue; // Pular grupos na tabela de contatos técnicos por enquanto
+        }
 
         const rawPhone = remoteJid.split('@')[0];
         const hygiene = analyzeAndHygienize(rawPhone);
-        
-        const pic = c.profilePicUrl || c.imgUrl || c.data?.profilePicUrl;
-        const pushName = c.pushName || c.name || c.data?.pushName;
         
         // Upsert na tabela de contatos técnicos
         const contactData = {
