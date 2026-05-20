@@ -29,6 +29,7 @@ import StickyNote from "lucide-react/dist/esm/icons/sticky-note";
 import Tag from "lucide-react/dist/esm/icons/tag";
 import History from "lucide-react/dist/esm/icons/history";
 import Activity from "lucide-react/dist/esm/icons/activity";
+import MessageSquare from "lucide-react/dist/esm/icons/message-square";
 import UserPlus from "lucide-react/dist/esm/icons/user-plus";
 import X from "lucide-react/dist/esm/icons/x";
 import Users from "lucide-react/dist/esm/icons/users";
