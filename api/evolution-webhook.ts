@@ -211,6 +211,53 @@ function canonicalPhone(phone: string): string {
   return result.telefone_formatado || phone;
 }
 
+function getBrazilianPhoneVariations(phone: string): string[] {
+  let cleaned = phone.replace(/\D/g, "");
+  if (!cleaned) return [];
+
+  // Remove leading 55 if present to work with the local number
+  let isBr = false;
+  let local = cleaned;
+  if (cleaned.startsWith("55") && cleaned.length >= 10) {
+    isBr = true;
+    local = cleaned.substring(2);
+  } else if (cleaned.length >= 10 && cleaned.length <= 11) {
+    // If it looks like a Brazilian number without 55 (e.g. 10 or 11 digits)
+    isBr = true;
+  }
+
+  if (!isBr) {
+    // Non-Brazilian or too short: just return standard variations
+    return Array.from(new Set([cleaned, "55" + cleaned].filter(Boolean)));
+  }
+
+  // It's a Brazilian number. Let's extract DDD and the rest.
+  const ddd = local.substring(0, 2);
+  const rest = local.substring(2);
+
+  const variations = new Set<string>();
+
+  // Add the cleaned number itself
+  variations.add(cleaned);
+  variations.add("55" + local);
+  variations.add(local);
+
+  // Generate 9th digit variations
+  if (rest.length === 9 && rest.startsWith("9")) {
+    // It has the 9th digit. Generate the version without it.
+    const without9 = ddd + rest.substring(1);
+    variations.add(without9);
+    variations.add("55" + without9);
+  } else if (rest.length === 8) {
+    // It does not have the 9th digit. Generate the version with it.
+    const with9 = ddd + "9" + rest;
+    variations.add(with9);
+    variations.add("55" + with9);
+  }
+
+  return Array.from(variations);
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     return res.status(200).json({ 
@@ -280,9 +327,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // 2. Garantir que a conversa existe (Buscar por variações do telefone para evitar duplicidade)
-      const searchConvPhones = [phone];
-      if (phone.startsWith('55')) searchConvPhones.push(phone.substring(2));
-      else searchConvPhones.push('55' + phone);
+      const searchConvPhones = getBrazilianPhoneVariations(phone);
 
       let { data: conv } = await supabase
         .from('conversas')
@@ -478,9 +523,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         last_message_time: new Date().toISOString() 
       };
       
-      // Se a mensagem veio do cliente e a conversa estava encerrada, reabre
+      // Se a mensagem veio do cliente e a conversa estava encerrada/resolvida, reabre
       if (!isFromMe && conv?.status === 'resolvido') {
-        updatePayload.status = 'aguardando';
+        updatePayload.status = 'novo';
+        updatePayload.assigned_to = null;
       }
 
       await supabase.from('conversas').update(updatePayload).eq('id', conv?.id);

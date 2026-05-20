@@ -102,7 +102,8 @@ export default function DashboardPage() {
             startedAt: c.started_at ? new Date(c.started_at) : undefined,
             slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
             tenantId: c.tenant_id,
-            tags: c.tags || []
+            tags: c.tags || [],
+            isGroup: c.is_group
           })));
         }
       } catch (err) {
@@ -128,7 +129,7 @@ export default function DashboardPage() {
     );
   }
 
-  const convs = store.conversations || [];
+  const convs = (store.conversations || []).filter(c => !c.isGroup);
   const customers = store.customers || [];
 
   const open = convs.filter((c) => c.status !== "resolvido");

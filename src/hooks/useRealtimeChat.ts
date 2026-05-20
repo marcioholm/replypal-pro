@@ -96,11 +96,19 @@ export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: Us
           const { new: newRecord } = payload;
           if (!newRecord) return;
           
-          // IMPLEMENTAÇÃO 9: Filtrar só mensagens de conversas que o store conhece
+          // Filtrar mensagens pelo tenant_id para segurança multi-inquilino
+          if (newRecord.tenant_id) {
+            if (newRecord.tenant_id !== tenantId) return;
+          } else {
+            const knownConv = storeRef.current.conversations.find(
+              c => c.id === newRecord.conversation_id
+            );
+            if (!knownConv || knownConv.tenantId !== tenantId) return;
+          }
+          
           const knownConv = storeRef.current.conversations.find(
             c => c.id === newRecord.conversation_id
           );
-          if (!knownConv) return; // Ignora mensagens de outros tenants
           
           // Tocar som se a mensagem não for do próprio atendente
           if (newRecord.sender === "client") {
@@ -110,7 +118,7 @@ export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: Us
 
             if (notify) {
               const body = newRecord.type === "text" ? newRecord.content : `Nova mídia: ${newRecord.type}`;
-              notify(newRecord.sender_name || "Cliente", body, "assigned", newRecord.conversation_id, knownConv.assignedTo);
+              notify(newRecord.sender_name || "Cliente", body, "assigned", newRecord.conversation_id, knownConv?.assignedTo);
             }
           }
 

@@ -28,6 +28,7 @@ import User from "lucide-react/dist/esm/icons/user";
 import StickyNote from "lucide-react/dist/esm/icons/sticky-note";
 import Tag from "lucide-react/dist/esm/icons/tag";
 import History from "lucide-react/dist/esm/icons/history";
+import Activity from "lucide-react/dist/esm/icons/activity";
 import UserPlus from "lucide-react/dist/esm/icons/user-plus";
 import X from "lucide-react/dist/esm/icons/x";
 import Users from "lucide-react/dist/esm/icons/users";
@@ -52,6 +53,7 @@ import { ptBR } from "date-fns/locale";
 import { CustomerForm } from "@/components/CustomerForm";
 import { SimpleContactDialog } from "@/components/clientes/SimpleContactDialog";
 import { Customer } from "@/lib/store";
+import { getBrazilianPhoneVariations } from "@/lib/utils";
 
 // Lazy Components - Keep only non-critical ones if any
 
@@ -170,20 +172,23 @@ export default function ChatPage() {
   const handleStartPrivateChat = async (participantJid: string) => {
     const cleanPhone = participantJid.split("@")[0];
     
-    // Buscar conversa no store
-    const existing = store.conversations.find(c => c.clientPhone.replace(/\D/g, "") === cleanPhone && !c.isGroup);
+    // Buscar conversa no store usando variações de telefone brasileiro
+    const variations = getBrazilianPhoneVariations(cleanPhone);
+    const existing = store.conversations.find(c => variations.includes(c.clientPhone.replace(/\D/g, "")) && !c.isGroup);
     if (existing) {
       navigate(`/chat/${existing.id}`);
       return;
     }
     
-    // Buscar conversa no DB
+    // Buscar conversa no DB usando variações
     const { data: dbConv } = await supabase
       .from("conversas")
       .select("*")
-      .eq("client_phone", cleanPhone)
+      .in("client_phone", variations)
       .eq("tenant_id", user?.tenantId)
       .eq("is_group", false)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
       
     if (dbConv) {
@@ -283,8 +288,7 @@ export default function ChatPage() {
   
   // Media states
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<{ file: File; preview: string }[]>([]);
   const { isRecording, recordingTime, audioBlob, startRecording, stopRecording, cancelRecording, clearAudio } = useAudioRecorder();
   
   const [loading, setLoading] = useState(false);
@@ -634,17 +638,25 @@ export default function ChatPage() {
   }, [messages.length, id, loading]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      // Limpar preview anterior se existir
-      if (filePreview && filePreview.startsWith('blob:')) {
-        URL.revokeObjectURL(filePreview);
-      }
-      
-      const url = URL.createObjectURL(file);
-      setFilePreview(url);
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      const newFiles = files.map(file => ({
+        file,
+        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : ""
+      }));
+      setSelectedFiles(prev => [...prev, ...newFiles]);
     }
+    if (e.target) e.target.value = "";
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(prev => {
+      const target = prev[index];
+      if (target.preview && target.preview.startsWith('blob:')) {
+        URL.revokeObjectURL(target.preview);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const uploadFile = async (file: File | Blob, name?: string) => {
@@ -678,7 +690,7 @@ export default function ChatPage() {
   };
 
   const handleSend = async () => {
-    if ((!messageInput.trim() && !selectedFile && !audioBlob) || !user || !conv) return;
+    if ((!messageInput.trim() && selectedFiles.length === 0 && !audioBlob) || !user || !conv) return;
 
     // IMPLEMENTAÇÃO 10: Parar typing indicator ao enviar
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
@@ -687,47 +699,65 @@ export default function ChatPage() {
     const toastId = toast.loading("Enviando...");
     
     try {
-      let mediaUrl = "";
-      let type: MessageType = 'text';
+      if (selectedFiles.length > 0) {
+        // Enviar os arquivos um por um
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const item = selectedFiles[i];
+          const file = item.file;
+          
+          let fileType: MessageType = 'text';
+          if (file.type.startsWith('image/')) fileType = 'image';
+          else if (file.type.startsWith('video/')) fileType = 'video';
+          else fileType = 'document';
 
-      if (selectedFile) {
-        mediaUrl = await uploadFile(selectedFile, selectedFile.name);
-        if (selectedFile.type.startsWith('image/')) type = 'image';
-        else if (selectedFile.type.startsWith('video/')) type = 'video';
-        else type = 'document';
+          // Upload do arquivo
+          const mediaUrl = await uploadFile(file, file.name);
 
-        const res = await sendMediaMessage(conv.clientPhone, mediaUrl, type as any, selectedFile.name, messageInput);
-        if (!res.success) throw new Error(res.error);
-        
-        const extId = res.data?.key?.id;
-        
-        const msgId = store.sendMessage(id!, messageInput, user, { 
-          type, 
-          mediaUrl, 
-          fileName: selectedFile.name,
-          mimeType: selectedFile.type,
-          fileSize: selectedFile.size,
-          status: 'sent',
-          external_message_id: extId
-        });
+          // Enviar legenda do primeiro arquivo
+          const caption = i === 0 ? messageInput : "";
 
-        await supabase.from("mensagens").insert({
-          conversation_id: id,
-          content: messageInput,
-          sender: "agent",
-          sender_name: user.name,
-          type: type,
-          media_url: mediaUrl,
-          file_name: selectedFile.name,
-          mime_type: selectedFile.type,
-          file_size: selectedFile.size,
-          external_message_id: extId,
-          status: 'sent',
+          const res = await sendMediaMessage(conv.clientPhone, mediaUrl, fileType as any, file.name, caption);
+          if (!res.success) throw new Error(res.error);
+          
+          const extId = res.data?.key?.id;
+          
+          store.sendMessage(id!, caption, user, { 
+            type: fileType, 
+            mediaUrl, 
+            fileName: file.name,
+            mimeType: file.type,
+            fileSize: file.size,
+            status: 'sent',
+            external_message_id: extId
+          });
+
+          await supabase.from("mensagens").insert({
+            conversation_id: id,
+            content: caption,
+            sender: "agent",
+            sender_name: user.name,
+            type: fileType,
+            media_url: mediaUrl,
+            file_name: file.name,
+            mime_type: file.type,
+            file_size: file.size,
+            external_message_id: extId,
+            status: 'sent',
+            tenant_id: user.tenantId
+          });
+        }
+
+        await supabase.from("conversas").update({
+          last_message: messageInput || "[Mídia]",
+          last_message_time: new Date().toISOString(),
           tenant_id: user.tenantId
-        });
+        }).eq("id", id);
+
+        // Limpar arquivos após enviar
+        setSelectedFiles([]);
       } else if (audioBlob) {
-        mediaUrl = await uploadFile(audioBlob, 'audio.ogg');
-        type = 'audio';
+        const mediaUrl = await uploadFile(audioBlob, 'audio.ogg');
+        const type = 'audio';
         
         const res = await sendAudioMessage(conv.clientPhone, mediaUrl);
         if (!res.success) throw new Error(res.error);
@@ -756,6 +786,12 @@ export default function ChatPage() {
           status: 'sent',
           tenant_id: user.tenantId
         });
+
+        await supabase.from("conversas").update({
+          last_message: "[Áudio]",
+          last_message_time: new Date().toISOString(),
+          tenant_id: user.tenantId
+        }).eq("id", id);
       } else {
         const res = await sendWhatsAppMessage(conv.clientPhone, messageInput, user.name, replyingTo?.external_message_id);
         if (!res.success) throw new Error(res.error);
@@ -788,18 +824,16 @@ export default function ChatPage() {
           tenant_id: user.tenantId,
           quoted_message: msgData.quotedMessage
         });
-      }
 
-      await supabase.from("conversas").update({
-        last_message: messageInput || (selectedFile ? "[Mídia]" : "[Áudio]"),
-        last_message_time: new Date().toISOString(),
-        tenant_id: user.tenantId
-      }).eq("id", id);
+        await supabase.from("conversas").update({
+          last_message: messageInput,
+          last_message_time: new Date().toISOString(),
+          tenant_id: user.tenantId
+        }).eq("id", id);
+      }
 
       setMessageInput("");
       setReplyingTo(null);
-      setSelectedFile(null);
-      setFilePreview(null);
       clearAudio();
       toast.success("Enviado", { id: toastId });
     } catch (err) {
@@ -877,7 +911,7 @@ export default function ChatPage() {
 
   const handleSchedule = async (scheduledAt: Date, customMessage?: string) => {
     const finalMessage = customMessage || messageInput;
-    if (!finalMessage.trim() && !selectedFile) {
+    if (!finalMessage.trim() && selectedFiles.length === 0) {
       toast.error("Adicione uma mensagem para agendar");
       return;
     }
@@ -886,10 +920,11 @@ export default function ChatPage() {
       let mediaUrl = "";
       let type: MessageType = 'text';
       
-      if (selectedFile) {
-        mediaUrl = await uploadFile(selectedFile, selectedFile.name);
-        if (selectedFile.type.startsWith('image/')) type = 'image';
-        else if (selectedFile.type.startsWith('video/')) type = 'video';
+      if (selectedFiles.length > 0) {
+        const primaryFile = selectedFiles[0].file;
+        mediaUrl = await uploadFile(primaryFile, primaryFile.name);
+        if (primaryFile.type.startsWith('image/')) type = 'image';
+        else if (primaryFile.type.startsWith('video/')) type = 'video';
         else type = 'document';
       }
 
@@ -903,8 +938,8 @@ export default function ChatPage() {
           message_type: type,
           text_content: finalMessage,
           media_url: mediaUrl,
-          mime_type: selectedFile?.type,
-          file_name: selectedFile?.name,
+          mime_type: selectedFiles[0]?.file.type || null,
+          file_name: selectedFiles[0]?.file.name || null,
           scheduled_at: scheduledAt.toISOString(),
           status: 'agendada',
           created_by: user?.id
@@ -916,8 +951,7 @@ export default function ChatPage() {
       
       toast.success(`Agendado para ${format(scheduledAt, "PPp", { locale: ptBR })}`);
       setMessageInput("");
-      setSelectedFile(null);
-      setFilePreview(null);
+      setSelectedFiles([]);
     } catch (err: any) {
       console.error("Erro ao agendar:", err);
       toast.error(`Erro ao agendar: ${err.message || "Verifique os dados"}`);
@@ -975,11 +1009,14 @@ export default function ChatPage() {
       const cleanPhone = targetPhone.replace(/\D/g, "");
       if (cleanPhone.length < 10) throw new Error("Telefone inválido");
 
+      const variations = getBrazilianPhoneVariations(cleanPhone);
       let { data: targetConv, error: fetchError } = await supabase
         .from("conversas")
         .select("*")
-        .eq("client_phone", cleanPhone)
+        .in("client_phone", variations)
         .eq("tenant_id", user.tenantId)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (fetchError) throw fetchError;
@@ -1619,19 +1656,46 @@ export default function ChatPage() {
               )}
 
               {/* Media/Audio Preview */}
-              {(selectedFile || audioBlob) && (
-                <div className="flex items-center gap-3 p-2 bg-primary/5 border rounded-lg animate-in slide-in-from-bottom-2">
-                  {selectedFile?.type.startsWith('image/') ? (
-                    <img src={filePreview || ''} className="w-14 h-14 rounded-xl object-cover border border-primary/20 shadow-sm" />
-                  ) : (
-                    <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
-                      {selectedFile?.type.startsWith('video/') ? (
-                        <PlayCircle className="w-7 h-7 text-primary" />
-                      ) : audioBlob ? (
+              {(selectedFiles.length > 0 || audioBlob) && (
+                <div className="flex flex-col gap-2 p-2 bg-primary/5 border rounded-lg animate-in slide-in-from-bottom-2">
+                  {selectedFiles.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto pb-1 max-h-[100px] scrollbar-thin">
+                      {selectedFiles.map((item, index) => {
+                        const isImage = item.file.type.startsWith('image/');
+                        const isVideo = item.file.type.startsWith('video/');
+                        return (
+                          <div key={index} className="flex items-center gap-2 p-1.5 bg-background border rounded-lg shrink-0 max-w-[180px] group relative">
+                            {isImage ? (
+                              <img src={item.preview} className="w-10 h-10 rounded-md object-cover border" />
+                            ) : (
+                              <div className="w-10 h-10 bg-primary/5 rounded-md flex items-center justify-center border text-primary">
+                                {isVideo ? <PlayCircle className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1 pr-4">
+                              <p className="text-[10px] font-medium truncate leading-tight">{item.file.name}</p>
+                              <p className="text-[8px] text-muted-foreground">{(item.file.size / 1024).toFixed(0)} KB</p>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleRemoveFile(index)} 
+                              className="h-5 w-5 rounded-full absolute -top-1 -right-1 bg-destructive text-destructive-foreground hover:bg-destructive/90 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm p-0 flex items-center justify-center"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {audioBlob && (
+                    <div className="flex items-center gap-3 p-1.5 bg-background border rounded-lg">
+                      <div className="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center border">
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 text-primary hover:bg-primary/20"
+                          className="h-7 w-7 text-primary hover:bg-primary/20"
                           onClick={() => {
                             if (!audioPreviewRef.current) {
                               const url = URL.createObjectURL(audioBlob);
@@ -1649,34 +1713,23 @@ export default function ChatPage() {
                             }
                           }}
                         >
-                          {isPreviewPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                          {isPreviewPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
                         </Button>
-                      ) : (
-                        <FileText className="w-7 h-7 text-primary" />
-                      )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-medium truncate">Áudio Gravado</p>
+                        <p className="text-[8px] text-muted-foreground">{recordingTime}s - {isPreviewPlaying ? 'Reproduzindo...' : 'Clique para ouvir'}</p>
+                      </div>
+                      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => { clearAudio(); setIsPreviewPlaying(false); audioPreviewRef.current = null; }}>
+                        <X className="w-3 h-3" />
+                      </Button>
                     </div>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">{selectedFile?.name || (audioBlob ? 'Áudio Gravado' : 'Mídia')}</p>
-                    {audioBlob && <p className="text-[10px] text-muted-foreground">{recordingTime}s - {isPreviewPlaying ? 'Reproduzindo...' : 'Clique para ouvir'}</p>}
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => { 
-                    setSelectedFile(null); 
-                    setFilePreview(null); 
-                    clearAudio(); 
-                    if (audioPreviewRef.current) {
-                      audioPreviewRef.current.pause();
-                      audioPreviewRef.current = null;
-                      setIsPreviewPlaying(false);
-                    }
-                  }}>
-                    <X className="w-4 h-4" />
-                  </Button>
                 </div>
               )}
 
               <div className="flex gap-2 items-end">
-                <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
+                <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" multiple />
                 <div className="flex gap-1 mb-1">
                   <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="text-muted-foreground hover:text-primary">
                     <Paperclip className="w-5 h-5" />
@@ -1738,7 +1791,7 @@ export default function ChatPage() {
                   )}
                 </div>
 
-                {(!messageInput.trim() && !selectedFile && !isRecording) ? (
+                {(!messageInput.trim() && selectedFiles.length === 0 && !isRecording) ? (
                   <Button size="icon" className="h-10 w-10 rounded-full" onClick={startRecording}><Mic className="w-5 h-5" /></Button>
                 ) : (
                   <Button size="icon" className="h-10 w-10 rounded-full" onClick={handleSend} disabled={isRecording}><Send className="w-5 h-5" /></Button>
