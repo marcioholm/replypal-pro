@@ -80,13 +80,15 @@ export default function ChatPage() {
   const [memberSearch, setMemberSearch] = useState("");
   const [transferTo, setTransferTo] = useState("");
 
-  const participants = groupInfo?.participants || groupInfo?.data?.participants || [];
+  const rawParticipants = groupInfo?.participants || groupInfo?.data?.participants || [];
+  const participants = Array.isArray(rawParticipants) ? rawParticipants : [];
   const subject = groupInfo?.subject || groupInfo?.data?.subject || conv?.clientName || "Grupo";
   const description = groupInfo?.desc || groupInfo?.data?.desc || "";
   const size = groupInfo?.size || groupInfo?.data?.size || participants.length;
 
   const filteredParticipants = participants.filter((p: any) => {
-    const phone = p.id || p.jid || "";
+    if (!p) return false;
+    const phone = String(p.id || p.jid || "");
     return phone.toLowerCase().includes(memberSearch.toLowerCase());
   });
   const [transferReason, setTransferReason] = useState("");
@@ -158,7 +160,8 @@ export default function ChatPage() {
     }
   }, [conv?.id, conv?.isGroup]);
 
-  const formatJidToPhone = (jid: string) => {
+  const formatJidToPhone = (jid: any) => {
+    if (typeof jid !== 'string') return "";
     const raw = jid.split("@")[0];
     if (raw.startsWith("55") && raw.length >= 12) {
       const ddd = raw.slice(2, 4);
@@ -1989,9 +1992,10 @@ export default function ChatPage() {
               ) : filteredParticipants.length > 0 ? (
                 <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
                   {filteredParticipants.map((p: any) => {
+                    if (!p) return null;
                     const jid = p.id || p.jid || "";
                     const isAdmin = p.admin === "admin" || p.admin === "superadmin" || p.admin === true;
-                    const isOwner = p.id === groupInfo?.owner || p.jid === groupInfo?.owner;
+                    const isOwner = p.id === groupInfo?.owner || p.jid === groupInfo?.owner || p.id === groupInfo?.data?.owner || p.jid === groupInfo?.data?.owner;
                     
                     return (
                       <div key={jid} className="flex items-center justify-between p-2 rounded-xl bg-muted/20 border border-border/10 hover:bg-muted/40 transition-colors">
