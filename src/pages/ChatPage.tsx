@@ -53,7 +53,7 @@ import { ptBR } from "date-fns/locale";
 import { CustomerForm } from "@/components/CustomerForm";
 import { SimpleContactDialog } from "@/components/clientes/SimpleContactDialog";
 import { Customer } from "@/lib/store";
-import { getBrazilianPhoneVariations } from "@/lib/utils";
+import { cn, getBrazilianPhoneVariations } from "@/lib/utils";
 
 // Lazy Components - Keep only non-critical ones if any
 
