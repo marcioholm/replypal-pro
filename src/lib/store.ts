@@ -439,7 +439,7 @@ function getStore(): Store {
         }
       },
       assumeConversation(conversationId, user) {
-        s.addDbConversation({ id: conversationId, assignedTo: user.id, status: "respondido" } as any);
+        s.addDbConversation({ id: conversationId, assignedTo: user.id, status: "em_atendimento" } as any);
       },
       transferConversation(conversationId, fromUser, toUserId) {
         s.addDbConversation({ id: conversationId, assignedTo: toUserId } as any);

@@ -113,9 +113,17 @@ export default function PipelinePage() {
     e.dataTransfer.dropEffect = "move";
   };
 
+  const canMoveCard = useCallback((convId: string) => {
+    if (!user) return false;
+    if (user.role === "admin") return true;
+    const conv = store.getConversation(convId);
+    return conv?.assignedTo === user.id;
+  }, [user, store]);
+
   const handleDrop = (e: React.DragEvent, targetStatus: ConversationStatus) => {
     e.preventDefault();
-    if (!draggedId) return;
+    if (!draggedId || !user) return;
+    if (!canMoveCard(draggedId)) return;
     const conv = store.getConversation(draggedId);
     if (conv && conv.status !== targetStatus) {
       store.updateStatus(draggedId, targetStatus, store.currentUser);
@@ -194,13 +202,13 @@ export default function PipelinePage() {
                     return (
                       <div
                         key={conv.id}
-                        draggable
+                        draggable={canMoveCard(conv.id)}
                         onDragStart={(e) => handleDragStart(e, conv.id)}
                         onClick={() => navigate(`/chat/${conv.id}`)}
-                        className={`bg-background rounded-lg border border-border/50 p-4 cursor-pointer hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 group ${draggedId === conv.id ? "opacity-50 scale-95" : ""} ${isAtRisk ? "border-l-4 border-l-destructive" : ""}`}
+                        className={`bg-background rounded-lg border border-border/50 p-4 cursor-pointer hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 group ${draggedId === conv.id ? "opacity-50 scale-95" : ""} ${isAtRisk ? "border-l-4 border-l-destructive" : ""} ${!canMoveCard(conv.id) ? "opacity-60" : ""}`}
                       >
                         <div className="flex items-center gap-3 mb-3">
-                          <GripVertical className="w-4 h-4 text-muted-foreground/40 cursor-grab" />
+                          <GripVertical className={`w-4 h-4 ${canMoveCard(conv.id) ? "text-muted-foreground/40 cursor-grab" : "text-muted-foreground/20 cursor-not-allowed"}`} />
                           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-[10px] font-semibold text-primary">
                             {initials}
                           </div>

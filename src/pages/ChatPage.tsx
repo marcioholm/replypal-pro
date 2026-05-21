@@ -1535,7 +1535,7 @@ export default function ChatPage() {
               <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
               {syncing ? "Sincronizando..." : "Sincronizar"}
             </Button>
-            {!isAssigned && conv.status !== "resolvido" && (
+            {!isAssigned && (
               <Button size="sm" onClick={handleAssume}>Assumir</Button>
             )}
             {!customer && (
