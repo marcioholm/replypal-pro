@@ -14,6 +14,14 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
 
   const renderContent = () => {
     const type = msg.type?.toUpperCase() || 'TEXT';
+    if (type === 'REVOKE') {
+      return (
+        <p className="text-xs italic opacity-60 flex items-center gap-1.5">
+          <Trash2 className="w-3 h-3" />
+          {msg.content || "Mensagem apagada"}
+        </p>
+      );
+    }
     switch (type) {
       case 'AUDIO':
         return <AudioPlayer url={msg.mediaUrl || ''} sender={msg.sender} />;
