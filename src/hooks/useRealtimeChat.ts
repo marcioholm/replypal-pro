@@ -90,27 +90,18 @@ export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: Us
           event: "INSERT",
           schema: "public",
           table: "mensagens",
-          // Sem filtro direto de tenant_id aqui — filtrar no handler
         },
         (payload) => {
           const { new: newRecord } = payload;
           if (!newRecord) return;
-          
-          // Filtrar mensagens pelo tenant_id para segurança multi-inquilino
-          if (newRecord.tenant_id) {
-            if (newRecord.tenant_id !== tenantId) return;
-          } else {
-            const knownConv = storeRef.current.conversations.find(
-              c => c.id === newRecord.conversation_id
-            );
-            if (!knownConv || knownConv.tenantId !== tenantId) return;
-          }
-          
+
+          if (newRecord.tenant_id && newRecord.tenant_id !== tenantId) return;
+
           const knownConv = storeRef.current.conversations.find(
             c => c.id === newRecord.conversation_id
           );
-          
-          // Tocar som se a mensagem não for do próprio atendente
+          if (!knownConv || knownConv.tenantId !== tenantId) return;
+
           if (newRecord.sender === "client") {
             import("./useSound").then(({ playNotificationSound }) => {
               playNotificationSound({ type: "new_message" });
@@ -122,25 +113,44 @@ export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: Us
             }
           }
 
-          storeRef.current.addDbMessages([
-            {
-              id: newRecord.id,
-              conversationId: newRecord.conversation_id,
-              content: newRecord.content,
-              sender: newRecord.sender as "client" | "agent",
-              senderName: newRecord.sender_name || "",
-              timestamp: new Date(newRecord.timestamp),
-              type: newRecord.type,
-              mediaUrl: newRecord.media_url,
-              status: newRecord.status,
-              fileName: newRecord.file_name,
-              mimeType: newRecord.mime_type,
-              fileSize: newRecord.file_size,
-              durationSeconds: newRecord.duration_seconds,
-              external_message_id: newRecord.external_message_id,
-              reaction: newRecord.reaction,
-            },
-          ]);
+          storeRef.current.addDbMessages([{
+            id: newRecord.id,
+            conversationId: newRecord.conversation_id,
+            content: newRecord.content,
+            sender: newRecord.sender as "client" | "agent",
+            senderName: newRecord.sender_name || "",
+            timestamp: new Date(newRecord.timestamp),
+            type: newRecord.type,
+            mediaUrl: newRecord.media_url,
+            status: newRecord.status,
+            fileName: newRecord.file_name,
+            mimeType: newRecord.mime_type,
+            fileSize: newRecord.file_size,
+            durationSeconds: newRecord.duration_seconds,
+            external_message_id: newRecord.external_message_id,
+            reaction: newRecord.reaction,
+          }]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "mensagens",
+        },
+        (payload) => {
+          const { new: newRecord } = payload;
+          if (!newRecord) return;
+          if (newRecord.tenant_id && newRecord.tenant_id !== tenantId) return;
+
+          storeRef.current.updateMessage(newRecord.id, {
+            content: newRecord.content,
+            type: newRecord.type,
+            mediaUrl: newRecord.media_url,
+            fileName: newRecord.file_name,
+            reaction: newRecord.reaction,
+          });
         }
       )
       .subscribe();
