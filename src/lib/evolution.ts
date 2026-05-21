@@ -6,35 +6,16 @@ let DYNAMIC_CONFIG = {
   instance: ""
 };
 
-function isValidInstanceName(name: string): boolean {
-  return /^[a-zA-Z0-9_-]+$/.test(name);
-}
-
 export function updateEvolutionConfig(config: { url?: string; key?: string; instance?: string }) {
   if (config.url) DYNAMIC_CONFIG.url = config.url;
   if (config.key) DYNAMIC_CONFIG.key = config.key;
-  if (config.instance && isValidInstanceName(config.instance)) {
-    DYNAMIC_CONFIG.instance = config.instance;
-  }
-}
-
-function resolveInstance(): string {
-  const candidates = [
-    DYNAMIC_CONFIG.instance,
-    localStorage.getItem("evolution_instance"),
-    import.meta.env.VITE_INSTANCE_NAME,
-    "SASAKI"
-  ];
-  for (const c of candidates) {
-    if (c && isValidInstanceName(c.trim())) return c.trim();
-  }
-  return "SASAKI";
+  if (config.instance) DYNAMIC_CONFIG.instance = config.instance;
 }
 
 const EVO_CONFIG = {
   getUrl: () => DYNAMIC_CONFIG.url || localStorage.getItem("evolution_url") || import.meta.env.VITE_EVOLUTION_URL || "",
   getKey: () => DYNAMIC_CONFIG.key || localStorage.getItem("evolution_key") || import.meta.env.VITE_EVOLUTION_API_KEY || "",
-  getInstance: () => resolveInstance(),
+  getInstance: () => (DYNAMIC_CONFIG.instance || localStorage.getItem("evolution_instance") || import.meta.env.VITE_INSTANCE_NAME || "SASAKI").trim(),
 };
 
 
@@ -264,38 +245,45 @@ export async function deleteMessage(phone: string, messageId: string, messageKey
   
   try {
     const remoteJid = messageKey?.remoteJid || `${phone.replace(/\D/g, "")}@s.whatsapp.net`;
-    
-    // Evolution v2 Professional Payload (Revoke para todos)
+    const encodedInstance = encodeURIComponent(instance);
+
+    // Evolution v2 endpoint: DELETE /chat/deleteMessageForEveryone/{instance}
     const payload = {
-      messageKeys: [{
-        remoteJid: remoteJid,
-        fromMe: messageKey ? messageKey.fromMe : true,
-        id: messageId,
-        participant: messageKey?.participant || null
-      }]
+      id: messageId,
+      remoteJid: remoteJid,
+      fromMe: messageKey ? messageKey.fromMe : true,
+      participant: messageKey?.participant || null
     };
 
-    console.log("[Evolution] Revogando mensagem v2:", payload);
+    console.log("[Evolution] Deletando mensagem v2:", payload);
 
-    // Tentar o endpoint de deleteMessages (mais robusto no v2)
-    const res = await fetch(`${getApiUrl()}/message/deleteMessages/${instance}`, {
-      method: "POST",
+    const res = await fetch(`${getApiUrl()}/chat/deleteMessageForEveryone/${encodedInstance}`, {
+      method: "DELETE",
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify(payload)
     });
     
     if (res.ok) return { success: true };
 
-    // Fallback para delete simples
-    const resFallback = await fetch(`${getApiUrl()}/message/delete/${instance}`, {
+    // Fallback 1: endpoint antigo POST /message/deleteMessages/{instance}
+    const resFallback1 = await fetch(`${getApiUrl()}/message/deleteMessages/${encodedInstance}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": key },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ messageKeys: [payload] })
     });
 
-    if (resFallback.ok) return { success: true };
+    if (resFallback1.ok) return { success: true };
 
-    const errorData = await resFallback.text();
+    // Fallback 2: endpoint antigo POST /message/delete/{instance}
+    const resFallback2 = await fetch(`${getApiUrl()}/message/delete/${encodedInstance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key },
+      body: JSON.stringify({ messageKeys: [payload] })
+    });
+
+    if (resFallback2.ok) return { success: true };
+
+    const errorData = await resFallback2.text();
     return { success: false, error: errorData };
   } catch (err) {
     return { success: false, error: String(err) };
