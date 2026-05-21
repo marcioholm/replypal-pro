@@ -6,16 +6,35 @@ let DYNAMIC_CONFIG = {
   instance: ""
 };
 
+function isValidInstanceName(name: string): boolean {
+  return /^[a-zA-Z0-9_-]+$/.test(name);
+}
+
 export function updateEvolutionConfig(config: { url?: string; key?: string; instance?: string }) {
   if (config.url) DYNAMIC_CONFIG.url = config.url;
   if (config.key) DYNAMIC_CONFIG.key = config.key;
-  if (config.instance) DYNAMIC_CONFIG.instance = config.instance;
+  if (config.instance && isValidInstanceName(config.instance)) {
+    DYNAMIC_CONFIG.instance = config.instance;
+  }
+}
+
+function resolveInstance(): string {
+  const candidates = [
+    DYNAMIC_CONFIG.instance,
+    localStorage.getItem("evolution_instance"),
+    import.meta.env.VITE_INSTANCE_NAME,
+    "SASAKI"
+  ];
+  for (const c of candidates) {
+    if (c && isValidInstanceName(c.trim())) return c.trim();
+  }
+  return "SASAKI";
 }
 
 const EVO_CONFIG = {
   getUrl: () => DYNAMIC_CONFIG.url || localStorage.getItem("evolution_url") || import.meta.env.VITE_EVOLUTION_URL || "",
   getKey: () => DYNAMIC_CONFIG.key || localStorage.getItem("evolution_key") || import.meta.env.VITE_EVOLUTION_API_KEY || "",
-  getInstance: () => (DYNAMIC_CONFIG.instance || localStorage.getItem("evolution_instance") || import.meta.env.VITE_INSTANCE_NAME || "SASAKI").trim(),
+  getInstance: () => resolveInstance(),
 };
 
 
