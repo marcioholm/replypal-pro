@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useStore, formatTime, formatDuration, MOCK_TAGS, UserRole, MessageType, ConversationStatus, ClosingReason } from "@/lib/store";
 import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead, syncConversationHistory, checkWhatsApp, sendReaction, deleteMessage, fetchGroupInfo } from "@/lib/evolution";
+import { useRealtimeChat } from "@/hooks/useRealtimeChat";
 import { webhooks } from "@/lib/webhooks";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -66,7 +67,7 @@ export default function ChatPage() {
   storeRef.current = store;
   const { user } = useAuth();
   
-  const conv = store.getConversation(id || "");
+  useRealtimeChat({ tenantId: user?.tenantId, userId: user?.id, enabled: !!user });  const conv = store.getConversation(id || "");
   const messages = store.getMessages(id || "");
   const notes = store.getNotes(id || "");
   const history = store.getHistory(id || "");
@@ -1135,13 +1136,18 @@ export default function ChatPage() {
     if (!msgToDelete || !conv?.clientPhone) return;
     const { msgId, externalId } = msgToDelete;
     const msg = storeRef.current.getMessages(id || "").find(m => m.id === msgId);
+    const prevContent = msg?.content;
+    const prevType = msg?.type;
     const toastId = toast.loading("Apagando mensagem...");
+
+    // Atualiza store e DB imediatamente
+    storeRef.current.updateMessage(msgId, { content: "Mensagem apagada", type: "revoke", mediaUrl: undefined, fileName: undefined, reaction: undefined });
+    await supabase.from("mensagens").update({ content: "Mensagem apagada", type: "revoke", media_url: null, file_name: null, mime_type: null, file_size: null, reaction: null }).eq("id", msgId);
+
     try {
       const res = await deleteMessage(conv.clientPhone, externalId, msg?.message_key_json);
       if (res.success) {
         toast.success("Mensagem apagada!", { id: toastId });
-        await supabase.from("mensagens").update({ content: "Mensagem apagada", type: "revoke", media_url: null, file_name: null, mime_type: null, file_size: null, reaction: null }).eq("id", msgId);
-        storeRef.current.updateMessage(msgId, { content: "Mensagem apagada", type: "revoke", mediaUrl: undefined, fileName: undefined, reaction: undefined });
       } else {
         toast.error(`Erro ao apagar mensagem no WhatsApp: ${res.error || "Erro desconhecido"}`, { id: toastId });
       }
@@ -1183,11 +1189,22 @@ export default function ChatPage() {
 
   const handleClose = async () => {
     try {
+      const updateData: Record<string, any> = { status: "resolvido", resolved_at: new Date().toISOString() };
       const { error } = await supabase
         .from("conversas")
-        .update({ status: "resolvido", resolved_at: new Date().toISOString() })
+        .update(updateData)
         .eq("id", id);
-      if (error) throw error;
+      if (error?.message?.includes("column") && error?.message?.includes("resolved_at")) {
+        // Coluna resolved_at ainda não existe — tentar sem ela
+        delete updateData.resolved_at;
+        const { error: err2 } = await supabase
+          .from("conversas")
+          .update(updateData)
+          .eq("id", id);
+        if (err2) throw err2;
+      } else if (error) {
+        throw error;
+      }
 
       // Registrar no histórico DB
       await supabase.from("historico").insert({
