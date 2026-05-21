@@ -248,12 +248,14 @@ export async function deleteMessage(phone: string, messageId: string, messageKey
     const encodedInstance = encodeURIComponent(instance);
 
     // Evolution v2 endpoint: DELETE /chat/deleteMessageForEveryone/{instance}
-    const payload = {
+    const payload: Record<string, any> = {
       id: messageId,
       remoteJid: remoteJid,
       fromMe: messageKey ? messageKey.fromMe : true,
-      participant: messageKey?.participant || null
     };
+    if (messageKey?.participant) {
+      payload.participant = messageKey.participant;
+    }
 
     console.log("[Evolution] Deletando mensagem v2:", payload);
 
