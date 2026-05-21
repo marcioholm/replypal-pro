@@ -286,6 +286,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const key = msg.key || data.key;
       const messageContent = msg.message || data.message;
       const pushName = data.pushName || msg.pushName || '';
+      const groupSubject = data.subject || msg.subject || '';
       const remoteJid = key?.remoteJid;
       if (!remoteJid) return res.status(200).json({ success: true });
 
@@ -343,7 +344,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const slaDeadline = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 horas de SLA por padrão
 
         const { data: nConv, error: cErr } = await supabase.from('conversas').upsert({
-          client_name: matchedCustomer?.responsavel || matchedCustomer?.nome_fantasia || (isFromMe ? phone : (pushName || phone)), 
+          client_name: matchedCustomer?.responsavel || matchedCustomer?.nome_fantasia || (isGroup ? (groupSubject || pushName || phone) : (pushName || phone)), 
           client_phone: phone, 
           customer_id: matchedCustomer?.id || null,
           status: isFromMe ? 'em_atendimento' : 'novo', 
@@ -358,6 +359,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } else if (profilePic && conv.client_avatar !== profilePic) {
         // Atualizar avatar se mudou
         await supabase.from('conversas').update({ client_avatar: profilePic }).eq('id', conv.id);
+      } else if (isGroup && groupSubject && conv.client_name !== groupSubject) {
+        // Atualizar nome do grupo se disponível
+        await supabase.from('conversas').update({ client_name: groupSubject }).eq('id', conv.id);
       }
 
       const tenantId = conv?.tenant_id || DEFAULT_TENANT;
