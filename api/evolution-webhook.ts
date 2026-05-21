@@ -415,7 +415,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         type = 'revoke';
         const targetId = messageContent.protocolMessage.key?.id;
         if (targetId) {
-          await supabase.from('mensagens').delete().eq('external_message_id', targetId);
+          await supabase.from('mensagens').update({
+            content: 'Mensagem apagada',
+            type: 'revoke',
+            media_url: null,
+            file_name: null,
+            mime_type: null,
+            file_size: null,
+            reaction: null,
+          }).eq('external_message_id', targetId);
           return res.status(200).json({ success: true, detail: 'Message revoked' });
         }
       }
