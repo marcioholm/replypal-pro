@@ -22,8 +22,9 @@ export interface User {
   role: UserRole;
   tenantId: string;
   avatar?: string;
-  whatsapp?: string;
-  sector?: InternalSector;
+  isGroup?: boolean;
+  isTyping?: boolean;
+  resolvedAt?: string;
 }
 
 export interface Tenant {

@@ -533,8 +533,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       // Se a mensagem veio do cliente e a conversa estava encerrada/resolvida, reabre
       if (!isFromMe && conv?.status === 'resolvido') {
+        const resolvedAt = conv.resolved_at ? new Date(conv.resolved_at).getTime() : null;
+        const hoursSinceResolved = resolvedAt ? (Date.now() - resolvedAt) / 36e5 : Infinity;
         updatePayload.status = 'novo';
-        updatePayload.assigned_to = null;
+        updatePayload.assigned_to = hoursSinceResolved <= 12 ? conv.assigned_to : null;
+        updatePayload.resolved_at = null;
       }
 
       await supabase.from('conversas').update(updatePayload).eq('id', conv?.id);
