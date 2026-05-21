@@ -675,10 +675,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }).eq('external_message_id', messageId);
       }
     } else if (normalizedEvent === 'messages.delete') {
-      // Remover mensagem apagada
       const key = data.key || data;
       if (key && key.id) {
-        await supabase.from('mensagens').delete().eq('external_message_id', key.id);
+        await supabase.from('mensagens').update({
+          content: 'Mensagem apagada',
+          type: 'revoke',
+          media_url: null,
+          file_name: null,
+          mime_type: null,
+          file_size: null,
+          reaction: null,
+        }).eq('external_message_id', key.id);
       }
     }
     return res.status(200).json({ success: true });
