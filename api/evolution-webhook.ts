@@ -532,7 +532,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const updatePayload: any = { 
         last_message: content, 
-        last_message_time: new Date().toISOString() 
+        last_message_time: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
       
       // Se a mensagem veio do cliente e a conversa estava encerrada/resolvida, reabre
@@ -542,9 +543,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         updatePayload.status = 'novo';
         updatePayload.assigned_to = hoursSinceResolved <= 12 ? conv.assigned_to : null;
         updatePayload.resolved_at = null;
+        console.log(`[Webhook] Reabrindo conversa ${conv.id} - status: resolvido -> novo, assign: ${updatePayload.assigned_to}`);
       }
 
-      await supabase.from('conversas').update(updatePayload).eq('id', conv?.id);
+      if (conv?.id) {
+        const { error: updateError } = await supabase.from('conversas').update(updatePayload).eq('id', conv.id);
+        if (updateError) {
+          console.error(`[Webhook] Erro ao atualizar conversa ${conv.id}:`, updateError.message);
+        }
+      } else {
+        console.error(`[Webhook] conv.id é undefined — não foi possível atualizar conversa`);
+      }
 
     } else if (normalizedEvent === 'messages.update') {
       const updates = Array.isArray(data) ? data : [data];
