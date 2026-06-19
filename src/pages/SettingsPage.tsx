@@ -56,15 +56,18 @@ export default function SettingsPage() {
 
   const { user, refreshUser, tenant } = useAuth();
 
-  const [evolutionUrl, setEvolutionUrl] = useState(tenant?.evolutionUrl || "");
-  const [evolutionKey, setEvolutionKey] = useState(tenant?.evolutionKey || "");
-  const [instanceName, setInstanceName] = useState(tenant?.evolutionInstance || import.meta.env.VITE_INSTANCE_NAME || "SASAKI");
+  const [evolutionUrl, setEvolutionUrl] = useState(tenant?.evolutionUrl || localStorage.getItem("evolution_url") || "");
+  const [evolutionKey, setEvolutionKey] = useState(tenant?.evolutionKey || localStorage.getItem("evolution_key") || "");
+  const [instanceName, setInstanceName] = useState(tenant?.evolutionInstance || localStorage.getItem("evolution_instance") || import.meta.env.VITE_INSTANCE_NAME || "SASAKI");
 
   useEffect(() => {
     if (tenant) {
-      if (tenant.evolutionUrl) setEvolutionUrl(tenant.evolutionUrl);
-      if (tenant.evolutionKey) setEvolutionKey(tenant.evolutionKey);
-      if (tenant.evolutionInstance) setInstanceName(tenant.evolutionInstance);
+      const url = tenant.evolutionUrl || localStorage.getItem("evolution_url") || "";
+      const key = tenant.evolutionKey || localStorage.getItem("evolution_key") || "";
+      const inst = tenant.evolutionInstance || localStorage.getItem("evolution_instance") || import.meta.env.VITE_INSTANCE_NAME || "SASAKI";
+      if (url) setEvolutionUrl(url);
+      if (key) setEvolutionKey(key);
+      if (inst) setInstanceName(inst);
     }
   }, [tenant]);
   const [waStatus, setWaStatus] = useState<WhatsAppStatus>("idle");
@@ -395,6 +398,11 @@ const handleConnect = async () => {
       key: evolutionKey,
       instance: instanceName
     });
+
+    // Salvar no localStorage para fallback em caso de reload
+    localStorage.setItem("evolution_url", apiUrl);
+    localStorage.setItem("evolution_key", evolutionKey.trim());
+    localStorage.setItem("evolution_instance", instanceName.trim());
 
     // Salvar no banco para garantir persistência após o login
     if (user?.tenantId) {
