@@ -186,20 +186,31 @@ export default function InboxPage() {
   }, [user, hasSetDefaultFilter]);
 
   useEffect(() => {
+    let mounted = true;
+
     const check = async () => {
       try {
         const status = await checkConnection();
-        setWaConnected(status.connected);
+        if (mounted) setWaConnected(status.connected);
       } catch (err) {
-        setWaConnected(false);
+        if (mounted) setWaConnected(false);
       }
     };
+
     check();
+
+    // Verificar conexão a cada 30s para detectar desconexões rapidamente
+    const interval = setInterval(check, 30000);
 
     // Solicitar permissão de notificação
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const { notify } = useNotification();

@@ -28,7 +28,7 @@ function getApiUrl(path: string = "") {
 export async function fetchMessages(phone: string) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   
   console.log(`[Evolution] Buscando mensagens. Instância: ${instance}, URL: ${url}`);
   
@@ -59,7 +59,7 @@ export async function fetchMessages(phone: string) {
 export async function fetchChats() {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   
   if (!url || !key) return { success: false, chats: [] };
   
@@ -83,7 +83,7 @@ export async function fetchChats() {
 export async function syncEvolutionGroups(tenantId: string) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   
   if (!url || !key) return { success: false, error: "API não configurada" };
   
@@ -133,7 +133,7 @@ export async function syncEvolutionGroups(tenantId: string) {
 export async function sendWhatsAppMessage(phone: string, message: string, agentName?: string, quotedMessageId?: string) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   
   console.log(`[Evolution] Enviando mensagem. Instância: ${instance}, Para: ${phone}, Quoted: ${quotedMessageId || "Nenhum"}`);
   
@@ -187,7 +187,7 @@ export async function sendWhatsAppMessage(phone: string, message: string, agentN
 export async function sendReaction(phone: string, messageId: string, emoji: string, messageKey?: any) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   if (!url || !key) return { success: false, error: "API não configurada" };
   
   try {
@@ -240,12 +240,11 @@ export async function sendReaction(phone: string, messageId: string, emoji: stri
 export async function deleteMessage(phone: string, messageId: string, messageKey?: any) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   if (!url || !key) return { success: false, error: "API não configurada" };
   
   try {
     const remoteJid = messageKey?.remoteJid || `${phone.replace(/\D/g, "")}@s.whatsapp.net`;
-    const encodedInstance = encodeURIComponent(instance);
 
     // Evolution v2 endpoint: DELETE /chat/deleteMessageForEveryone/{instance}
     const payload: Record<string, any> = {
@@ -259,7 +258,7 @@ export async function deleteMessage(phone: string, messageId: string, messageKey
 
     console.log("[Evolution] Deletando mensagem v2:", payload);
 
-    const res = await fetch(`${getApiUrl()}/chat/deleteMessageForEveryone/${encodedInstance}`, {
+    const res = await fetch(`${getApiUrl()}/chat/deleteMessageForEveryone/${instance}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify(payload)
@@ -268,7 +267,7 @@ export async function deleteMessage(phone: string, messageId: string, messageKey
     if (res.ok) return { success: true };
 
     // Fallback 1: endpoint antigo POST /message/deleteMessages/{instance}
-    const resFallback1 = await fetch(`${getApiUrl()}/message/deleteMessages/${encodedInstance}`, {
+    const resFallback1 = await fetch(`${getApiUrl()}/message/deleteMessages/${instance}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify({ messageKeys: [payload] })
@@ -277,7 +276,7 @@ export async function deleteMessage(phone: string, messageId: string, messageKey
     if (resFallback1.ok) return { success: true };
 
     // Fallback 2: endpoint antigo POST /message/delete/{instance}
-    const resFallback2 = await fetch(`${getApiUrl()}/message/delete/${encodedInstance}`, {
+    const resFallback2 = await fetch(`${getApiUrl()}/message/delete/${instance}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify({ messageKeys: [payload] })
@@ -295,7 +294,7 @@ export async function deleteMessage(phone: string, messageId: string, messageKey
 export async function sendMediaMessage(phone: string, mediaUrl: string, type: "image" | "video" | "document", fileName?: string, caption?: string) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   
   if (!url || !key) return { success: false, error: "API não configurada" };
   
@@ -330,7 +329,7 @@ export async function sendMediaMessage(phone: string, mediaUrl: string, type: "i
 export async function sendAudioMessage(phone: string, audioUrl: string) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   
   if (!url || !key) return { success: false, error: "API não configurada" };
   
@@ -363,6 +362,67 @@ export async function sendAudioMessage(phone: string, audioUrl: string) {
 const CACHE_TTL_CONNECTED = 5 * 60 * 1000;  // 5 min
 const CACHE_TTL_DISCONNECTED = 30 * 1000;    // 30s
 
+export async function setWebhook(webhookUrl: string) {
+  const url = EVO_CONFIG.getUrl();
+  const key = EVO_CONFIG.getKey();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
+
+  if (!url || !key) return { success: false, error: "API não configurada" };
+
+  const apiUrl = getApiUrl();
+
+  const events = [
+    "messages.upsert",
+    "messages.update",
+    "messages.delete",
+    "messages.reaction",
+    "contacts.upsert",
+    "presence.update",
+  ];
+
+  const payload = {
+    url: webhookUrl,
+    webhookByEvents: true,
+    webhookBase64: true,
+    events,
+  };
+
+  try {
+    const res = await fetch(`${apiUrl}/webhook/set/${instance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      console.log("[Evolution] Webhook configurado com sucesso:", webhookUrl);
+      return { success: true };
+    }
+
+    // Fallback: tentar formato v1 sem webhookByEvents
+    const fallbackRes = await fetch(`${apiUrl}/webhook/set/${instance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key },
+      body: JSON.stringify({
+        url: webhookUrl,
+        webhookBase64: true,
+      }),
+    });
+
+    if (fallbackRes.ok) {
+      console.log("[Evolution] Webhook configurado (v1 fallback):", webhookUrl);
+      return { success: true };
+    }
+
+    const errorText = await fallbackRes.text();
+    console.error("[Evolution] Erro ao configurar webhook:", errorText);
+    return { success: false, error: errorText };
+  } catch (err) {
+    console.error("[Evolution] Erro ao configurar webhook:", err);
+    return { success: false, error: String(err) };
+  }
+}
+
 export async function checkConnection() {
   try {
     const cached = localStorage.getItem("wa_connection_cache");
@@ -375,7 +435,7 @@ export async function checkConnection() {
   
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   
   if (!url || !key) return { connected: false };
   
@@ -414,7 +474,7 @@ export async function checkConnection() {
 export async function fetchQRCode() {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   
   if (!url || !key) return { success: false, error: "API não configurada" };
   
@@ -436,7 +496,7 @@ export async function fetchQRCode() {
 export async function logoutInstance() {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   if (!url || !key) return;
   try {
     await fetch(`${getApiUrl()}/instance/logout/${instance}`, {
@@ -451,7 +511,7 @@ export async function logoutInstance() {
 export async function sendTypingStatus(phone: string, typing: boolean) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   if (!url || !key) return;
   try {
     await fetch(`${getApiUrl()}/chat/updatePresence/${instance}`, {
@@ -469,7 +529,7 @@ export async function sendTypingStatus(phone: string, typing: boolean) {
 export async function markAsRead(phone: string, messageId: string) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   if (!url || !key) return;
   try {
     await fetch(`${getApiUrl()}/chat/markMessageAsRead/${instance}`, {
@@ -489,7 +549,7 @@ export async function markAsRead(phone: string, messageId: string) {
 export async function syncConversationHistory(phone: string, tenantId: string) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   
   if (!url || !key) return { success: false, error: "API não configurada" };
   
@@ -522,7 +582,7 @@ export async function syncConversationHistory(phone: string, tenantId: string) {
 export async function checkWhatsApp(phone: string) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   
   if (!url || !key) return { exists: false, error: "API não configurada" };
   
@@ -549,7 +609,7 @@ export async function checkWhatsApp(phone: string) {
 export async function fetchGroupInfo(groupJid: string) {
   const url = EVO_CONFIG.getUrl();
   const key = EVO_CONFIG.getKey();
-  const instance = EVO_CONFIG.getInstance();
+  const instance = encodeURIComponent(EVO_CONFIG.getInstance());
   
   if (!url || !key) return { success: false, error: "API não configurada" };
   

@@ -13,7 +13,7 @@ import ReciboGenerator from "@/components/settings/ReciboGenerator";
 import { getNotificationConfig, setNotificationConfig } from "@/hooks/useNotifications";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { fetchQRCode, logoutInstance, updateEvolutionConfig, syncEvolutionGroups } from "@/lib/evolution";
+import { fetchQRCode, logoutInstance, updateEvolutionConfig, syncEvolutionGroups, setWebhook } from "@/lib/evolution";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AlertsPage from "./AlertsPage";
@@ -251,6 +251,16 @@ const handleConnect = async () => {
         pushName: "",
       });
       toast.success("WhatsApp conectado! Use o painel da Evolution para gerenciar.");
+
+      // Configurar webhook na Evolution API para receber eventos
+      const webhookUrl = `${window.location.origin}/api/evolution-webhook`;
+      setWebhook(webhookUrl).then((whRes) => {
+        if (whRes.success) {
+          console.log("[Settings] Webhook configurado:", webhookUrl);
+        } else {
+          console.warn("[Settings] Webhook não configurado automaticamente:", whRes.error);
+        }
+      });
     } catch (err) {
       // Se der erro, mas tiver credenciais, assume como conectado
       if (evolutionUrl && evolutionKey) {
@@ -412,6 +422,15 @@ const handleConnect = async () => {
         setQrCodeImage(`https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(res.code)}`);
       }
       startPolling();
+
+      // Configurar webhook na Evolution API para receber eventos
+      const webhookUrl = `${window.location.origin}/api/evolution-webhook`;
+      const whRes = await setWebhook(webhookUrl);
+      if (whRes.success) {
+        console.log("[Settings] Webhook configurado:", webhookUrl);
+      } else {
+        console.warn("[Settings] Webhook não configurado automaticamente:", whRes.error);
+      }
     } else {
       setWaStatus("idle");
       toast.error(res.error || "Erro ao gerar QR Code. Verifique se a instância está aberta.");
