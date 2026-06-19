@@ -357,14 +357,19 @@ export async function sendAudioMessage(phone: string, audioUrl: string) {
   }
 }
 
-// IMPLEMENTAÇÃO 7: checkConnection com TTL de 30 segundos
+// IMPLEMENTAÇÃO 7: checkConnection com cache persistente
+// Cache de CONECTADO: 5 minutos antes de re-verificar
+// Cache de DESCONECTADO: 30 segundos antes de re-tentar
+const CACHE_TTL_CONNECTED = 5 * 60 * 1000;  // 5 min
+const CACHE_TTL_DISCONNECTED = 30 * 1000;    // 30s
+
 export async function checkConnection() {
-  // Cache com TTL de 30 segundos
   try {
     const cached = localStorage.getItem("wa_connection_cache");
     if (cached) {
       const { connected, timestamp } = JSON.parse(cached);
-      if (Date.now() - timestamp < 30_000) return { connected };
+      const ttl = connected ? CACHE_TTL_CONNECTED : CACHE_TTL_DISCONNECTED;
+      if (Date.now() - timestamp < ttl) return { connected };
     }
   } catch { localStorage.removeItem("wa_connection_cache"); }
   
@@ -388,10 +393,20 @@ export async function checkConnection() {
       localStorage.setItem("wa_connection_cache", JSON.stringify({ connected, timestamp: Date.now() }));
       return { connected, phone: data.phoneNumber };
     }
-    localStorage.removeItem("wa_connection_cache");
+    // API respondeu com erro - manter último cache conhecido se existir
+    const cached = localStorage.getItem("wa_connection_cache");
+    if (cached) {
+      const { connected } = JSON.parse(cached);
+      return { connected };
+    }
     return { connected: false };
   } catch {
-    localStorage.removeItem("wa_connection_cache");
+    // Erro de rede/timeout - manter último cache conhecido se existir
+    const cached = localStorage.getItem("wa_connection_cache");
+    if (cached) {
+      const { connected } = JSON.parse(cached);
+      return { connected };
+    }
     return { connected: false };
   }
 }
