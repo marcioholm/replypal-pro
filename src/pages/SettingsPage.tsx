@@ -70,8 +70,14 @@ export default function SettingsPage() {
       if (inst) setInstanceName(inst);
     }
   }, [tenant]);
-  const [waStatus, setWaStatus] = useState<WhatsAppStatus>("idle");
-  const [waConnection, setWaConnection] = useState<WhatsAppConnection | null>(null);
+  const [waStatus, setWaStatus] = useState<WhatsAppStatus>(
+    localStorage.getItem("wa_connected") === "true" ? "connected" : "idle"
+  );
+  const [waConnection, setWaConnection] = useState<WhatsAppConnection | null>(
+    localStorage.getItem("wa_connected") === "true"
+      ? { instanceName: localStorage.getItem("evolution_instance") || instanceName }
+      : null
+  );
   const [qrCodeImage, setQrCodeImage] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [showQr, setShowQr] = useState(false);
@@ -142,7 +148,7 @@ export default function SettingsPage() {
   const checkConnection = async () => {
     if (!evolutionUrl || !evolutionKey || !instanceName) return;
     try {
-      const res = await fetch(getApiUrl(`/instance/connectionState/${instanceName}`), {
+      const res = await fetch(getApiUrl(`/instance/connectionState/${encodeURIComponent(instanceName)}`), {
         headers: { "apikey": evolutionKey },
       });
       if (res.ok) {
@@ -155,11 +161,19 @@ export default function SettingsPage() {
               phoneNumber: data.phoneNumber,
               pushName: data.pushName,
             });
+            localStorage.setItem("wa_connected", "true");
             if (pollingRef.current) clearInterval(pollingRef.current);
+            return;
           }
         } catch {}
       }
-    } catch {}
+      // API respondeu mas estado nao e "open" — marcar como desconectado
+      setWaStatus("idle");
+      setWaConnection(null);
+      localStorage.removeItem("wa_connected");
+    } catch {
+      // Erro de rede — manter estado atual (pode estar usando painel externo)
+    }
   };
 
   useEffect(() => {
@@ -172,7 +186,7 @@ export default function SettingsPage() {
     if (pollingRef.current) clearInterval(pollingRef.current);
     pollingRef.current = setInterval(async () => {
       try {
-        const res = await fetch(getApiUrl(`/instance/connectionState/${instanceName}`), {
+        const res = await fetch(getApiUrl(`/instance/connectionState/${encodeURIComponent(instanceName)}`), {
           headers: { "apikey": evolutionKey },
         });
         if (res.ok) {
@@ -185,6 +199,7 @@ export default function SettingsPage() {
                 phoneNumber: data.phoneNumber,
                 pushName: data.pushName,
               });
+              localStorage.setItem("wa_connected", "true");
               if (pollingRef.current) clearInterval(pollingRef.current);
               toast.success("WhatsApp conectado!");
             }
@@ -228,7 +243,7 @@ const handleConnect = async () => {
     toast.info("Verificando...");
 
     try {
-      const statusRes = await fetch(`${apiUrl}/instance/connectionState/${instance}`, {
+      const statusRes = await fetch(`${apiUrl}/instance/connectionState/${encodeURIComponent(instance)}`, {
         headers: { "apikey": key },
       });
       
@@ -289,6 +304,7 @@ const handleConnect = async () => {
     setWaStatus("idle");
     setQrCodeImage(null);
     setWaConnection(null);
+    localStorage.removeItem("wa_connected");
     if (pollingRef.current) clearInterval(pollingRef.current);
     if (countdownRef.current) clearInterval(countdownRef.current);
     toast.success("WhatsApp desconectado (reset local).");
@@ -456,6 +472,7 @@ const handleConnect = async () => {
     setWaStatus("idle");
     setWaConnection(null);
     setQrCodeImage(null);
+    localStorage.removeItem("wa_connected");
     toast.success("Desconectado com sucesso!");
   };
 
