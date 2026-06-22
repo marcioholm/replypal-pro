@@ -150,7 +150,9 @@ export async function sendWhatsAppMessage(phone: string, message: string, agentN
   try {
     const payload: any = {
       number: phoneNumber,
-      text: messageWithSign,
+      textMessage: {
+        text: messageWithSign,
+      },
     };
 
     if (quotedMessageId) {
@@ -170,15 +172,35 @@ export async function sendWhatsAppMessage(phone: string, message: string, agentN
       body: JSON.stringify(payload),
     });
     
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      return { 
-        success: false, 
-        error: errorData.message || `Erro ${res.status}: Verifique se a instância '${decodeURIComponent(instance)}' existe e se a chave está correta.` 
-      };
+    if (res.ok) {
+      const data = await res.json();
+      return { success: true, data };
     }
-    const data = await res.json();
-    return { success: true, data };
+
+    // Fallback: formato v1
+    const fallbackPayload: any = {
+      number: phoneNumber,
+      text: messageWithSign,
+    };
+    if (quotedMessageId) {
+      fallbackPayload.quoted = { key: { id: quotedMessageId } };
+    }
+    const fallbackRes = await fetch(`${apiUrl}/message/sendText/${instance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key },
+      body: JSON.stringify(fallbackPayload),
+    });
+
+    if (fallbackRes.ok) {
+      const data = await fallbackRes.json();
+      return { success: true, data };
+    }
+
+    const errorData = await res.json().catch(() => ({}));
+    return { 
+      success: false, 
+      error: errorData.message || `Erro ${res.status}: Verifique se a instância '${decodeURIComponent(instance)}' existe, se a chave está correta e se o WhatsApp está conectado.` 
+    };
   } catch (err) {
     return { success: false, error: String(err) };
   }
@@ -302,14 +324,37 @@ export async function sendMediaMessage(phone: string, mediaUrl: string, type: "i
   const phoneNumber = phone.replace(/\D/g, "");
 
   const endpoint = "/message/sendMedia";
-  
+  const apiEndpoint = `${apiUrl}${endpoint}/${instance}`;
+
+  // Tentativa 1: formato v2 (multipart)
   try {
-    const res = await fetch(`${apiUrl}${endpoint}/${instance}`, {
+    const mediaRes = await fetch(mediaUrl, { signal: AbortSignal.timeout(15000) });
+    if (mediaRes.ok) {
+      const blob = await mediaRes.blob();
+      const formData = new FormData();
+      formData.append("number", phoneNumber);
+      formData.append("mediatype", type);
+      formData.append("media", blob, fileName || "arquivo");
+      if (caption) formData.append("caption", caption);
+      if (fileName) formData.append("fileName", fileName);
+
+      const res = await fetch(apiEndpoint, {
+        method: "POST",
+        headers: { "apikey": key },
+        body: formData,
+      });
+
+      if (res.ok) return { success: true, data: await res.json() };
+    }
+  } catch (e) {
+    console.log("[sendMedia] Multipart fallback, tentando JSON...");
+  }
+
+  // Tentativa 2: formato v1 (JSON)
+  try {
+    const res = await fetch(apiEndpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": key,
-      },
+      headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify({
         number: phoneNumber,
         media: mediaUrl,
@@ -318,7 +363,6 @@ export async function sendMediaMessage(phone: string, mediaUrl: string, type: "i
         caption: caption || "",
       }),
     });
-    
     if (res.ok) return { success: true, data: await res.json() };
     return { success: false, error: "Erro ao enviar mídia" };
   } catch (err) {

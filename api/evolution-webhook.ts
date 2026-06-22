@@ -40,18 +40,27 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
       buffer = Buffer.from(clean, 'base64');
     }
 
-    if (!buffer && mediaPath.startsWith("http")) {
-      try {
-        const response = await fetch(mediaPath);
-        if (response.ok) {
-          const contentType = response.headers.get('content-type');
-          if (contentType && (contentType.includes('image') || contentType.includes('audio') || contentType.includes('video') || contentType.includes('application/pdf'))) {
-            buffer = Buffer.from(await response.arrayBuffer());
-            console.log(`[Webhook] Mídia baixada diretamente do CDN WhatsApp (${buffer.length} bytes)`);
+    if (!buffer) {
+      const mediaUrls = [mediaPath];
+      if (!mediaPath.startsWith("http")) {
+        mediaUrls.push(`${evoUrl}${mediaPath.startsWith("/") ? "" : "/"}${mediaPath}`);
+      }
+      for (const url of mediaUrls) {
+        try {
+          const response = await fetch(url, {
+            signal: AbortSignal.timeout(10000)
+          });
+          if (response.ok) {
+            const ct = response.headers.get('content-type') || '';
+            if (ct.includes('image') || ct.includes('audio') || ct.includes('video') || ct.includes('application/') || ct.includes('octet-stream')) {
+              buffer = Buffer.from(await response.arrayBuffer());
+              console.log(`[Webhook] Mídia baixada de ${url} (${buffer.length} bytes)`);
+              break;
+            }
           }
+        } catch (e) {
+          console.log(`[Webhook] Download direto falhou para ${url}`);
         }
-      } catch (e) {
-        console.error("[Webhook] Erro no download direto:", e);
       }
     }
 
@@ -64,7 +73,8 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
         const encName = encodeURIComponent(instName);
         const downloadEndpoints = [
           `${evoUrl}/chat/getBase64FromMediaMessage/${encName}`,
-          `${evoUrl}/message/convert/toBase64/${encName}`
+          `${evoUrl}/message/convert/toBase64/${encName}`,
+          `${evoUrl}/message/getMedia/${encName}`
         ];
         if (instId) {
           downloadEndpoints.push(`${evoUrl}/chat/getBase64FromMediaMessage/${instId}`);
