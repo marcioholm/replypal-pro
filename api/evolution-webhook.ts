@@ -549,14 +549,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Se a conversa estava encerrada/resolvida, reabre (tanto para msg do cliente quanto do agente)
       if (conv?.status === 'resolvido') {
         if (!isFromMe) {
-          const resolvedAt = conv.resolved_at ? new Date(conv.resolved_at).getTime() : null;
-          const hoursSinceResolved = resolvedAt ? (Date.now() - resolvedAt) / 36e5 : Infinity;
           updatePayload.status = 'novo';
-          updatePayload.assigned_to = hoursSinceResolved <= 12 ? conv.assigned_to : null;
-          updatePayload.resolved_at = null;
+          updatePayload.assigned_to = conv.assigned_to;
         } else {
           updatePayload.status = 'em_atendimento';
-          updatePayload.resolved_at = null;
         }
         console.log(`[Webhook] Reabrindo conversa ${conv.id} - status: resolvido -> ${updatePayload.status}`);
       }

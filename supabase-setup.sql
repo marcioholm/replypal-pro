@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS conversas (
   client_avatar TEXT,
   tenant_id UUID,
   created_at TIMESTAMPTZ DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(client_phone, tenant_id)
 );

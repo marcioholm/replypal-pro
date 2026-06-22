@@ -1189,22 +1189,11 @@ export default function ChatPage() {
 
   const handleClose = async () => {
     try {
-      const updateData: Record<string, any> = { status: "resolvido", resolved_at: new Date().toISOString() };
       const { error } = await supabase
         .from("conversas")
-        .update(updateData)
+        .update({ status: "resolvido" })
         .eq("id", id);
-      if (error?.message?.includes("column") && error?.message?.includes("resolved_at")) {
-        // Coluna resolved_at ainda não existe — tentar sem ela
-        delete updateData.resolved_at;
-        const { error: err2 } = await supabase
-          .from("conversas")
-          .update(updateData)
-          .eq("id", id);
-        if (err2) throw err2;
-      } else if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       // Registrar no histórico DB
       await supabase.from("historico").insert({
