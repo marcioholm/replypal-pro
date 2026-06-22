@@ -123,6 +123,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   instance: sData?.instance_name
                 });
 
+                // Sincronizar localStorage com o DB para consistência
+                if (sData?.evolution_url) localStorage.setItem("evolution_url", sData.evolution_url);
+                if (sData?.evolution_api_key) localStorage.setItem("evolution_key", sData.evolution_api_key);
+                if (sData?.instance_name) localStorage.setItem("evolution_instance", sData.instance_name);
+
                 setCurrentTenantId(tData.id);
               }
               setIsLoading(false);
@@ -220,6 +225,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           key: sData?.evolution_api_key,
           instance: sData?.instance_name
         });
+
+        // Sincronizar localStorage com o DB para consistência
+        if (sData?.evolution_url) localStorage.setItem("evolution_url", sData.evolution_url);
+        if (sData?.evolution_api_key) localStorage.setItem("evolution_key", sData.evolution_api_key);
+        if (sData?.instance_name) localStorage.setItem("evolution_instance", sData.instance_name);
 
         setCurrentTenantId(foundTenant.id);
       }

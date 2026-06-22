@@ -463,22 +463,7 @@ export async function setWebhook(webhookUrl: string) {
       return { success: true };
     }
 
-    // Fallback: tentar formato v1
-    const v1Res = await fetch(`${apiUrl}/webhook/set/${instance}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "apikey": key },
-      body: JSON.stringify({
-        url: webhookUrl,
-        webhookBase64: true,
-      }),
-    });
-
-    if (v1Res.ok) {
-      console.log("[Evolution] Webhook configurado (v1):", webhookUrl);
-      return { success: true };
-    }
-
-    const errorText = await v1Res.text();
+    const errorText = await fallbackRes.text();
     console.error("[Evolution] Erro ao configurar webhook:", errorText);
     return { success: false, error: errorText };
   } catch (err) {
