@@ -20,7 +20,7 @@ const EVO_CONFIG = {
 
 
 function getApiUrl(path: string = "") {
-  let url = EVO_CONFIG.getUrl().trim();
+  let url = EVO_CONFIG.getUrl().trim().replace(/\/+$/, "");
   if (!url.startsWith("http")) url = "https://" + url;
   return url + path;
 }
@@ -380,18 +380,20 @@ export async function setWebhook(webhookUrl: string) {
     "presence.update",
   ];
 
-  const payload = {
-    url: webhookUrl,
-    webhookByEvents: true,
-    webhookBase64: true,
-    events,
+  const webhookPayload = {
+    webhook: {
+      url: webhookUrl,
+      webhookByEvents: true,
+      webhookBase64: true,
+      events,
+    },
   };
 
   try {
     const res = await fetch(`${apiUrl}/webhook/set/${instance}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": key },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(webhookPayload),
     });
 
     if (res.ok) {
@@ -399,8 +401,26 @@ export async function setWebhook(webhookUrl: string) {
       return { success: true };
     }
 
-    // Fallback: tentar formato v1 sem webhookByEvents
+    // Fallback: tentar formato v2 sem webhookByEvents
     const fallbackRes = await fetch(`${apiUrl}/webhook/set/${instance}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": key },
+      body: JSON.stringify({
+        webhook: {
+          url: webhookUrl,
+          webhookBase64: true,
+          events,
+        },
+      }),
+    });
+
+    if (fallbackRes.ok) {
+      console.log("[Evolution] Webhook configurado (v2 fallback):", webhookUrl);
+      return { success: true };
+    }
+
+    // Fallback: tentar formato v1
+    const v1Res = await fetch(`${apiUrl}/webhook/set/${instance}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify({
@@ -409,12 +429,12 @@ export async function setWebhook(webhookUrl: string) {
       }),
     });
 
-    if (fallbackRes.ok) {
-      console.log("[Evolution] Webhook configurado (v1 fallback):", webhookUrl);
+    if (v1Res.ok) {
+      console.log("[Evolution] Webhook configurado (v1):", webhookUrl);
       return { success: true };
     }
 
-    const errorText = await fallbackRes.text();
+    const errorText = await v1Res.text();
     console.error("[Evolution] Erro ao configurar webhook:", errorText);
     return { success: false, error: errorText };
   } catch (err) {
@@ -558,7 +578,7 @@ export async function syncConversationHistory(phone: string, tenantId: string) {
   
   try {
     // Endpoint correto para histórico completo
-    const res = await fetch(`${url.replace(/\/$/, "")}/chat/fetchMessages/${instance}`, {
+    const res = await fetch(`${url.replace(/\/+$/, "")}/chat/fetchMessages/${instance}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify({

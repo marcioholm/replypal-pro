@@ -138,7 +138,7 @@ export default function SettingsPage() {
   }, []);
 
   const getApiUrl = (path: string) => {
-    let url = evolutionUrl.trim();
+    let url = evolutionUrl.trim().replace(/\/+$/, "");
     if (!url.startsWith("http")) {
       url = "https://" + url;
     }
