@@ -29,7 +29,9 @@ export default function InboxPage() {
   const [filter, setFilter] = useState<Filter>("todas");
   const [hasSetDefaultFilter, setHasSetDefaultFilter] = useState(false);
   const [search, setSearch] = useState("");
-  const [waConnected, setWaConnected] = useState(false);
+  const [waConnected, setWaConnected] = useState(
+    localStorage.getItem("wa_connected") === "true"
+  );
   const [loading, setLoading] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [prevConversationCount, setPrevConversationCount] = useState(0);
@@ -191,15 +193,25 @@ export default function InboxPage() {
     const check = async () => {
       try {
         const status = await checkConnection();
-        if (mounted) setWaConnected(status.connected);
+        if (mounted) {
+          setWaConnected(status.connected);
+          if (status.connected) {
+            localStorage.setItem("wa_connected", "true");
+          } else {
+            localStorage.removeItem("wa_connected");
+          }
+        }
       } catch (err) {
-        if (mounted) setWaConnected(false);
+        if (mounted) {
+          // Manter ultimo estado conhecido do localStorage
+          setWaConnected(localStorage.getItem("wa_connected") === "true");
+        }
       }
     };
 
     check();
 
-    // Verificar conexão a cada 30s para detectar desconexões rapidamente
+    // Verificar conexão a cada 30s para detectar desconexões
     const interval = setInterval(check, 30000);
 
     // Solicitar permissão de notificação

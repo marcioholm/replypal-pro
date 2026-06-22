@@ -358,9 +358,9 @@ export async function sendAudioMessage(phone: string, audioUrl: string) {
 
 // IMPLEMENTAÇÃO 7: checkConnection com cache persistente
 // Cache de CONECTADO: 5 minutos antes de re-verificar
-// Cache de DESCONECTADO: 30 segundos antes de re-tentar
+// Cache de DESCONECTADO: 5 segundos antes de re-tentar
 const CACHE_TTL_CONNECTED = 5 * 60 * 1000;  // 5 min
-const CACHE_TTL_DISCONNECTED = 30 * 1000;    // 30s
+const CACHE_TTL_DISCONNECTED = 5 * 1000;      // 5s
 
 export async function setWebhook(webhookUrl: string) {
   const url = EVO_CONFIG.getUrl();
