@@ -154,12 +154,12 @@ export default function SettingsPage() {
       if (res.ok) {
         try {
           const data = await res.json();
-          if (data.state === "open") {
+          if (data.state === "open" || data.instance?.state === "open") {
             setWaStatus("connected");
             setWaConnection({
               instanceName,
-              phoneNumber: data.phoneNumber,
-              pushName: data.pushName,
+              phoneNumber: data.phoneNumber || data.instance?.phoneNumber,
+              pushName: data.pushName || data.instance?.pushName,
             });
             localStorage.setItem("wa_connected", "true");
             if (pollingRef.current) clearInterval(pollingRef.current);
@@ -192,12 +192,12 @@ export default function SettingsPage() {
         if (res.ok) {
           try {
             const data = await res.json();
-            if (data.state === "open") {
+            if (data.state === "open" || data.instance?.state === "open") {
               setWaStatus("connected");
               setWaConnection({
                 instanceName,
-                phoneNumber: data.phoneNumber,
-                pushName: data.pushName,
+                phoneNumber: data.phoneNumber || data.instance?.phoneNumber,
+                pushName: data.pushName || data.instance?.pushName,
               });
               localStorage.setItem("wa_connected", "true");
               if (pollingRef.current) clearInterval(pollingRef.current);
