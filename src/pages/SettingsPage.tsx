@@ -209,12 +209,17 @@ export default function SettingsPage() {
     }, 3000);
   };
 
-const handleConnect = async () => {
+  const handleConnect = async () => {
     let apiUrl = evolutionUrl.trim();
     if (!apiUrl.startsWith("http")) apiUrl = "https://" + apiUrl;
     
     const key = evolutionKey.trim();
     const instance = instanceName.trim();
+
+    if (instance.includes(" ")) {
+      toast.error("O nome da instância não pode conter espaços.");
+      return;
+    }
 
     localStorage.setItem("evolution_url", apiUrl);
     localStorage.setItem("evolution_key", key);
@@ -398,6 +403,11 @@ const handleConnect = async () => {
   const handleConnectEvolution = async () => {
     if (!evolutionUrl || !evolutionKey || !instanceName) {
       toast.error("Preencha todos os campos da Evolution.");
+      return;
+    }
+
+    if (instanceName.includes(" ")) {
+      toast.error("O nome da instância não pode conter espaços.");
       return;
     }
     

@@ -174,7 +174,7 @@ export async function sendWhatsAppMessage(phone: string, message: string, agentN
       const errorData = await res.json().catch(() => ({}));
       return { 
         success: false, 
-        error: errorData.message || `Erro ${res.status}: Verifique se a instância '${instance}' existe e se a chave está correta.` 
+        error: errorData.message || `Erro ${res.status}: Verifique se a instância '${decodeURIComponent(instance)}' existe e se a chave está correta.` 
       };
     }
     const data = await res.json();
