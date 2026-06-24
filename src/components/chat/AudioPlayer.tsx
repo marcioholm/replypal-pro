@@ -17,6 +17,7 @@ export function AudioPlayer({ url, sender }: AudioPlayerProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [speed, setSpeed] = useState(1);
+  const [hasError, setHasError] = useState(false);
 
   const primaryColor = sender === 'agent' ? '#ffffff' : '#3b82f6';
   const secondaryColor = sender === 'agent' ? 'rgba(255,255,255,0.3)' : 'rgba(59,130,246,0.2)';
@@ -43,6 +44,12 @@ export function AudioPlayer({ url, sender }: AudioPlayerProps) {
     ws.on('ready', () => {
       setDuration(ws.getDuration());
       wavesurfer.current = ws;
+      setHasError(false);
+    });
+
+    ws.on('error', (err) => {
+      console.error("WaveSurfer error:", err);
+      setHasError(true);
     });
 
     ws.on('play', () => setIsPlaying(true));
@@ -60,6 +67,18 @@ export function AudioPlayer({ url, sender }: AudioPlayerProps) {
       ws.destroy();
     };
   }, [url]);
+
+  if (hasError) {
+    return (
+      <div className={`p-3 flex flex-col gap-1 rounded-lg text-xs border border-destructive/20 bg-destructive/5 shrink-0 min-w-[240px] max-w-[300px] ${sender === 'agent' ? 'text-white' : 'text-foreground'}`}>
+        <span className="font-bold text-destructive">Erro ao carregar áudio</span>
+        <code className="text-[9px] break-all p-1 bg-background/50 rounded select-all">{url}</code>
+        <a href={url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary underline mt-1">
+          Abrir em nova guia
+        </a>
+      </div>
+    );
+  }
 
   const togglePlay = () => {
     wavesurfer.current?.playPause();

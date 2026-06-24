@@ -22,6 +22,12 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
         </p>
       );
     }
+
+    // Fallback seguro: se o tipo requer mídia mas não há URL, exibe como texto
+    if (!msg.mediaUrl && (type === 'IMAGE' || type === 'VIDEO' || type === 'AUDIO' || type === 'DOCUMENT' || type === 'STICKER')) {
+      return <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content || '[Mídia indisponível]'}</p>;
+    }
+
     switch (type) {
       case 'AUDIO':
         return <AudioPlayer url={msg.mediaUrl || ''} sender={msg.sender} />;

@@ -514,23 +514,36 @@ export default function ChatPage() {
               if (!text && !msgContent.audioMessage && !msgContent.imageMessage 
                   && !msgContent.videoMessage && !msgContent.documentMessage && !msgContent.reactionMessage) continue;
               
-              const type = msgContent.audioMessage ? 'audio'
+              const rawType = msgContent.audioMessage ? 'audio'
                 : msgContent.imageMessage ? 'image'
                 : msgContent.videoMessage ? 'video'
                 : msgContent.documentMessage ? 'document'
                 : msgContent.reactionMessage ? 'reaction'
                 : 'text';
 
+              const mediaLabels: Record<string, string> = {
+                audio: '[Áudio]',
+                image: '[Imagem]',
+                video: '[Vídeo]',
+                document: '[Documento]'
+              };
+
+              // Mídias do histórico não podem ser baixadas — salvar como texto
+              const syncType = mediaLabels[rawType] ? 'text' : rawType;
+              const syncContent = syncType === 'text'
+                ? (text || mediaLabels[rawType] || '')
+                : text;
+
               // Se for reação, o wa_message_id da LINHA deve ser o da mensagem original reagida
-              const waMessageId = (type?.toLowerCase() === 'reaction') ? (msgContent.reactionMessage?.key?.id || key.id) : key.id;
+              const waMessageId = (rawType === 'reaction') ? (msgContent.reactionMessage?.key?.id || key.id) : key.id;
               
               // Upsert — não duplica se já existir
               await supabase.from("mensagens").upsert({
                 conversation_id: id,
-                content: text || `[${type}]`,
+                content: syncContent,
                 sender: key.fromMe ? "agent" : "client",
                 sender_name: key.fromMe ? "WhatsApp" : (m.pushName || currentConv.clientPhone),
-                type,
+                type: syncType,
                 timestamp: new Date((m.messageTimestamp || Date.now() / 1000) * 1000).toISOString(),
                 external_message_id: key.id,
                 wa_message_id: waMessageId,
@@ -544,7 +557,7 @@ export default function ChatPage() {
               }, { onConflict: "external_message_id" });
 
               // Se for reação, atualizar a mensagem original e a tabela de auditoria
-              if (type === 'reaction' && waMessageId) {
+              if (rawType === 'reaction' && waMessageId) {
                 const reactionEmoji = (msgContent.reactionMessage?.text || "").trim();
                 await supabase.from("mensagens").update({ reaction: reactionEmoji }).eq("external_message_id", waMessageId);
                 

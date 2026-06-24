@@ -40,30 +40,6 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
       buffer = Buffer.from(clean, 'base64');
     }
 
-    if (!buffer) {
-      const mediaUrls = [mediaPath];
-      if (!mediaPath.startsWith("http")) {
-        mediaUrls.push(`${evoUrl}${mediaPath.startsWith("/") ? "" : "/"}${mediaPath}`);
-      }
-      for (const url of mediaUrls) {
-        try {
-          const response = await fetch(url, {
-            signal: AbortSignal.timeout(10000)
-          });
-          if (response.ok) {
-            const ct = response.headers.get('content-type') || '';
-            if (ct.includes('image') || ct.includes('audio') || ct.includes('video') || ct.includes('application/') || ct.includes('octet-stream')) {
-              buffer = Buffer.from(await response.arrayBuffer());
-              console.log(`[Webhook] Mídia baixada de ${url} (${buffer.length} bytes)`);
-              break;
-            }
-          }
-        } catch (e) {
-          console.log(`[Webhook] Download direto falhou para ${url}`);
-        }
-      }
-    }
-
     if (!buffer && evoUrl && evoKey) {
       const instName = fullMessage?.instance || fullMessage?.data?.instance || instance;
       const msgId = fullMessage?.key?.id || fullMessage?.data?.key?.id || fullMessage?.message?.key?.id;
@@ -107,9 +83,33 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
       }
     }
 
+    if (!buffer) {
+      const mediaUrls = [mediaPath];
+      if (!mediaPath.startsWith("http")) {
+        mediaUrls.push(`${evoUrl}${mediaPath.startsWith("/") ? "" : "/"}${mediaPath}`);
+      }
+      for (const url of mediaUrls) {
+        try {
+          const response = await fetch(url, {
+            signal: AbortSignal.timeout(10000)
+          });
+          if (response.ok) {
+            const ct = response.headers.get('content-type') || '';
+            if (ct.includes('image') || ct.includes('audio') || ct.includes('video') || ct.includes('application/') || ct.includes('octet-stream')) {
+              buffer = Buffer.from(await response.arrayBuffer());
+              console.log(`[Webhook] Mídia baixada de ${url} (${buffer.length} bytes)`);
+              break;
+            }
+          }
+        } catch (e) {
+          console.log(`[Webhook] Download direto falhou para ${url}`);
+        }
+      }
+    }
+
     if (!buffer || buffer.length < 100) {
       return { 
-        url: mediaPath.startsWith("http") ? mediaPath : `${evoUrl}/public/${mediaPath}`,
+        url: '',
         error: diagError || "Download failed"
       };
     }
@@ -122,12 +122,12 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
       upsert: true 
     });
 
-    if (error) return { url: mediaPath, error: `Upload err: ${error.message}` };
+    if (error) return { url: '', error: `Upload err: ${error.message}` };
 
     const { data: { publicUrl } } = supabase.storage.from("chat-media").getPublicUrl(storagePath);
     return { url: publicUrl };
   } catch (err: any) {
-    return { url: mediaPath, error: `Critical: ${err.message}` };
+    return { url: '', error: `Critical: ${err.message}` };
   }
 }
 
@@ -446,32 +446,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (text) {
         content = text;
       } else if (messageContent.imageMessage) {
-        type = 'image'; content = messageContent.imageMessage.caption || '';
+        type = 'image';
         mimeType = messageContent.imageMessage.mimetype;
         const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.imageMessage.url, 'image.jpg', mimeType, req.body, tenantId);
-        mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
+        mediaUrl = res.url;
+        if (res.url && !res.error) {
+          content = messageContent.imageMessage.caption || '[Imagem]';
+        } else {
+          type = 'text';
+          content = messageContent.imageMessage.caption || '[Imagem indisponível]';
+        }
       } else if (messageContent.videoMessage) {
-        type = 'video'; content = messageContent.videoMessage.caption || '';
+        type = 'video';
         mimeType = messageContent.videoMessage.mimetype;
         const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.videoMessage.url, 'video.mp4', mimeType, req.body, tenantId);
-        mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
+        mediaUrl = res.url;
+        if (res.url && !res.error) {
+          content = messageContent.videoMessage.caption || '[Vídeo]';
+        } else {
+          type = 'text';
+          content = messageContent.videoMessage.caption || '[Vídeo indisponível]';
+        }
       } else if (messageContent.audioMessage) {
-        type = 'audio'; content = '';
+        type = 'audio';
         mimeType = 'audio/ogg'; 
         const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.audioMessage.url, 'audio.ogg', mimeType, req.body, tenantId);
-        mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
+        mediaUrl = res.url;
+        if (res.url && !res.error) {
+          content = '[Áudio]';
+        } else {
+          type = 'text';
+          content = '[Áudio indisponível]';
+        }
       } else if (messageContent.documentMessage || messageContent.documentWithCaptionMessage) {
         const doc = messageContent.documentMessage || messageContent.documentWithCaptionMessage?.message?.documentMessage;
         if (doc) {
-          type = 'document'; fileName = doc.fileName || 'document';
-          content = doc.caption || fileName; mimeType = doc.mimetype;
+          fileName = doc.fileName || 'document';
+          mimeType = doc.mimetype;
           const res = await downloadAndUploadMedia(evoUrl, evoKey, doc.url, fileName, mimeType, req.body, tenantId);
-          mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
+          mediaUrl = res.url;
+          if (res.url && !res.error) {
+            type = 'document';
+            content = doc.caption || `[Documento: ${fileName}]`;
+          } else {
+            type = 'text';
+            content = doc.caption || `[Documento indisponível: ${fileName}]`;
+          }
         }
       } else if (messageContent.stickerMessage) {
-        type = 'sticker'; content = '[Figurinha]'; mimeType = 'image/webp';
+        type = 'sticker';
+        mimeType = 'image/webp';
         const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.stickerMessage.url, 'sticker.webp', mimeType, req.body, tenantId);
-        mediaUrl = res.url; if (res.error) content = `[DEBUG] ${res.error}`;
+        mediaUrl = res.url;
+        if (res.url && !res.error) {
+          content = '[Figurinha]';
+        } else {
+          type = 'text';
+          content = '[Figurinha indisponível]';
+        }
       } else if (messageContent.contactMessage) {
         type = 'contact';
         const contact = messageContent.contactMessage;
