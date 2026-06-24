@@ -216,4 +216,28 @@ CREATE TABLE IF NOT EXISTS company_settings (
 
 ALTER TABLE company_settings DISABLE ROW LEVEL SECURITY;
 
+-- 11. CONFIGURAÇÃO DO STORAGE (chat-media)
+-- Força o bucket como público para permitir acesso às mídias via URL direta
+INSERT INTO storage.buckets (id, name, public)
+SELECT 'chat-media', 'chat-media', true
+WHERE NOT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'chat-media');
+
+-- Garantir que se o bucket já existe, ele seja público
+UPDATE storage.buckets SET public = true WHERE id = 'chat-media';
+
+-- Remover políticas existentes para evitar conflitos ao re-executar
+DROP POLICY IF EXISTS "Public Read Access" ON storage.objects;
+DROP POLICY IF EXISTS "Public Upload Access" ON storage.objects;
+DROP POLICY IF EXISTS "Public Update Access" ON storage.objects;
+DROP POLICY IF EXISTS "Public Delete Access" ON storage.objects;
+
+-- Criar políticas de acesso público
+CREATE POLICY "Public Read Access" ON storage.objects FOR SELECT USING ( bucket_id = 'chat-media' );
+CREATE POLICY "Public Upload Access" ON storage.objects FOR INSERT WITH CHECK ( bucket_id = 'chat-media' );
+CREATE POLICY "Public Update Access" ON storage.objects FOR UPDATE USING ( bucket_id = 'chat-media' );
+CREATE POLICY "Public Delete Access" ON storage.objects FOR DELETE USING ( bucket_id = 'chat-media' );
+
+-- Garantir que RLS está habilitado (necessário para as políticas funcionarem)
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
 SELECT 'Setup concluído com segurança!' as status;
