@@ -1204,7 +1204,7 @@ export default function ChatPage() {
     try {
       const { error } = await supabase
         .from("conversas")
-        .update({ status: "resolvido" })
+        .update({ status: "resolvido", resolved_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
 
