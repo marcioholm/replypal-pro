@@ -451,7 +451,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.imageMessage.url, 'image.jpg', mimeType, req.body, tenantId);
         mediaUrl = res.url;
         if (res.url && !res.error) {
-          content = messageContent.imageMessage.caption || '[Imagem]';
+          content = messageContent.imageMessage.caption || '';
         } else {
           type = 'text';
           content = messageContent.imageMessage.caption || '[Imagem indisponível]';
@@ -462,7 +462,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.videoMessage.url, 'video.mp4', mimeType, req.body, tenantId);
         mediaUrl = res.url;
         if (res.url && !res.error) {
-          content = messageContent.videoMessage.caption || '[Vídeo]';
+          content = messageContent.videoMessage.caption || '';
         } else {
           type = 'text';
           content = messageContent.videoMessage.caption || '[Vídeo indisponível]';
@@ -473,7 +473,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.audioMessage.url, 'audio.ogg', mimeType, req.body, tenantId);
         mediaUrl = res.url;
         if (res.url && !res.error) {
-          content = '[Áudio]';
+          content = '';
         } else {
           type = 'text';
           content = '[Áudio indisponível]';
@@ -487,7 +487,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           mediaUrl = res.url;
           if (res.url && !res.error) {
             type = 'document';
-            content = doc.caption || `[Documento: ${fileName}]`;
+            content = doc.caption || '';
           } else {
             type = 'text';
             content = doc.caption || `[Documento indisponível: ${fileName}]`;
@@ -499,7 +499,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const res = await downloadAndUploadMedia(evoUrl, evoKey, messageContent.stickerMessage.url, 'sticker.webp', mimeType, req.body, tenantId);
         mediaUrl = res.url;
         if (res.url && !res.error) {
-          content = '[Figurinha]';
+          content = '';
         } else {
           type = 'text';
           content = '[Figurinha indisponível]';
@@ -572,8 +572,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error("[Webhook] Erro crítico no salvamento:", err);
       }
 
+      const lastMsg = content || (
+        type === 'image' ? '[Imagem]' :
+        type === 'video' ? '[Vídeo]' :
+        type === 'audio' ? '[Áudio]' :
+        type === 'document' ? `[${fileName || 'Documento'}]` :
+        type === 'sticker' ? '[Figurinha]' :
+        type === 'location' ? '[Localização]' :
+        type === 'contact' ? '[Contato]' :
+        type === 'reaction' ? '[Reação]' :
+        type === 'revoke' ? '[Mensagem apagada]' : content
+      );
+
       const updatePayload: any = { 
-        last_message: content, 
+        last_message: lastMsg, 
         last_message_time: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
