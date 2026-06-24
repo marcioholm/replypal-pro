@@ -57,6 +57,7 @@ export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: Us
               startedAt: newRecord.started_at ? new Date(newRecord.started_at) : undefined,
               slaDeadline: newRecord.sla_deadline ? new Date(newRecord.sla_deadline) : undefined,
               tenantId: newRecord.tenant_id,
+              clientAvatar: newRecord.client_avatar,
               isTyping: newRecord.is_typing,
             });
           } else if (eventType === "UPDATE" && newRecord) {
@@ -76,6 +77,7 @@ export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: Us
               startedAt: newRecord.started_at ? new Date(newRecord.started_at) : undefined,
               slaDeadline: newRecord.sla_deadline ? new Date(newRecord.sla_deadline) : undefined,
               tenantId: newRecord.tenant_id,
+              clientAvatar: newRecord.client_avatar,
               isTyping: newRecord.is_typing,
             });
           } else if (eventType === "DELETE" && oldRecord) {

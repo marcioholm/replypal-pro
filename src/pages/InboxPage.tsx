@@ -528,17 +528,19 @@ export default function InboxPage() {
 
                   <div className="relative">
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black overflow-hidden">
-                      {conv.clientAvatar ? (
+                      {conv.clientAvatar && (
                         <img 
                           src={conv.clientAvatar} 
                           alt={conv.clientName} 
-                          className="w-full h-full object-cover" 
+                          className="absolute inset-0 w-full h-full object-cover" 
                           referrerPolicy="no-referrer"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
                         />
-                      ) : conv.isGroup ? (
+                      )}
+                      {conv.isGroup ? (
                         <Users className="w-6 h-6" />
                       ) : (
-                        conv.clientName.charAt(0)
+                        <span>{conv.clientName?.charAt(0) || '?'}</span>
                       )}
                     </div>
                     {conv.status === "novo" && (

@@ -1515,18 +1515,20 @@ export default function ChatPage() {
           <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="h-9 w-9 p-0">
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shadow-sm border border-primary/20 overflow-hidden">
-            {conv.clientAvatar ? (
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shadow-sm border border-primary/20 overflow-hidden relative">
+            {conv.clientAvatar && (
               <img 
                 src={conv.clientAvatar} 
                 alt={conv.clientName} 
-                className="w-full h-full object-cover" 
+                className="absolute inset-0 w-full h-full object-cover" 
                 referrerPolicy="no-referrer"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
-            ) : conv.isGroup ? (
+            )}
+            {conv.isGroup ? (
               <Users className="w-5 h-5" />
             ) : (
-              conv.clientName.charAt(0)
+              <span>{conv.clientName?.charAt(0) || '?'}</span>
             )}
           </div>
           <div className="flex-1 min-w-0">
@@ -2211,8 +2213,15 @@ export default function ChatPage() {
                       onClick={() => handleForwardMessage(c.clientPhone)}
                       className="w-full flex items-center gap-3 p-3 hover:bg-primary/5 rounded-2xl transition-all text-left group relative overflow-hidden"
                     >
-                      <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0 border border-primary/20 group-hover:scale-105 transition-transform">
-                        {c.clientAvatar ? <img src={c.clientAvatar} className="w-full h-full rounded-full object-cover" /> : c.clientName.charAt(0)}
+                      <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0 border border-primary/20 group-hover:scale-105 transition-transform relative overflow-hidden">
+                        {c.clientAvatar && (
+                          <img 
+                            src={c.clientAvatar} 
+                            className="absolute inset-0 w-full h-full rounded-full object-cover" 
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                          />
+                        )}
+                        <span>{c.clientName?.charAt(0) || '?'}</span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{c.clientName}</p>
