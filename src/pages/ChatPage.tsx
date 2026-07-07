@@ -1614,7 +1614,31 @@ export default function ChatPage() {
           <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="h-9 w-9 p-0">
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shadow-sm border border-primary/20 overflow-hidden relative">
+          <div
+            className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shadow-sm border border-primary/20 overflow-hidden relative cursor-pointer hover:bg-primary/20 transition-colors group"
+            onClick={async (e) => {
+              if (conv.clientAvatar || conv.isGroup) return;
+              const btn = e.currentTarget;
+              btn.innerHTML = '<svg class="animate-spin w-4 h-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>';
+              try {
+                const res = await fetch('/api/sync-avatar', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ conversationId: conv.id })
+                });
+                const data = await res.json();
+                if (data.ok && data.url) {
+                  store.addDbConversation({ id: conv.id, clientAvatar: data.url } as any);
+                  toast.success('Foto carregada!');
+                } else {
+                  toast.error(data.message || 'Sem foto disponível');
+                }
+              } catch {
+                toast.error('Erro ao buscar foto');
+              }
+            }}
+            title={conv.clientAvatar ? '' : 'Clique para buscar foto do perfil'}
+          >
             {conv.clientAvatar && (
               <img 
                 src={conv.clientAvatar} 
