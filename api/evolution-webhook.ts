@@ -682,24 +682,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         updated_at: new Date().toISOString()
       };
       
-      // Se a conversa estava encerrada/resolvida, reabre
+      // Se a conversa estava encerrada/resolvida, reabre com novo protocolo
       if (conv?.status === 'resolvido') {
         if (!isFromMe) {
-          const minutesSinceResolved = conv.resolved_at
-            ? (Date.now() - new Date(conv.resolved_at).getTime()) / 60000
-            : Infinity;
-
           updatePayload.status = 'novo';
-          if (minutesSinceResolved <= 30) {
-            updatePayload.assigned_to = conv.assigned_to;
-          } else {
-            updatePayload.assigned_to = null;
+          updatePayload.assigned_to = null;
+
+          // Gerar novo protocolo para a nova demanda
+          try {
+            const { data: protoResult, error: protoError } = await supabase.rpc('get_next_protocolo', { p_tenant_id: tId }).single();
+            if (!protoError && protoResult) {
+              const novoProtocolo = typeof protoResult === 'object' && protoResult !== null
+                ? ((protoResult as any).get_next_protocolo ?? null)
+                : protoResult;
+              if (novoProtocolo) {
+                updatePayload.protocolo = novoProtocolo;
+                console.log(`[Webhook] Novo protocolo #${novoProtocolo} gerado para conversa ${conv.id}`);
+              }
+            }
+          } catch (e) {
+            console.error("[Webhook] Erro ao gerar novo protocolo na reabertura:", e);
           }
-          updatePayload.resolved_at = null;
         } else {
           updatePayload.status = 'em_atendimento';
-          updatePayload.resolved_at = null;
         }
+        updatePayload.resolved_at = null;
         console.log(`[Webhook] Reabrindo conversa ${conv.id} - status: resolvido -> ${updatePayload.status}`);
       }
 
@@ -707,6 +714,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { error: updateError } = await supabase.from('conversas').update(updatePayload).eq('id', conv.id);
         if (updateError) {
           console.error(`[Webhook] Erro ao atualizar conversa ${conv.id}:`, updateError.message);
+        } else if (!isFromMe && updatePayload.protocolo) {
+          // Log de reabertura com novo protocolo
+          await supabase.from('historico').insert({
+            conversation_id: conv.id,
+            action: 'Nova demanda',
+            details: `Protocolo: #${updatePayload.protocolo}`,
+            user_name: pushName || phone,
+            timestamp: new Date().toISOString()
+          }).catch(e => console.error('[Webhook] Erro ao logar reabertura:', e));
         }
       } else {
         console.error(`[Webhook] conv.id é undefined — não foi possível atualizar conversa`);
