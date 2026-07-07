@@ -1,10 +1,30 @@
-// VERSION: 2026-05-07 12:12 - 413 PAYLOAD FIX & DOWNLOAD OPTIMIZATION
+// VERSION: 2026-07-07 - PROFILE PICTURE CACHING
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function storeProfilePic(url: string, phone: string): Promise<string | null> {
+  if (!url || url.includes('supabase.co')) return url || null;
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) return null;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length < 100) return null;
+    const safePhone = phone.replace(/[^a-zA-Z0-9]/g, '_');
+    const storagePath = `avatars/${safePhone}_${Date.now()}.jpg`;
+    const { error } = await supabase.storage.from("chat-media").upload(storagePath, buffer, {
+      contentType: "image/jpeg", upsert: true
+    });
+    if (error) return null;
+    const { data: { publicUrl } } = supabase.storage.from("chat-media").getPublicUrl(storagePath);
+    return publicUrl;
+  } catch {
+    return null;
+  }
+}
 
 async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, mediaPath: string, fileName: string, mimeType: string, fullMessage: any, tenantId?: string): Promise<{ url: string, error?: string }> {
   const evoUrl = (process.env.EVOLUTION_URL || process.env.VITE_EVOLUTION_URL || evolutionUrl || "").replace(/\/$/, "");
@@ -128,6 +148,99 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
     return { url: publicUrl };
   } catch (err: any) {
     return { url: '', error: `Critical: ${err.message}` };
+  }
+}
+
+// Backfill de avatares — busca fotos da tabela contacts e Evolution API
+async function handleBackfillAvatars(req: VercelRequest, res: VercelResponse) {
+  const evoUrl = (process.env.EVOLUTION_URL || "").replace(/\/$/, "");
+  const evoKey = process.env.EVOLUTION_API_KEY || "";
+  const tId = '11111111-1111-1111-1111-111111111111';
+
+  try {
+    const { data: conversas } = await supabase
+      .from('conversas')
+      .select('id, client_phone, client_name')
+      .is('client_avatar', null)
+      .eq('tenant_id', tId);
+
+    if (!conversas || conversas.length === 0) {
+      return res.json({ ok: true, message: 'Nenhuma conversa sem avatar encontrada' });
+    }
+
+    console.log(`[Backfill] Iniciando backfill de ${conversas.length} conversas`);
+    const results: any[] = [];
+
+    for (const conv of conversas) {
+      const phone = conv.client_phone;
+      let avatarUrl: string | null = null;
+
+      // 1. Tentar match com contacts por múltiplos formatos
+      const searchPhones = [phone];
+      if (phone.startsWith('55')) searchPhones.push(phone.substring(2));
+      else searchPhones.push('55' + phone);
+
+      for (const sp of searchPhones) {
+        const { data: contact } = await supabase
+          .from('contacts')
+          .select('foto_perfil')
+          .or(`telefone_formatado.eq.${sp},jid.eq.${sp}@s.whatsapp.net,jid.eq.${sp}`)
+          .not('foto_perfil', 'is', null)
+          .maybeSingle();
+
+        if (contact?.foto_perfil && contact.foto_perfil !== 'null') {
+          avatarUrl = contact.foto_perfil;
+          break;
+        }
+      }
+
+      // 2. Se não achou em contacts, tentar Evolution API
+      if (!avatarUrl && evoUrl && evoKey) {
+        try {
+          const rawPhone = phone.replace(/\D/g, '');
+          const resp = await fetch(`${evoUrl}/chat/fetchProfilePictureUrl/SASAKI`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+            body: JSON.stringify({ number: rawPhone })
+          });
+          if (resp.ok) {
+            const data = await resp.json() as any;
+            if (data?.profilePictureUrl) avatarUrl = data.profilePictureUrl;
+          }
+        } catch (e) {
+          console.log(`[Backfill] Evolution API falhou para ${phone}`);
+        }
+      }
+
+      // 3. Se achou URL, baixar e armazenar permanentemente
+      if (avatarUrl) {
+        const stored = await storeProfilePic(avatarUrl, phone);
+        if (stored) {
+          await supabase.from('conversas').update({ client_avatar: stored }).eq('id', conv.id);
+          results.push({ phone, status: 'ok' });
+          console.log(`[Backfill] Avatar salvo para ${phone}`);
+        } else {
+          results.push({ phone, status: 'download_failed' });
+        }
+      } else {
+        results.push({ phone, status: 'no_photo' });
+      }
+    }
+
+    const ok = results.filter(r => r.status === 'ok').length;
+    const noPhoto = results.filter(r => r.status === 'no_photo').length;
+    const failed = results.filter(r => r.status === 'download_failed').length;
+
+    return res.json({
+      ok: true,
+      total: conversas.length,
+      avatars_found: ok,
+      no_photo: noPhoto,
+      download_failed: failed
+    });
+  } catch (err: any) {
+    console.error('[Backfill] Erro:', err);
+    return res.status(500).json({ ok: false, error: err.message });
   }
 }
 
@@ -291,6 +404,11 @@ async function findTenantByInstance(name: string, supabase: any): Promise<string
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Endpoint de backfill de avatares
+  if (req.url?.includes('/backfill-avatars')) {
+    return handleBackfillAvatars(req, res);
+  }
+
   if (req.method === 'GET') {
     return res.status(200).json({ 
       status: 'online',
@@ -350,10 +468,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ success: true, detail: 'No tenant configured' });
       }
       // Capturar avatar do cliente de várias fontes possíveis (v1, v2 e data wrapper)
-      const profilePic = data.profilePicUrl || 
+      let profilePic = data.profilePicUrl || 
                         messageContent?.profilePicUrl || 
                         data.data?.profilePicUrl || 
                         data.sender?.profilePicUrl;
+
+      // Converter URL temporária do WhatsApp para URL permanente no Storage
+      if (profilePic && !profilePic.includes('supabase.co')) {
+        const stored = await storeProfilePic(profilePic, phone);
+        if (stored) {
+          console.log(`[Webhook] Avatar permanentemente armazenado para ${phone}`);
+          profilePic = stored;
+        }
+      }
 
       // 1. Verificar se o número pertence a um cliente cadastrado
       const searchPhones = [phone];
@@ -772,8 +899,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!remoteJid) continue;
         
         const isGrp = remoteJid.endsWith('@g.us');
-        const pic = c.profilePicUrl || c.imgUrl || c.data?.profilePicUrl || c.picture;
+        let pic = c.profilePicUrl || c.imgUrl || c.data?.profilePicUrl || c.picture;
         const pushName = c.pushName || c.name || c.data?.pushName || c.subject;
+        const rawPhone = remoteJid.split('@')[0];
+
+        // Converter URL temporária para permanente
+        if (pic && !pic.includes('supabase.co')) {
+          const stored = await storeProfilePic(pic, rawPhone);
+          if (stored) pic = stored;
+        }
 
         if (isGrp) {
           if (pushName) {
@@ -784,7 +918,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           continue; // Pular grupos na tabela de contatos técnicos por enquanto
         }
 
-        const rawPhone = remoteJid.split('@')[0];
         const hygiene = analyzeAndHygienize(rawPhone);
         
         // Upsert na tabela de contatos técnicos

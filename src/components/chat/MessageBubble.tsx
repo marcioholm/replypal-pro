@@ -63,6 +63,15 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                     <ImageIcon className="w-8 h-8 text-white drop-shadow-lg" />
                   </div>
+                  <a 
+                    href={msg.mediaUrl} 
+                    download 
+                    className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-all text-white z-10"
+                    title="Baixar imagem"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </a>
                 </div>
               </DialogTrigger>
               <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none flex items-center justify-center overflow-hidden">
@@ -73,6 +82,14 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
                     className="max-w-full max-h-[85vh] h-auto w-auto object-contain shadow-2xl rounded-sm" 
                     referrerPolicy="no-referrer"
                   />
+                  <a 
+                    href={msg.mediaUrl} 
+                    download 
+                    className="absolute bottom-6 right-6 p-2 bg-black/60 hover:bg-black/80 rounded-full transition-colors text-white shadow-lg z-10"
+                    title="Baixar imagem"
+                  >
+                    <Download className="w-4 h-4" />
+                  </a>
                 </div>
               </DialogContent>
             </Dialog>
@@ -83,13 +100,21 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
       case 'VIDEO':
         return (
           <div className="space-y-2">
-            <div className="rounded-lg overflow-hidden bg-black aspect-video max-w-full relative">
+            <div className="rounded-lg overflow-hidden bg-black aspect-video max-w-full relative group">
               <video 
                 src={msg.mediaUrl} 
                 controls 
                 className="w-full h-full" 
                 poster={msg.mediaUrl + '#t=0.5'}
               />
+              <a 
+                href={msg.mediaUrl} 
+                download 
+                className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-all text-white z-10"
+                title="Baixar vídeo"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </a>
             </div>
             {msg.content && <p className="text-sm">{msg.content}</p>}
           </div>
