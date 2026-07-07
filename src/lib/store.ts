@@ -230,6 +230,7 @@ interface Store {
   setCurrentUser: (user: User | null) => void;
   setCurrentTenantId: (id: string | undefined) => void;
   setIAChatOpen: (open: boolean) => void;
+  setTags: (tags: Tag[]) => void;
   getSLAStatus: (conv: Conversation) => "ok" | "em_risco" | "estourado";
   getConversation: (id: string) => Conversation | undefined;
   getMessages: (conversationId: string) => Message[];
@@ -477,6 +478,10 @@ function getStore(): Store {
         if (conv) {
           s.addDbConversation({ id: conversationId, tags: conv.tags.filter(t => t !== tagId) } as any);
         }
+      },
+      setTags(tags) {
+        s.tags = tags;
+        notify();
       },
       deleteCustomer(id) {
         s.customers = s.customers.filter(c => c.id !== id);

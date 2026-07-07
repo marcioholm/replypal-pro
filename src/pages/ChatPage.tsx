@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useStore, formatTime, formatDuration, formatDateTime, MOCK_TAGS, UserRole, MessageType, ConversationStatus, ClosingReason } from "@/lib/store";
+import { useStore, formatTime, formatDuration, formatDateTime, UserRole, MessageType, ConversationStatus, ClosingReason } from "@/lib/store";
 import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead, syncConversationHistory, checkWhatsApp, sendReaction, deleteMessage, fetchGroupInfo } from "@/lib/evolution";
 import { useRealtimeChat } from "@/hooks/useRealtimeChat";
 import { webhooks } from "@/lib/webhooks";
@@ -357,6 +357,20 @@ export default function ChatPage() {
     };
 
     fetchCustomers();
+  }, [user?.tenantId]);
+
+  // Carregar tags do banco
+  useEffect(() => {
+    if (!user?.tenantId) return;
+    supabase
+      .from("tags")
+      .select("*")
+      .eq("tenant_id", user.tenantId)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          store.setTags(data.map(t => ({ id: t.id, name: t.nome, color: t.cor || "#6B7280" })));
+        }
+      });
   }, [user?.tenantId]);
 
   // Busca dinâmica de clientes para o encaminhamento

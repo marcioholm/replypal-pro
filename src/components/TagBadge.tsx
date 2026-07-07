@@ -1,8 +1,9 @@
-import { MOCK_TAGS } from "@/lib/store";
+import { useStore } from "@/lib/store";
 import { X } from "lucide-react";
 
 export function TagBadge({ tagId, onRemove }: { tagId: string; onRemove?: () => void }) {
-  const tag = MOCK_TAGS.find((t) => t.id === tagId);
+  const store = useStore();
+  const tag = store.tags.find((t) => t.id === tagId);
   if (!tag) return null;
   return (
     <span

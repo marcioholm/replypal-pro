@@ -200,7 +200,7 @@ const App = () => (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <TooltipProvider>
         <Toaster />
-        <Sonner position="top-right" expand={true} richColors closeButton />
+        <Sonner position="bottom-right" expand={true} richColors closeButton />
         <BrowserRouter>
           <AuthProvider>
             <AppRoutes />

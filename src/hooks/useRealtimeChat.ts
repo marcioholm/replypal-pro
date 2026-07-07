@@ -96,12 +96,11 @@ export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: Us
           event: "INSERT",
           schema: "public",
           table: "mensagens",
+          filter: `tenant_id=eq.${tenantId}`,
         },
         (payload) => {
           const { new: newRecord } = payload;
           if (!newRecord) return;
-
-          if (newRecord.tenant_id && newRecord.tenant_id !== tenantId) return;
 
           const knownConv = storeRef.current.conversations.find(
             c => c.id === newRecord.conversation_id
@@ -144,11 +143,11 @@ export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: Us
           event: "UPDATE",
           schema: "public",
           table: "mensagens",
+          filter: `tenant_id=eq.${tenantId}`,
         },
         (payload) => {
           const { new: newRecord } = payload;
           if (!newRecord) return;
-          if (newRecord.tenant_id && newRecord.tenant_id !== tenantId) return;
 
           storeRef.current.updateMessage(newRecord.id, {
             content: newRecord.content,
@@ -156,6 +155,7 @@ export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: Us
             mediaUrl: newRecord.media_url,
             fileName: newRecord.file_name,
             reaction: newRecord.reaction,
+            status: newRecord.status,
           });
         }
       )
