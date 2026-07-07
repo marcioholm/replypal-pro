@@ -281,8 +281,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
+  const tWebhookStart = performance.now();
   const { event, data, instance: instPayload } = req.body || {};
   if (!event || !data) return res.status(400).json({ error: 'Invalid payload' });
+
+  console.log(`[TIMING] Webhook recebido: ${event} às ${new Date().toISOString()}`);
 
   try {
     const evoUrl = (process.env.EVOLUTION_URL || "").replace(/\/$/, "");
@@ -353,8 +356,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const now = new Date();
         const slaDeadline = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 horas de SLA por padrão
 
+        // Gerar protocolo único
+        let protocolo = null;
+        const { data: protoResult } = await supabase.rpc('get_next_protocolo', { p_tenant_id: tId }).single();
+        if (protoResult) protocolo = protoResult;
+
+        // Prioridade do nome: 1. Banco Sasaki > 2. WhatsApp > 3. API
+        let clientName = '';
+        if (matchedCustomer) {
+          clientName = matchedCustomer.responsavel || matchedCustomer.nome_fantasia || '';
+        }
+        if (!clientName) {
+          clientName = isGroup ? (groupSubject || pushName || phone) : (pushName || phone);
+        }
+
         const { data: nConv, error: cErr } = await supabase.from('conversas').upsert({
-          client_name: matchedCustomer?.responsavel || matchedCustomer?.nome_fantasia || (isGroup ? (groupSubject || pushName || phone) : (pushName || phone)), 
+          client_name: clientName, 
           client_phone: phone, 
           customer_id: matchedCustomer?.id || null,
           status: isFromMe ? 'em_atendimento' : 'novo', 
@@ -362,10 +379,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           tenant_id: tId,
           client_avatar: profilePic, 
           is_group: isGroup,
-          sla_deadline: slaDeadline.toISOString()
+          sla_deadline: slaDeadline.toISOString(),
+          protocolo: protocolo
         }, { onConflict: 'client_phone,tenant_id' }).select().single();
         if (cErr) throw cErr;
         conv = nConv;
+
+        // Log de criação do chamado com protocolo
+        if (protocolo) {
+          await supabase.from('historico').insert({
+            conversation_id: conv.id,
+            action: `Chamado criado`,
+            details: `Protocolo: #${protocolo}`,
+            user_name: isFromMe ? (matchedCustomer?.responsavel || 'Sistema') : (pushName || phone),
+            timestamp: now.toISOString()
+          });
+        }
       } else if (profilePic && conv.client_avatar !== profilePic) {
         // Atualizar avatar se mudou
         await supabase.from('conversas').update({ client_avatar: profilePic }).eq('id', conv.id);
@@ -699,26 +728,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         await supabase.from('contacts').upsert(contactData, { onConflict: 'jid,tenant_id' });
 
-        // Também atualizar o nome na conversa se ela existir
+        // Atualizar dados da conversa se existir
         const updConv: any = {};
         if (pic) updConv.client_avatar = pic;
-        
-        // Priorizar nome do CRM (clientes) se existir
-        const { data: matchedCustomer } = await supabase
-          .from('clientes')
-          .select('id, nome_fantasia, responsavel')
-          .or(`whatsapp.eq.${hygiene.telefone_formatado},telefone.eq.${hygiene.telefone_formatado}`)
+
+        // Buscar conversa atual para verificar se já tem nome do CRM
+        const { data: existingConv } = await supabase
+          .from('conversas')
+          .select('id, client_name, customer_id')
+          .eq('client_phone', hygiene.telefone_formatado)
+          .eq('tenant_id', tId)
           .maybeSingle();
 
-        if (matchedCustomer) {
-          updConv.client_name = matchedCustomer.responsavel || matchedCustomer.nome_fantasia;
-          updConv.customer_id = matchedCustomer.id;
-        } else if (pushName) {
-          updConv.client_name = pushName;
+        if (existingConv) {
+          // Já tem customer_id (cliente vinculado) — NÃO substituir o nome
+          if (!existingConv.customer_id) {
+            // Buscar cliente por número
+            const { data: matchedCustomer } = await supabase
+              .from('clientes')
+              .select('id, nome_fantasia, responsavel')
+              .or(`whatsapp.eq.${hygiene.telefone_formatado},telefone.eq.${hygiene.telefone_formatado}`)
+              .maybeSingle();
+
+            if (matchedCustomer) {
+              // Prioridade 1: Nome salvo no banco Sasaki (já existe, não substituir)
+              // Prioridade 2: Nome sincronizado do WhatsApp (pushName)
+              // Prioridade 3: Nome retornado pela API
+              if (!existingConv.client_name || existingConv.client_name === existingConv.client_phone) {
+                updConv.client_name = matchedCustomer.responsavel || matchedCustomer.nome_fantasia;
+              }
+              updConv.customer_id = matchedCustomer.id;
+            } else if (pushName && (!existingConv.client_name || existingConv.client_name === existingConv.client_phone)) {
+              updConv.client_name = pushName;
+            }
+          }
+          // Se já tem customer_id, nunca substituir o nome cadastrado
         }
 
         if (Object.keys(updConv).length > 0) {
-          await supabase.from('conversas').update(updConv).eq('client_phone', hygiene.telefone_formatado).eq('tenant_id', tId);
+          await supabase.from('conversas').update(updConv).eq('id', existingConv.id);
         }
 
       }
@@ -766,8 +814,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }).eq('external_message_id', key.id);
       }
     }
+    const tWebhookEnd = performance.now();
+    console.log(`[TIMING] Webhook processado (${event}): ${(tWebhookEnd - tWebhookStart).toFixed(0)}ms`);
     return res.status(200).json({ success: true });
   } catch (error) {
+    console.error(`[TIMING] Webhook ERRO (${event}): ${String(error)}`);
     return res.status(500).json({ error: String(error) });
   }
 }

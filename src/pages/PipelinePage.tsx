@@ -127,6 +127,27 @@ export default function PipelinePage() {
     const conv = store.getConversation(draggedId);
     if (conv && conv.status !== targetStatus) {
       store.updateStatus(draggedId, targetStatus, store.currentUser);
+      
+      // Se resolver, remover atribuição e registrar
+      if (targetStatus === "resolvido") {
+        supabase.from("conversas").update({ 
+          assigned_to: null, 
+          resolved_at: new Date().toISOString() 
+        }).eq("id", draggedId).then(() => {
+          supabase.from("historico").insert([{
+            conversation_id: draggedId,
+            action: "Atendimento encerrado (Pipeline)",
+            user_id: user.id,
+            user_name: user.name
+          }, {
+            conversation_id: draggedId,
+            action: "Chamado resolvido",
+            user_id: user.id,
+            user_name: user.name,
+            details: "Responsável removido automaticamente."
+          }]);
+        });
+      }
     }
     setDraggedId(null);
   };

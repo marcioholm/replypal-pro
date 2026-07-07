@@ -123,6 +123,13 @@ export function NewChatDialog({ collapsed }: NewChatDialogProps) {
       const normalizedPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
 
       if (!conv) {
+        // Gerar protocolo único
+        let protocolo = null;
+        const { data: protoResult } = await supabase
+          .rpc('get_next_protocolo', { p_tenant_id: user.tenantId })
+          .single();
+        if (protoResult) protocolo = protoResult;
+
         const { data: newConv, error: createError } = await supabase
           .from("conversas")
           .insert({
@@ -133,13 +140,25 @@ export function NewChatDialog({ collapsed }: NewChatDialogProps) {
             last_message_time: new Date().toISOString(),
             status: "em_atendimento",
             assigned_to: user.id,
-            tenant_id: user.tenantId
+            tenant_id: user.tenantId,
+            protocolo: protocolo
           })
           .select()
           .single();
 
         if (createError) throw createError;
         conv = newConv;
+
+        // Log de criação com protocolo
+        if (protocolo) {
+          await supabase.from("historico").insert({
+            conversation_id: conv.id,
+            action: "Chamado criado",
+            details: `Protocolo: #${protocolo}`,
+            user_id: user.id,
+            user_name: user.name
+          });
+        }
       } else {
         // Atualizar conversa existente
         const { error: updateError } = await supabase

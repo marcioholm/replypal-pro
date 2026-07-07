@@ -123,6 +123,8 @@ export interface Conversation {
   clientAvatar?: string;
   isGroup?: boolean;
   isTyping?: boolean;
+  protocolo?: number;
+  resolvedAt?: string;
 }
 
 export interface Message {
@@ -537,4 +539,15 @@ export function ensureDate(date: any): Date | undefined {
   if (date instanceof Date) return date;
   const d = new Date(date);
   return isNaN(d.getTime()) ? undefined : d;
+}
+
+export function formatDateTime(date: Date): string {
+  if (!date || isNaN(date.getTime())) return "--/--/---- --:--";
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }

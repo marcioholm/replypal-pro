@@ -6,7 +6,7 @@ import { useListKeyboardNav } from "@/hooks/useListNavigation";
 import { useSound } from "@/hooks/useSound";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, UserCheck, Users, Inbox as InboxIcon, Mail, RefreshCw, AlertTriangle, Clock, Volume2, VolumeX, Keyboard, UserPlus } from "lucide-react";
+import { Search, UserCheck, Users, Inbox as InboxIcon, Mail, RefreshCw, AlertTriangle, Clock, Volume2, VolumeX, Keyboard, UserPlus, Activity, CheckCircle } from "lucide-react";
 import { checkConnection } from "@/lib/evolution";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { useNotification } from "@/hooks/useNotifications";
 import { toast } from "sonner";
 
-type Filter = "todas" | "minhas" | "pendentes" | "fila" | "grupos";
+type Filter = "todas" | "minhas" | "pendentes" | "fila" | "grupos" | "em_atendimento" | "resolvidos";
 
 export default function InboxPage() {
   const store = useStore();
@@ -120,7 +120,9 @@ export default function InboxPage() {
           tenantId: c.tenant_id,
           tags: c.tags || [],
           isGroup: c.is_group,
-          clientAvatar: c.client_avatar
+          clientAvatar: c.client_avatar,
+          protocolo: c.protocolo,
+          resolvedAt: c.resolved_at
         }));
         storeRef.current.addDbConversations(formattedConvs);
       }
@@ -154,7 +156,9 @@ export default function InboxPage() {
             tenantId: c.tenant_id,
             tags: c.tags || [],
             isGroup: c.is_group,
-            clientAvatar: c.client_avatar
+            clientAvatar: c.client_avatar,
+            protocolo: c.protocolo,
+            resolvedAt: c.resolved_at
           });
         });
       }
@@ -174,15 +178,9 @@ export default function InboxPage() {
     }
   }, [user]);
 
-  // IMPLEMENTAÇÃO 1.2: Filtro padrão para atendentes = "pendentes"
   useEffect(() => {
     if (user && !hasSetDefaultFilter) {
-      if (['admin', 'supervisor'].includes(user.role)) {
-        setFilter("todas");
-      } else {
-        // Atendentes começam em "Pendentes" para ver o que precisam assumir
-        setFilter("pendentes");
-      }
+      setFilter("todas");
       setHasSetDefaultFilter(true);
     }
   }, [user, hasSetDefaultFilter]);
@@ -301,8 +299,10 @@ export default function InboxPage() {
   const filtered = useMemo(() => {
     let convs = allConversations.filter(c => {
       if (filter === "minhas") return c.assignedTo === user?.id && !c.isGroup;
-      if (filter === "pendentes") return (!c.assignedTo || c.status === "novo") && !c.isGroup;
+      if (filter === "pendentes") return (!c.assignedTo || c.status === "novo") && c.status !== "resolvido" && !c.isGroup;
       if (filter === "fila") return !c.assignedTo && c.status !== "resolvido" && !c.isGroup;
+      if (filter === "em_atendimento") return c.status === "em_atendimento" && !c.isGroup;
+      if (filter === "resolvidos") return c.status === "resolvido" && !c.isGroup;
       if (filter === "todas") return !c.isGroup;
       if (filter === "grupos") return c.isGroup;
       return true;
@@ -325,14 +325,15 @@ export default function InboxPage() {
     return convs;
   }, [allConversations, filter, user?.id, search, store]);
 
-  // Contagens para as abas
   const counts = useMemo(() => {
     return {
       minhas: allConversations.filter(c => c.assignedTo === user?.id && c.status !== 'resolvido' && !c.isGroup).length,
-      todas: allConversations.filter(c => c.status !== 'resolvido' && !c.isGroup).length,
-      pendentes: allConversations.filter(c => (!c.assignedTo || c.status === 'novo' || c.status === 'aguardando') && c.status !== 'resolvido' && !c.isGroup).length,
+      todas: allConversations.filter(c => !c.isGroup).length,
+      pendentes: allConversations.filter(c => (!c.assignedTo || c.status === 'novo') && c.status !== 'resolvido' && !c.isGroup).length,
+      em_atendimento: allConversations.filter(c => c.status === 'em_atendimento' && !c.isGroup).length,
+      resolvidos: allConversations.filter(c => c.status === 'resolvido' && !c.isGroup).length,
       fila: allConversations.filter(c => !c.assignedTo && c.status !== 'resolvido' && !c.isGroup).length,
-      grupos: allConversations.filter(c => c.isGroup && c.status !== 'resolvido').length
+      grupos: allConversations.filter(c => c.isGroup).length
     };
   }, [allConversations, user?.id]);
 
@@ -415,21 +416,6 @@ export default function InboxPage() {
 
           <div className="flex p-1 bg-slate-100 dark:bg-white/5 rounded-xl border border-border/20">
               <button
-                onClick={() => setFilter("minhas")}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
-                  filter === "minhas" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <UserCheck className="w-3.5 h-3.5" />
-                Minhas
-                {counts.minhas > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] rounded-full">
-                    {counts.minhas}
-                  </span>
-                )}
-              </button>
-              <button
                 onClick={() => setFilter("todas")}
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
@@ -445,6 +431,21 @@ export default function InboxPage() {
                 )}
               </button>
               <button
+                onClick={() => setFilter("minhas")}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
+                  filter === "minhas" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                Minhas
+                {counts.minhas > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] rounded-full">
+                    {counts.minhas}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => setFilter("pendentes")}
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
@@ -456,6 +457,36 @@ export default function InboxPage() {
                 {counts.pendentes > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] rounded-full">
                     {counts.pendentes}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setFilter("em_atendimento")}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
+                  filter === "em_atendimento" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Activity className="w-3.5 h-3.5" />
+                Atendimento
+                {counts.em_atendimento > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-blue-500/10 text-blue-500 text-[10px] rounded-full">
+                    {counts.em_atendimento}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setFilter("resolvidos")}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
+                  filter === "resolvidos" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <CheckCircle className="w-3.5 h-3.5" />
+                Resolvidos
+                {counts.resolvidos > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-green-500/10 text-green-500 text-[10px] rounded-full">
+                    {counts.resolvidos}
                   </span>
                 )}
               </button>
@@ -569,6 +600,11 @@ export default function InboxPage() {
                     )}
                     
                     <div className="flex items-center gap-2 mt-2">
+                      {conv.protocolo && (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider bg-slate-100 dark:bg-white/10 text-muted-foreground border border-border/20">
+                          #{conv.protocolo}
+                        </span>
+                      )}
                       <span className={cn(
                         "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
                         "bg-primary/10 text-primary border border-primary/20"

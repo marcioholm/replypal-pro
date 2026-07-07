@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useStore, formatTime, formatDuration, MOCK_TAGS, UserRole, MessageType, ConversationStatus, ClosingReason } from "@/lib/store";
+import { useStore, formatTime, formatDuration, formatDateTime, MOCK_TAGS, UserRole, MessageType, ConversationStatus, ClosingReason } from "@/lib/store";
 import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead, syncConversationHistory, checkWhatsApp, sendReaction, deleteMessage, fetchGroupInfo } from "@/lib/evolution";
 import { useRealtimeChat } from "@/hooks/useRealtimeChat";
 import { webhooks } from "@/lib/webhooks";
@@ -211,7 +211,9 @@ export default function ChatPage() {
         status: dbConv.status as any,
         assignedTo: dbConv.assigned_to,
         tenantId: dbConv.tenant_id,
-        isGroup: dbConv.is_group
+        isGroup: dbConv.is_group,
+        protocolo: dbConv.protocolo,
+        resolvedAt: dbConv.resolved_at
       });
       navigate(`/chat/${dbConv.id}`);
       return;
@@ -407,6 +409,8 @@ export default function ChatPage() {
     return () => clearTimeout(timer);
   }, [forwardSearch, user?.tenantId]);
 
+  const viewedRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (!id) return;
     setGroupInfo(null);
@@ -438,7 +442,9 @@ export default function ChatPage() {
               tags: dbConv.tags || [],
               clientAvatar: dbConv.client_avatar,
               tenantId: dbConv.tenant_id,
-              isGroup: dbConv.is_group
+              isGroup: dbConv.is_group,
+              protocolo: dbConv.protocolo,
+              resolvedAt: dbConv.resolved_at
             });
           }
         }
@@ -494,6 +500,34 @@ export default function ChatPage() {
             details: h.details,
             timestamp: new Date(h.timestamp)
           })));
+        }
+
+        // Registrar visualização (uma vez por usuário)
+        if (user && !viewedRef.current.has(`${id}-${user.id}`)) {
+          viewedRef.current.add(`${id}-${user.id}`);
+          const { data: existingView } = await supabase
+            .from("historico")
+            .select("id")
+            .eq("conversation_id", id)
+            .eq("action", `Visualizado por ${user.name}`)
+            .maybeSingle();
+          if (!existingView) {
+            await supabase.from("historico").insert({
+              conversation_id: id,
+              action: `Visualizado por ${user.name}`,
+              user_id: user.id,
+              user_name: user.name,
+              timestamp: new Date().toISOString()
+            });
+            storeRef.current.addDbHistory([{
+              id: `view-${Date.now()}`,
+              conversationId: id,
+              action: `Visualizado por ${user.name}`,
+              userId: user.id,
+              userName: user.name,
+              timestamp: new Date()
+            }]);
+          }
         }
 
         // Se tiver poucas mensagens no banco, sincronizar histórico da Evolution
@@ -714,6 +748,9 @@ export default function ChatPage() {
   const handleSend = async () => {
     if ((!messageInput.trim() && selectedFiles.length === 0 && !audioBlob) || !user || !conv) return;
 
+    const tStart = performance.now();
+    console.log(`[TIMING] handleSend iniciado: ${new Date().toISOString()}`);
+
     // IMPLEMENTAÇÃO 10: Parar typing indicator ao enviar
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     sendTypingStatus(conv.clientPhone, false);
@@ -852,6 +889,13 @@ export default function ChatPage() {
           last_message_time: new Date().toISOString(),
           tenant_id: user.tenantId
         }).eq("id", id);
+      }
+
+      const tEnd = performance.now();
+      const tDelta = (tEnd - tStart).toFixed(0);
+      console.log(`[TIMING] handleSend concluído: ${new Date().toISOString()} (${tDelta}ms)`);
+      if (Number(tDelta) > 3000) {
+        console.warn(`[TIMING] ALERTA: Envio lento! ${tDelta}ms`);
       }
 
       setMessageInput("");
@@ -1046,6 +1090,12 @@ export default function ChatPage() {
       const lastMsgText = forwardingMsg.type === 'text' || !forwardingMsg.type ? caption : `[${forwardingMsg.type}]`;
 
       if (!targetConv) {
+        let protocolo = null;
+        const { data: protoResult } = await supabase
+          .rpc('get_next_protocolo', { p_tenant_id: user.tenantId })
+          .single();
+        if (protoResult) protocolo = protoResult;
+
         const { data: newConv, error: createError } = await supabase
           .from("conversas")
           .insert({
@@ -1055,13 +1105,24 @@ export default function ChatPage() {
             last_message_time: new Date().toISOString(),
             status: "em_atendimento",
             assigned_to: user.id,
-            tenant_id: user.tenantId
+            tenant_id: user.tenantId,
+            protocolo: protocolo
           })
           .select()
           .single();
 
         if (createError) throw createError;
         targetConv = newConv;
+
+        if (protocolo) {
+          await supabase.from("historico").insert({
+            conversation_id: targetConv.id,
+            action: "Chamado criado",
+            details: `Protocolo: #${protocolo}`,
+            user_id: user.id,
+            user_name: user.name
+          });
+        }
       } else {
         await supabase
           .from("conversas")
@@ -1204,20 +1265,30 @@ export default function ChatPage() {
     try {
       const { error } = await supabase
         .from("conversas")
-        .update({ status: "resolvido", resolved_at: new Date().toISOString() })
+        .update({ 
+          status: "resolvido", 
+          resolved_at: new Date().toISOString(),
+          assigned_to: null
+        })
         .eq("id", id);
       if (error) throw error;
 
-      // Registrar no histórico DB
-      await supabase.from("historico").insert({
+      await supabase.from("historico").insert([{
         conversation_id: id,
         action: `Atendimento encerrado`,
         user_id: user.id,
         user_name: user.name,
         details: `Motivo: ${closingReason}`
-      });
+      }, {
+        conversation_id: id,
+        action: `Chamado resolvido`,
+        user_id: user.id,
+        user_name: user.name,
+        details: `Responsável removido automaticamente.`
+      }]);
 
       store.updateStatus(id!, "resolvido", user!, closingReason);
+      store.addDbConversation({ id: id!, assignedTo: undefined } as any);
       setCloseOpen(false);
       toast.success("Conversa encerrada");
     } catch (e) {
@@ -1532,7 +1603,10 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">{conv.clientName}</p>
+            <p className="text-sm font-semibold truncate">
+              {conv.clientName}
+              {conv.protocolo && <span className="ml-2 text-[10px] text-muted-foreground font-mono font-bold">#{conv.protocolo}</span>}
+            </p>
             <div className="flex items-center gap-2">
               {conv.isTyping ? (
                 <span className="text-xs text-primary font-medium animate-pulse flex items-center gap-1">
@@ -2128,7 +2202,7 @@ export default function ChatPage() {
                     <p className="font-bold text-foreground">{h.action}</p>
                     {h.userName && <p className="text-muted-foreground mt-0.5">por {h.userName}</p>}
                     {h.details && <p className="text-[10px] mt-1 italic text-muted-foreground/80">{h.details}</p>}
-                    <p className="text-[9px] mt-1.5 opacity-50 font-mono">{formatTime(h.timestamp)}</p>
+                    <p className="text-[9px] mt-1.5 opacity-50 font-mono">{formatDateTime(h.timestamp)}</p>
                   </div>
                 ))
               ) : (
