@@ -1109,10 +1109,20 @@ export default function ChatPage() {
 
       if (!targetConv) {
         let protocolo = null;
-        const { data: protoResult } = await supabase
-          .rpc('get_next_protocolo', { p_tenant_id: user.tenantId })
-          .single();
-        if (protoResult) protocolo = protoResult;
+        try {
+          const { data: protoResult, error: protoError } = await supabase
+            .rpc('get_next_protocolo', { p_tenant_id: user.tenantId })
+            .single();
+          if (protoError) {
+            console.error(`[ChatPage] Erro ao gerar protocolo: ${protoError.message}`);
+          } else if (protoResult) {
+            protocolo = typeof protoResult === 'object' && protoResult !== null
+              ? ((protoResult as any).get_next_protocolo ?? null)
+              : protoResult;
+          }
+        } catch (e) {
+          console.error("[ChatPage] Erro ao gerar protocolo:", e);
+        }
 
         const { data: newConv, error: createError } = await supabase
           .from("conversas")

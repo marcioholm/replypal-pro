@@ -268,6 +268,28 @@ function getBrazilianPhoneVariations(phone: string): string[] {
   return Array.from(variations);
 }
 
+async function findTenantByInstance(name: string, supabase: any): Promise<string | null> {
+  // 1. Tentar evolution_instance (coluna pode ou não existir)
+  try {
+    const { data: t1 } = await supabase.from('tenants').select('id').eq('evolution_instance', name).maybeSingle();
+    if (t1?.id) return t1.id;
+  } catch {}
+
+  // 2. Tentar instance_name na mesma tabela
+  try {
+    const { data: t2 } = await supabase.from('tenants').select('id').eq('instance_name', name).maybeSingle();
+    if (t2?.id) return t2.id;
+  } catch {}
+
+  // 3. Buscar em company_settings (tem instance_name mapeado para tenant)
+  try {
+    const { data: cs } = await supabase.from('company_settings').select('tenant_id').eq('instance_name', name).maybeSingle();
+    if (cs?.tenant_id) return cs.tenant_id;
+  } catch {}
+
+  return null;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     return res.status(200).json({ 
@@ -308,12 +330,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const phone = isGroup ? rawPhone : canonicalPhone(rawPhone);
       const isFromMe = !!key?.fromMe;
       
-      const DEFAULT_TENANT = '11111111-1111-1111-1111-111111111111';
       const instName = instPayload || req.headers['x-instance-name'] as string || "";
-      let tId = DEFAULT_TENANT;
+      let tId: string | null = null;
+
       if (instName) {
-        const { data: tCfg } = await supabase.from('tenants').select('id').eq('evolution_instance', instName).maybeSingle();
-        if (tCfg) tId = tCfg.id;
+        tId = await findTenantByInstance(instName, supabase);
+      }
+
+      // Fallback: pegar o primeiro tenant disponível
+      if (!tId) {
+        const { data: anyTenant } = await supabase.from('tenants').select('id').limit(1).maybeSingle();
+        if (anyTenant?.id) {
+          tId = anyTenant.id;
+        }
+      }
+
+      if (!tId) {
+        console.error('[Webhook] CRÍTICO: Nenhum tenant encontrado no banco');
+        return res.status(200).json({ success: true, detail: 'No tenant configured' });
       }
       // Capturar avatar do cliente de várias fontes possíveis (v1, v2 e data wrapper)
       const profilePic = data.profilePicUrl || 
@@ -358,8 +392,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Gerar protocolo único
         let protocolo = null;
-        const { data: protoResult } = await supabase.rpc('get_next_protocolo', { p_tenant_id: tId }).single();
-        if (protoResult) protocolo = protoResult;
+        try {
+          const { data: protoResult, error: protoError } = await supabase.rpc('get_next_protocolo', { p_tenant_id: tId }).single();
+          if (protoError) {
+            console.error(`[Webhook] Erro ao gerar protocolo: ${protoError.message}`);
+          } else if (protoResult) {
+            protocolo = typeof protoResult === 'object' && protoResult !== null
+              ? ((protoResult as any).get_next_protocolo ?? null)
+              : protoResult;
+          }
+        } catch (e) {
+          console.error("[Webhook] Erro ao gerar protocolo:", e);
+        }
 
         // Prioridade do nome: 1. Banco Sasaki > 2. WhatsApp > 3. API
         let clientName = '';
@@ -382,11 +426,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           sla_deadline: slaDeadline.toISOString(),
           protocolo: protocolo
         }, { onConflict: 'client_phone,tenant_id' }).select().single();
-        if (cErr) throw cErr;
-        conv = nConv;
+        if (cErr) {
+          console.error(`[Webhook] Erro ao criar conversa:`, cErr.message);
+          // Tentar upsert sem protocolo (fallback)
+          const { data: nConv2, error: cErr2 } = await supabase.from('conversas').upsert({
+            client_name: clientName,
+            client_phone: phone,
+            customer_id: matchedCustomer?.id || null,
+            status: isFromMe ? 'em_atendimento' : 'novo',
+            last_message_time: now.toISOString(),
+            tenant_id: tId,
+            client_avatar: profilePic,
+            is_group: isGroup,
+          }, { onConflict: 'client_phone,tenant_id' }).select().single();
+          if (cErr2) {
+            console.error(`[Webhook] Erro ao criar conversa (fallback):`, cErr2.message);
+          } else {
+            conv = nConv2;
+          }
+        } else {
+          conv = nConv;
+        }
 
         // Log de criação do chamado com protocolo
-        if (protocolo) {
+        if (protocolo && conv?.id) {
           await supabase.from('historico').insert({
             conversation_id: conv.id,
             action: `Chamado criado`,
@@ -403,7 +466,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await supabase.from('conversas').update({ client_name: groupSubject }).eq('id', conv.id);
       }
 
-      const tenantId = conv?.tenant_id || DEFAULT_TENANT;
+      const tenantId = conv?.tenant_id || tId || '00000000-0000-0000-0000-000000000000';
 
       // Verificar se mensagem já existe (evitar duplicar envios manuais do chat)
       if (isFromMe) {
@@ -664,10 +727,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const contacts = Array.isArray(data) ? data : [data];
       const instName = data.instance || req.headers['x-instance-name'] as string || "";
       
-      let tId = '11111111-1111-1111-1111-111111111111';
+      let tId: string | null = null;
       if (instName) {
-        const { data: tCfg } = await supabase.from('tenants').select('id').eq('evolution_instance', instName).maybeSingle();
-        if (tCfg) tId = tCfg.id;
+        tId = await findTenantByInstance(instName, supabase);
+      }
+      // Fallback: pegar o primeiro tenant disponível
+      if (!tId) {
+        const { data: anyTenant } = await supabase.from('tenants').select('id').limit(1).maybeSingle();
+        if (anyTenant?.id) tId = anyTenant.id;
+      }
+      // Último fallback: tentar criar conversa sem tenant_id válido (FK pode falhar)
+      if (!tId) {
+        console.error('[Webhook] CRÍTICO: Nenhum tenant encontrado para contacts event');
+        return;
       }
 
       console.log(`[Webhook] Sincronizando ${contacts.length} contatos da instância ${instName}`);
@@ -817,8 +889,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tWebhookEnd = performance.now();
     console.log(`[TIMING] Webhook processado (${event}): ${(tWebhookEnd - tWebhookStart).toFixed(0)}ms`);
     return res.status(200).json({ success: true });
-  } catch (error) {
-    console.error(`[TIMING] Webhook ERRO (${event}): ${String(error)}`);
-    return res.status(500).json({ error: String(error) });
+  } catch (error: any) {
+    console.error(`[TIMING] Webhook ERRO (${event}):`, error?.message || error, error?.stack ? error.stack.substring(0, 500) : '');
+    return res.status(500).json({ error: error?.message || String(error), detail: error?.details || error?.hint || '', code: error?.code || '' });
   }
 }
