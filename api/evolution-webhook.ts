@@ -1041,6 +1041,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           reaction: null,
         }).eq('external_message_id', key.id);
       }
+    } else if (normalizedEvent === 'messages.set') {
+      // Mensagens históricas na inicialização — ignorar para evitar duplicação
+      console.log(`[Webhook] MESSAGES_SET recebido com ${Array.isArray(data) ? data.length : '?'} mensagens — ignorado`);
+    } else if (normalizedEvent.startsWith('chats.')) {
+      // Chats SET / UPSERT / UPDATE / DELETE — pode conter profilePicUrl
+      const chats = Array.isArray(data) ? data : [data];
+      const instName = instPayload || req.headers['x-instance-name'] as string || "";
+
+      let tId: string | null = null;
+      if (instName) tId = await findTenantByInstance(instName, supabase);
+      if (!tId) {
+        const { data: anyTenant } = await supabase.from('tenants').select('id').limit(1).maybeSingle();
+        if (anyTenant?.id) tId = anyTenant.id;
+      }
+      if (!tId) return res.status(200).json({ success: true });
+
+      for (const chat of chats) {
+        const chatJid = chat.id || chat.remoteJid || chat.jid;
+        if (!chatJid) continue;
+
+        const pic = chat.profilePicUrl || chat.imgUrl || chat.picture;
+        const chatName = chat.name || chat.pushName || chat.subject;
+
+        if (pic && !pic.includes('supabase.co')) {
+          const rawPhone = chatJid.split('@')[0];
+          const stored = await storeProfilePic(pic, rawPhone);
+          if (stored) {
+            await supabase.from('conversas').update({ client_avatar: stored })
+              .eq('client_phone', chatJid).eq('tenant_id', tId);
+          }
+        }
+
+        if (normalizedEvent === 'chats.delete') {
+          console.log(`[Webhook] Chat deletado: ${chatJid}`);
+        }
+      }
     }
     const tWebhookEnd = performance.now();
     console.log(`[TIMING] Webhook processado (${event}): ${(tWebhookEnd - tWebhookStart).toFixed(0)}ms`);
