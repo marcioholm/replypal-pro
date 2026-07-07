@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { useNotification } from "@/hooks/useNotifications";
 import { toast } from "sonner";
 
-type Filter = "todas" | "minhas" | "pendentes" | "fila" | "grupos" | "em_atendimento" | "resolvidos";
+type Filter = "todas" | "nao_lidas" | "grupos";
 
 export default function InboxPage() {
   const store = useStore();
@@ -70,14 +70,6 @@ export default function InboxPage() {
         .from("conversas")
         .select("*")
         .eq("tenant_id", tenantId);
-
-      if (filter === "minhas") {
-        query = query.eq("assigned_to", user?.id);
-      } else if (filter === "pendentes") {
-        query = query.or(`assigned_to.is.null,status.eq.novo`);
-      } else if (filter === "fila") {
-        query = query.is("assigned_to", null).neq("status", "resolvido");
-      }
 
       const { data: dbConvs, error } = await query.order("last_message_time", { ascending: false });
 
@@ -298,14 +290,9 @@ export default function InboxPage() {
 
   const filtered = useMemo(() => {
     let convs = allConversations.filter(c => {
-      if (filter === "minhas") return c.assignedTo === user?.id && !c.isGroup;
-      if (filter === "pendentes") return (!c.assignedTo || c.status === "novo") && c.status !== "resolvido" && !c.isGroup;
-      if (filter === "fila") return !c.assignedTo && c.status !== "resolvido" && !c.isGroup;
-      if (filter === "em_atendimento") return c.status === "em_atendimento" && !c.isGroup;
-      if (filter === "resolvidos") return c.status === "resolvido" && !c.isGroup;
-      if (filter === "todas") return !c.isGroup;
+      if (filter === "nao_lidas") return (unreadCounts[c.id] || 0) > 0;
       if (filter === "grupos") return c.isGroup;
-      return true;
+      return !c.isGroup;
     }).filter(c => {
       if (!search) return true;
       const name = (c.clientName || "").toLowerCase();
@@ -327,15 +314,11 @@ export default function InboxPage() {
 
   const counts = useMemo(() => {
     return {
-      minhas: allConversations.filter(c => c.assignedTo === user?.id && c.status !== 'resolvido' && !c.isGroup).length,
       todas: allConversations.filter(c => !c.isGroup).length,
-      pendentes: allConversations.filter(c => (!c.assignedTo || c.status === 'novo') && c.status !== 'resolvido' && !c.isGroup).length,
-      em_atendimento: allConversations.filter(c => c.status === 'em_atendimento' && !c.isGroup).length,
-      resolvidos: allConversations.filter(c => c.status === 'resolvido' && !c.isGroup).length,
-      fila: allConversations.filter(c => !c.assignedTo && c.status !== 'resolvido' && !c.isGroup).length,
+      nao_lidas: allConversations.filter(c => (unreadCounts[c.id] || 0) > 0).length,
       grupos: allConversations.filter(c => c.isGroup).length
     };
-  }, [allConversations, user?.id]);
+  }, [allConversations, unreadCounts]);
 
   const filaCount = counts.fila;
 
@@ -422,7 +405,7 @@ export default function InboxPage() {
                   filter === "todas" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Users className="w-3.5 h-3.5" />
+                <InboxIcon className="w-3.5 h-3.5" />
                 Todas
                 {counts.todas > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-400 text-[10px] rounded-full">
@@ -431,82 +414,20 @@ export default function InboxPage() {
                 )}
               </button>
               <button
-                onClick={() => setFilter("minhas")}
+                onClick={() => setFilter("nao_lidas")}
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
-                  filter === "minhas" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  filter === "nao_lidas" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <UserCheck className="w-3.5 h-3.5" />
-                Minhas
-                {counts.minhas > 0 && (
+                <Mail className="w-3.5 h-3.5" />
+                Não lidas
+                {counts.nao_lidas > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] rounded-full">
-                    {counts.minhas}
+                    {counts.nao_lidas}
                   </span>
                 )}
               </button>
-              <button
-                onClick={() => setFilter("pendentes")}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
-                  filter === "pendentes" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Clock className="w-3.5 h-3.5" />
-                Pendentes
-                {counts.pendentes > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] rounded-full">
-                    {counts.pendentes}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setFilter("em_atendimento")}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
-                  filter === "em_atendimento" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Activity className="w-3.5 h-3.5" />
-                Atendimento
-                {counts.em_atendimento > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-blue-500/10 text-blue-500 text-[10px] rounded-full">
-                    {counts.em_atendimento}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setFilter("resolvidos")}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
-                  filter === "resolvidos" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <CheckCircle className="w-3.5 h-3.5" />
-                Resolvidos
-                {counts.resolvidos > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 bg-green-500/10 text-green-500 text-[10px] rounded-full">
-                    {counts.resolvidos}
-                  </span>
-                )}
-              </button>
-              {['admin', 'supervisor'].includes(user.role) && (
-                <button
-                  onClick={() => setFilter("fila")}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all",
-                    filter === "fila" ? "bg-white dark:bg-primary text-primary dark:text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <Users className="w-3.5 h-3.5" />
-                  Fila
-                  {counts.fila > 0 && (
-                    <span className="ml-1 w-4 h-4 bg-destructive text-white text-[9px] font-black rounded-full flex items-center justify-center">
-                      {counts.fila}
-                    </span>
-                  )}
-                </button>
-              )}
               <button
                 onClick={() => setFilter("grupos")}
                 className={cn(

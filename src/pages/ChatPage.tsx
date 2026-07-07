@@ -747,6 +747,10 @@ export default function ChatPage() {
 
   const handleSend = async () => {
     if ((!messageInput.trim() && selectedFiles.length === 0 && !audioBlob) || !user || !conv) return;
+    if (conv.assignedTo !== user.id && user.role !== "admin") {
+      toast.error("Você precisa assumir esta conversa antes de responder.");
+      return;
+    }
 
     const tStart = performance.now();
     console.log(`[TIMING] handleSend iniciado: ${new Date().toISOString()}`);
