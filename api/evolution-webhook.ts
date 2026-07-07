@@ -405,8 +405,8 @@ async function findTenantByInstance(name: string, supabase: any): Promise<string
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Endpoint de backfill de avatares
-  if (req.query?.action === 'backfill-avatars') {
-    return handleBackfillAvatars(req, res);
+  if (String(req.query?.action || '') === 'backfill-avatars') {
+    return await handleBackfillAvatars(req, res);
   }
 
   if (req.method === 'GET') {
