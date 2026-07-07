@@ -405,13 +405,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           console.error("[Webhook] Erro ao gerar protocolo:", e);
         }
 
-        // Prioridade do nome: 1. Banco Sasaki > 2. WhatsApp > 3. API
+        // Prioridade do nome: 1. Banco Sasaki > 2. WhatsApp (só se for do cliente) > 3. Telefone
         let clientName = '';
         if (matchedCustomer) {
           clientName = matchedCustomer.responsavel || matchedCustomer.nome_fantasia || '';
         }
         if (!clientName) {
-          clientName = isGroup ? (groupSubject || pushName || phone) : (pushName || phone);
+          if (isFromMe) {
+            // Quando a equipe inicia, pushName é o nome do agente/instância, não do cliente
+            clientName = phone;
+          } else if (isGroup) {
+            clientName = groupSubject || pushName || phone;
+          } else {
+            clientName = pushName || phone;
+          }
         }
 
         const { data: nConv, error: cErr } = await supabase.from('conversas').upsert({
