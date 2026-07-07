@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useStore, formatTime, formatDuration, formatDateTime, UserRole, MessageType, ConversationStatus, ClosingReason } from "@/lib/store";
+import { useStore, formatTime, formatDuration, formatDateTime, UserRole, MessageType, ConversationStatus, ClosingReason, MOCK_TAGS } from "@/lib/store";
 import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead, syncConversationHistory, checkWhatsApp, sendReaction, deleteMessage, fetchGroupInfo } from "@/lib/evolution";
 import { useRealtimeChat } from "@/hooks/useRealtimeChat";
 import { webhooks } from "@/lib/webhooks";
