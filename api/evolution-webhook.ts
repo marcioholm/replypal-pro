@@ -683,7 +683,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       };
       
       // Se a conversa estava encerrada/resolvida, reabre com novo protocolo
-      if (conv?.status === 'resolvido') {
+      if (conv?.status === 'resolvido' || conv?.resolved_at) {
         if (!isFromMe) {
           updatePayload.status = 'novo';
           updatePayload.assigned_to = null;
