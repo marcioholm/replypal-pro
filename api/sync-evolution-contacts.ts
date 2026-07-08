@@ -18,19 +18,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const isDryRun = dryRun === true;
 
   try {
-    const { data: tenant, error: tenantError } = await supabase
-      .from('tenants')
-      .select('evolution_instance, evolution_apikey, evolution_url')
-      .eq('id', tenantId)
-      .single();
+    // Buscar config da Evolution em company_settings
+    let evolutionUrl = process.env.EVOLUTION_URL || "";
+    let apiKey = process.env.EVOLUTION_API_KEY || "";
+    let instance = process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI";
 
-    if (tenantError || !tenant) {
-      return res.status(404).json({ error: 'Tenant not found or missing Evolution config' });
+    const { data: companyCfg } = await supabase
+      .from('company_settings')
+      .select('evolution_url, evolution_api_key, instance_name')
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+
+    if (companyCfg) {
+      if (companyCfg.evolution_url) evolutionUrl = companyCfg.evolution_url;
+      if (companyCfg.evolution_api_key) apiKey = companyCfg.evolution_api_key;
+      if (companyCfg.instance_name) instance = companyCfg.instance_name;
     }
 
-    const evolutionUrl = (tenant.evolution_url || process.env.EVOLUTION_URL || "").replace(/\/+$/, "");
-    const apiKey = tenant.evolution_apikey || process.env.EVOLUTION_API_KEY || "";
-    const instance = tenant.evolution_instance || process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI";
+    if (!evolutionUrl || !apiKey) {
+      return res.status(404).json({ error: 'Evolution API não configurada. Configure em Configurações > WhatsApp.' });
+    }
+
+    evolutionUrl = evolutionUrl.replace(/\/+$/, "");
 
     if (!evolutionUrl || !apiKey || !instance) {
       return res.status(400).json({ error: 'Incomplete Evolution configuration' });
