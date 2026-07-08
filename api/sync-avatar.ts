@@ -78,27 +78,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 3. Try Gravatar via clientes.email
+    // 3. Try Gravatar via clientes/contatos email by phone
     if (!avatarUrl) {
       try {
         let email: string | null = null;
+        const searchEmails = [phone];
+        if (phone.startsWith('55')) searchEmails.push(phone.substring(2));
+        else searchEmails.push('55' + phone);
 
-        // 3a. Via conversas.customer_id -> clientes.email
-        if (conv.customer_id) {
+        // 3a. Via clientes table by phone/whatsapp
+        for (const sp of searchEmails) {
           const { data: cliente } = await supabase
             .from('clientes')
             .select('email')
-            .eq('id', conv.customer_id)
+            .or(`whatsapp.eq.${sp},telefone.eq.${sp}`)
+            .not('email', 'is', null)
             .maybeSingle();
-          if (cliente?.email) email = cliente.email;
+          if (cliente?.email) { email = cliente.email; break; }
         }
 
         // 3b. Via contatos table by phone
         if (!email) {
-          const searchPhones2 = [phone];
-          if (phone.startsWith('55')) searchPhones2.push(phone.substring(2));
-          else searchPhones2.push('55' + phone);
-          for (const sp of searchPhones2) {
+          for (const sp of searchEmails) {
             const { data: contato } = await supabase
               .from('contatos')
               .select('email')

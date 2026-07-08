@@ -1040,7 +1040,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Converter URL temporária para permanente
         if (pic && !pic.includes('supabase.co')) {
           const stored = await storeProfilePic(pic, rawPhone);
-          if (stored) pic = stored;
+          if (stored) { pic = stored; }
+          else { pic = null; }
         }
 
         if (isGrp) {
