@@ -81,11 +81,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (avatarUrl) {
       if (!avatarUrl.includes('supabase.co')) {
         const stored = await storeProfilePic(avatarUrl, phone);
-        if (stored) avatarUrl = stored;
+        if (stored) {
+          avatarUrl = stored;
+        } else {
+          console.log(`[SyncAvatar] storeProfilePic falhou (URL expirada?), ignorando avatar`);
+          avatarUrl = null;
+        }
       }
-      await supabase.from('conversas').update({ client_avatar: avatarUrl }).eq('id', conv.id);
-      console.log(`[SyncAvatar] Avatar salvo para conversationId=${conversationId}: ${avatarUrl}`);
-      return res.json({ ok: true, message: 'Avatar salvo!', url: avatarUrl });
+      if (avatarUrl) {
+        await supabase.from('conversas').update({ client_avatar: avatarUrl }).eq('id', conv.id);
+        console.log(`[SyncAvatar] Avatar salvo para conversationId=${conversationId}: ${avatarUrl}`);
+        return res.json({ ok: true, message: 'Avatar salvo!', url: avatarUrl });
+      }
     }
 
     console.log(`[SyncAvatar] Nenhuma foto encontrada para ${phone}`);
@@ -99,19 +106,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 async function storeProfilePic(url: string, phone: string): Promise<string | null> {
   if (!url || url.includes('supabase.co')) return url || null;
   try {
+    console.log(`[storeProfilePic] Baixando avatar de ${url.substring(0, 80)}...`);
     const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.log(`[storeProfilePic] Download falhou: HTTP ${response.status}`);
+      return null;
+    }
     const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.length < 100) return null;
+    if (buffer.length < 100) {
+      console.log(`[storeProfilePic] Buffer muito pequeno: ${buffer.length} bytes`);
+      return null;
+    }
+    console.log(`[storeProfilePic] Download OK: ${buffer.length} bytes`);
     const safePhone = phone.replace(/[^a-zA-Z0-9]/g, '_');
     const storagePath = `avatars/${safePhone}_${Date.now()}.jpg`;
     const { error } = await supabase.storage.from("chat-media").upload(storagePath, buffer, {
       contentType: "image/jpeg", upsert: true
     });
-    if (error) return null;
+    if (error) {
+      console.log(`[storeProfilePic] Upload error: ${error.message}`);
+      return null;
+    }
     const { data: { publicUrl } } = supabase.storage.from("chat-media").getPublicUrl(storagePath);
+    console.log(`[storeProfilePic] Avatar salvo em ${publicUrl}`);
     return publicUrl;
-  } catch {
+  } catch (e: any) {
+    console.log(`[storeProfilePic] Exceção: ${e.message}`);
     return null;
   }
 }

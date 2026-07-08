@@ -576,10 +576,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (fetchedPic) {
             if (!fetchedPic.includes('supabase.co')) {
               const stored = await storeProfilePic(fetchedPic, rawPhone);
-              if (stored) fetchedPic = stored;
+              if (stored) {
+                fetchedPic = stored;
+              } else {
+                console.log(`[Webhook] storeProfilePic falhou para avatar de ${phone}`);
+                fetchedPic = null;
+              }
             }
-            await supabase.from('conversas').update({ client_avatar: fetchedPic }).eq('id', conv.id);
-            console.log(`[Webhook] Avatar salvo permanentemente para conv ${conv.id}`);
+            if (fetchedPic) {
+              await supabase.from('conversas').update({ client_avatar: fetchedPic }).eq('id', conv.id);
+              console.log(`[Webhook] Avatar salvo permanentemente para conv ${conv.id}`);
+            }
           } else {
             console.log(`[Webhook] Nenhuma fonte de avatar encontrada para ${phone}`);
           }
@@ -689,10 +696,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (newPic) {
               if (!newPic.includes('supabase.co')) {
                 const stored = await storeProfilePic(newPic, rawPhone);
-                if (stored) newPic = stored;
+                if (stored) {
+                  newPic = stored;
+                } else {
+                  console.log(`[Webhook] storeProfilePic falhou para avatar de nova conversa ${phone}`);
+                  newPic = null;
+                }
               }
-              await supabase.from('conversas').update({ client_avatar: newPic }).eq('id', conv.id);
-              console.log(`[Webhook] Avatar salvo para nova conversa ${conv.id}`);
+              if (newPic) {
+                await supabase.from('conversas').update({ client_avatar: newPic }).eq('id', conv.id);
+                console.log(`[Webhook] Avatar salvo para nova conversa ${conv.id}`);
+              }
             }
           } catch (e: any) {
             console.error(`[Webhook] Erro ao buscar avatar pós-criação: ${e.message}`);
