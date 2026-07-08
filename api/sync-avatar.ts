@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .single();
 
     if (!conv) return res.status(404).json({ error: 'Conversa não encontrada' });
-    if (conv.client_avatar) return res.json({ ok: true, message: 'Já tem avatar', url: conv.client_avatar });
+    if (conv.client_avatar && conv.client_avatar.includes('supabase.co')) return res.json({ ok: true, message: 'Já tem avatar', url: conv.client_avatar });
 
     const phone = conv.client_phone;
     const tId = conv.tenant_id;
