@@ -11,12 +11,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { conversationId } = req.body || {};
   if (!conversationId) return res.status(400).json({ error: 'conversationId required' });
 
-  const tId = '11111111-1111-1111-1111-111111111111';
-
   try {
     const { data: conv } = await supabase
       .from('conversas')
-      .select('id, client_phone, client_avatar')
+      .select('id, client_phone, client_avatar, tenant_id')
       .eq('id', conversationId)
       .single();
 
@@ -24,10 +22,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (conv.client_avatar) return res.json({ ok: true, message: 'Já tem avatar', url: conv.client_avatar });
 
     const phone = conv.client_phone;
+    const tId = conv.tenant_id;
     const evoUrl = (process.env.EVOLUTION_URL || "").replace(/\/$/, "");
     const evoKey = process.env.EVOLUTION_API_KEY || "";
+    const instanceName = process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI";
 
-    // 1. Try contacts table
+    console.log(`[SyncAvatar] Buscando avatar para conversationId=${conversationId}, phone=${phone}, tenantId=${tId}`);
+
+    // 1. Try contacts table (with real tenant_id)
     let avatarUrl: string | null = null;
     const searchPhones = [phone];
     if (phone.startsWith('55')) searchPhones.push(phone.substring(2));
@@ -39,27 +41,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .select('foto_perfil')
         .or(`telefone_formatado.eq.${sp},jid.eq.${sp}@s.whatsapp.net,jid.eq.${sp}`)
         .not('foto_perfil', 'is', null)
+        .eq('tenant_id', tId)
         .maybeSingle();
       if (contact?.foto_perfil && contact.foto_perfil !== 'null') {
         avatarUrl = contact.foto_perfil;
+        console.log(`[SyncAvatar] Avatar encontrado em contacts: ${avatarUrl}`);
         break;
       }
     }
 
-    // 2. Try Evolution API
+    // 2. Try Evolution API (with dynamic instance name)
     if (!avatarUrl && evoUrl && evoKey) {
       try {
         const rawPhone = phone.replace(/\D/g, '');
-        const resp = await fetch(`${evoUrl}/chat/fetchProfilePictureUrl/SASAKI`, {
+        console.log(`[SyncAvatar] Chamando Evolution API fetchProfilePictureUrl/${instanceName} para ${rawPhone}`);
+        const resp = await fetch(`${evoUrl}/chat/fetchProfilePictureUrl/${encodeURIComponent(instanceName)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
           body: JSON.stringify({ number: rawPhone })
         });
         if (resp.ok) {
           const data = await resp.json() as any;
-          if (data?.profilePictureUrl) avatarUrl = data.profilePictureUrl;
+          if (data?.profilePictureUrl) {
+            avatarUrl = data.profilePictureUrl;
+            console.log(`[SyncAvatar] Avatar recebido da Evolution API: ${avatarUrl}`);
+          } else {
+            console.log(`[SyncAvatar] Evolution API respondeu sem profilePictureUrl:`, JSON.stringify(data).substring(0, 200));
+          }
+        } else {
+          const errText = await resp.text();
+          console.log(`[SyncAvatar] Evolution API erro ${resp.status}: ${errText.substring(0, 200)}`);
         }
-      } catch {}
+      } catch (e: any) {
+        console.log(`[SyncAvatar] Evolution API exception: ${e.message}`);
+      }
     }
 
     // 3. If found, store permanently
@@ -69,11 +84,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (stored) avatarUrl = stored;
       }
       await supabase.from('conversas').update({ client_avatar: avatarUrl }).eq('id', conv.id);
+      console.log(`[SyncAvatar] Avatar salvo para conversationId=${conversationId}: ${avatarUrl}`);
       return res.json({ ok: true, message: 'Avatar salvo!', url: avatarUrl });
     }
 
+    console.log(`[SyncAvatar] Nenhuma foto encontrada para ${phone}`);
     return res.json({ ok: false, message: 'Nenhuma foto encontrada para este contato' });
   } catch (err: any) {
+    console.error(`[SyncAvatar] Erro:`, err);
     return res.status(500).json({ error: err.message });
   }
 }

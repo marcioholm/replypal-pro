@@ -155,12 +155,25 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
 async function handleBackfillAvatars(req: VercelRequest, res: VercelResponse) {
   const evoUrl = (process.env.EVOLUTION_URL || "").replace(/\/$/, "");
   const evoKey = process.env.EVOLUTION_API_KEY || "";
-  const tId = '11111111-1111-1111-1111-111111111111';
+  const instanceName = process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI";
+
+  // Aceitar tenantId da query, ou tentar buscar pela instância
+  let tId: string | null = req.query?.tenantId as string || null;
+  if (!tId) {
+    try {
+      const { data: t } = await supabase.from('tenants').select('id').limit(1).maybeSingle();
+      if (t?.id) tId = t.id;
+    } catch {}
+  }
+
+  if (!tId) {
+    return res.status(400).json({ error: 'Nenhum tenant encontrado. Passe ?tenantId=... na query.' });
+  }
 
   try {
     const { data: conversas } = await supabase
       .from('conversas')
-      .select('id, client_phone, client_name')
+      .select('id, client_phone, client_name, tenant_id')
       .is('client_avatar', null)
       .eq('tenant_id', tId);
 
@@ -198,17 +211,26 @@ async function handleBackfillAvatars(req: VercelRequest, res: VercelResponse) {
       if (!avatarUrl && evoUrl && evoKey) {
         try {
           const rawPhone = phone.replace(/\D/g, '');
-          const resp = await fetch(`${evoUrl}/chat/fetchProfilePictureUrl/SASAKI`, {
+          console.log(`[Backfill] Chamando Evolution fetchProfilePictureUrl/${instanceName} para ${rawPhone}`);
+          const resp = await fetch(`${evoUrl}/chat/fetchProfilePictureUrl/${encodeURIComponent(instanceName)}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
             body: JSON.stringify({ number: rawPhone })
           });
           if (resp.ok) {
             const data = await resp.json() as any;
-            if (data?.profilePictureUrl) avatarUrl = data.profilePictureUrl;
+            if (data?.profilePictureUrl) {
+              avatarUrl = data.profilePictureUrl;
+              console.log(`[Backfill] Avatar encontrado via Evolution: ${avatarUrl}`);
+            } else {
+              console.log(`[Backfill] Evolution respondeu sem profilePictureUrl:`, JSON.stringify(data).substring(0, 200));
+            }
+          } else {
+            const txt = await resp.text();
+            console.log(`[Backfill] Evolution erro ${resp.status}: ${txt.substring(0, 100)}`);
           }
-        } catch (e) {
-          console.log(`[Backfill] Evolution API falhou para ${phone}`);
+        } catch (e: any) {
+          console.log(`[Backfill] Evolution API falhou para ${phone}: ${e.message}`);
         }
       }
 
@@ -513,6 +535,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .limit(1)
         .maybeSingle();
 
+      // Se a conversa existe mas não tem avatar, buscar proativamente
+      if (conv && !conv.client_avatar && !isGroup) {
+        try {
+          console.log(`[Webhook] Conversa ${conv.id} sem avatar. Buscando proativamente...`);
+          const rawPhone = key?.remoteJid?.split('@')[0] || phone.replace(/\D/g, '');
+          let fetchedPic: string | null = null;
+
+          // 1. Tentar na tabela contacts primeiro
+          const { data: contactMatch } = await supabase
+            .from('contacts')
+            .select('foto_perfil')
+            .or(`telefone_formatado.eq.${phone},jid.eq.${rawPhone}@s.whatsapp.net`)
+            .not('foto_perfil', 'is', null)
+            .eq('tenant_id', tId)
+            .maybeSingle();
+
+          if (contactMatch?.foto_perfil && contactMatch.foto_perfil !== 'null') {
+            fetchedPic = contactMatch.foto_perfil;
+            console.log(`[Webhook] Avatar encontrado em contacts para ${phone}`);
+          }
+
+          // 2. Se não, tentar Evolution API
+          if (!fetchedPic && evoUrl && evoKey) {
+            const resp = await fetch(`${evoUrl}/chat/fetchProfilePictureUrl/${encodeURIComponent(instName || process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI")}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+              body: JSON.stringify({ number: rawPhone })
+            });
+            if (resp.ok) {
+              const data = await resp.json() as any;
+              if (data?.profilePictureUrl) {
+                fetchedPic = data.profilePictureUrl;
+                console.log(`[Webhook] Avatar recebido da Evolution API para ${phone}`);
+              }
+            }
+          }
+
+          // 3. Armazenar permanentemente e atualizar
+          if (fetchedPic) {
+            if (!fetchedPic.includes('supabase.co')) {
+              const stored = await storeProfilePic(fetchedPic, rawPhone);
+              if (stored) fetchedPic = stored;
+            }
+            await supabase.from('conversas').update({ client_avatar: fetchedPic }).eq('id', conv.id);
+            console.log(`[Webhook] Avatar salvo permanentemente para conv ${conv.id}`);
+          } else {
+            console.log(`[Webhook] Nenhuma fonte de avatar encontrada para ${phone}`);
+          }
+        } catch (e: any) {
+          console.error(`[Webhook] Erro ao buscar avatar proativo: ${e.message}`);
+        }
+      }
+
       if (!conv) {
         const now = new Date();
         const slaDeadline = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 horas de SLA por padrão
@@ -580,6 +655,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         } else {
           conv = nConv;
+        }
+
+        // Se a conversa foi criada sem avatar, tentar buscar agora
+        if (conv && !profilePic && !isGroup) {
+          try {
+            console.log(`[Webhook] Conversa nova sem avatar. Buscando...`);
+            const rawPhone = phone.replace(/\D/g, '');
+            let newPic: string | null = null;
+
+            const { data: contactMatch } = await supabase
+              .from('contacts')
+              .select('foto_perfil')
+              .or(`telefone_formatado.eq.${phone},jid.eq.${rawPhone}@s.whatsapp.net`)
+              .not('foto_perfil', 'is', null)
+              .eq('tenant_id', tId)
+              .maybeSingle();
+
+            if (contactMatch?.foto_perfil && contactMatch.foto_perfil !== 'null') {
+              newPic = contactMatch.foto_perfil;
+            } else if (evoUrl && evoKey) {
+              const resp = await fetch(`${evoUrl}/chat/fetchProfilePictureUrl/${encodeURIComponent(instName || process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI")}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                body: JSON.stringify({ number: rawPhone })
+              });
+              if (resp.ok) {
+                const data = await resp.json() as any;
+                if (data?.profilePictureUrl) newPic = data.profilePictureUrl;
+              }
+            }
+
+            if (newPic) {
+              if (!newPic.includes('supabase.co')) {
+                const stored = await storeProfilePic(newPic, rawPhone);
+                if (stored) newPic = stored;
+              }
+              await supabase.from('conversas').update({ client_avatar: newPic }).eq('id', conv.id);
+              console.log(`[Webhook] Avatar salvo para nova conversa ${conv.id}`);
+            }
+          } catch (e: any) {
+            console.error(`[Webhook] Erro ao buscar avatar pós-criação: ${e.message}`);
+          }
         }
 
         // Log de criação do chamado com protocolo
@@ -1063,13 +1180,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const pic = chat.profilePicUrl || chat.imgUrl || chat.picture;
         const chatName = chat.name || chat.pushName || chat.subject;
+        const isGroupChat = chatJid.endsWith('@g.us');
+        const rawPhone = chatJid.split('@')[0];
 
         if (pic && !pic.includes('supabase.co')) {
-          const rawPhone = chatJid.split('@')[0];
           const stored = await storeProfilePic(pic, rawPhone);
           if (stored) {
+            // client_phone para individuais = só dígitos; para grupos = JID completo
+            const phoneMatch = isGroupChat ? chatJid : rawPhone;
+            console.log(`[Webhook] chats.${normalizedEvent.split('.')[1]}: salvando avatar para ${phoneMatch}`);
             await supabase.from('conversas').update({ client_avatar: stored })
-              .eq('client_phone', chatJid).eq('tenant_id', tId);
+              .eq('client_phone', phoneMatch).eq('tenant_id', tId);
           }
         }
 
