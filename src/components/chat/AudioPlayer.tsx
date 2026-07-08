@@ -70,11 +70,14 @@ export function AudioPlayer({ url, sender }: AudioPlayerProps) {
 
   if (hasError) {
     return (
-      <div className={`p-3 flex flex-col gap-1 rounded-lg text-xs border border-destructive/20 bg-destructive/5 shrink-0 min-w-[240px] max-w-[300px] ${sender === 'agent' ? 'text-white' : 'text-foreground'}`}>
-        <span className="font-bold text-destructive">Erro ao carregar áudio</span>
-        <code className="text-[9px] break-all p-1 bg-background/50 rounded select-all">{url}</code>
-        <a href={url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary underline mt-1">
-          Abrir em nova guia
+      <div className={`p-3 flex flex-col gap-2 rounded-lg text-xs border border-destructive/20 bg-destructive/5 shrink-0 min-w-[240px] max-w-[300px] ${sender === 'agent' ? 'text-white' : 'text-foreground'}`}>
+        <span className="font-bold text-destructive">Áudio indisponível</span>
+        <span className="opacity-70 text-[10px]">
+          O formato de áudio pode não ser compatível com seu navegador.
+          Tente baixar e reproduzir externamente.
+        </span>
+        <a href={url} target="_blank" rel="noopener noreferrer" download className="text-[10px] text-primary underline mt-1 font-medium">
+          Baixar arquivo de áudio
         </a>
       </div>
     );

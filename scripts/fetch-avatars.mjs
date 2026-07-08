@@ -11,12 +11,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // ===== CONFIG =====
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const TENANT_ID = '11111111-1111-1111-1111-111111111111';
+const TENANT_ID = process.env.TENANT_ID || process.env.VITE_TENANT_ID;
 const SESSION_DIR = path.join(__dirname, 'baileys_session');
 // ==================
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error('Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY');
+  process.exit(1);
+}
+if (!TENANT_ID) {
+  console.error('Defina TENANT_ID (ou VITE_TENANT_ID) no ambiente');
   process.exit(1);
 }
 

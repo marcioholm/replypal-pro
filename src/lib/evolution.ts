@@ -114,7 +114,7 @@ export async function syncEvolutionGroups(tenantId: string) {
           client_phone: remoteJid,
           status: 'novo',
           tenant_id: tenantId,
-          client_avatar: pic,
+          client_avatar: pic?.includes('supabase.co') ? pic : null,
           is_group: true,
           sla_deadline: slaDeadline.toISOString(),
           last_message_time: now.toISOString()

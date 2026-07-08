@@ -5,7 +5,11 @@ dotenv.config();
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 async function checkCount() {
-  const tenantId = '11111111-1111-1111-1111-111111111111';
+  const tenantId = process.env.TENANT_ID || process.env.VITE_TENANT_ID;
+  if (!tenantId) {
+    console.error('Defina TENANT_ID no .env');
+    process.exit(1);
+  }
   const { count, error } = await supabase
     .from('clientes')
     .select('*', { count: 'exact', head: true })

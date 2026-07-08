@@ -8,6 +8,7 @@ import { Plus, Send, Loader2, Search, User, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useStore } from "@/lib/store";
 import { sendWhatsAppMessage } from "@/lib/evolution";
+import { insertHistorico } from "@/lib/historico";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -161,7 +162,7 @@ export function NewChatDialog({ collapsed }: NewChatDialogProps) {
 
         // Log de criação com protocolo
         if (protocolo) {
-          await supabase.from("historico").insert({
+          await insertHistorico({
             conversation_id: conv.id,
             action: "Chamado criado",
             details: `Protocolo: #${protocolo}`,
@@ -198,7 +199,7 @@ export function NewChatDialog({ collapsed }: NewChatDialogProps) {
       });
 
       // 4. Adicionar ao histórico
-      await supabase.from("historico").insert({
+      await insertHistorico({
         conversation_id: conv.id,
         action: "Nova conversa iniciada pelo agente",
         user_id: user.id,

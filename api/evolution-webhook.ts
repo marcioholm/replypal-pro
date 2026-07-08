@@ -501,6 +501,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (stored) {
           console.log(`[Webhook] Avatar permanentemente armazenado para ${phone}`);
           profilePic = stored;
+        } else {
+          console.log(`[Webhook] storeProfilePic falhou para avatar de ${phone}, descartando URL temporária`);
+          profilePic = null;
         }
       }
 
@@ -723,8 +726,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             timestamp: now.toISOString()
           });
         }
-      } else if (profilePic && conv.client_avatar !== profilePic) {
-        // Atualizar avatar se mudou
+      } else if (profilePic && profilePic.includes('supabase.co') && conv.client_avatar !== profilePic) {
+        // Atualizar avatar se mudou (apenas URLs permanentes do Storage)
         await supabase.from('conversas').update({ client_avatar: profilePic }).eq('id', conv.id);
       } else if (isGroup && groupSubject && conv.client_name !== groupSubject) {
         // Atualizar nome do grupo se disponível

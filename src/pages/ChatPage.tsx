@@ -46,6 +46,7 @@ import FileText from "lucide-react/dist/esm/icons/file-text";
 import Play from "lucide-react/dist/esm/icons/play";
 import Pause from "lucide-react/dist/esm/icons/pause";
 import { supabase } from "@/lib/supabase";
+import { insertHistorico } from "@/lib/historico";
 import { useAuth } from "@/lib/auth";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
@@ -526,13 +527,13 @@ export default function ChatPage() {
             .eq("action", `Visualizado por ${user.name}`)
             .maybeSingle();
           if (!existingView) {
-            await supabase.from("historico").insert({
-              conversation_id: id,
-              action: `Visualizado por ${user.name}`,
-              user_id: user.id,
-              user_name: user.name,
-              timestamp: new Date().toISOString()
-            });
+          await insertHistorico({
+            conversation_id: id,
+            action: `Visualizado por ${user.name}`,
+            user_id: user.id,
+            user_name: user.name,
+            timestamp: new Date().toISOString()
+          });
             storeRef.current.addDbHistory([{
               id: `view-${Date.now()}`,
               conversationId: id,
@@ -1051,7 +1052,7 @@ export default function ChatPage() {
       if (error) throw error;
       
       // Registrar no histórico DB
-      await supabase.from("historico").insert({
+      await insertHistorico({
         conversation_id: id,
         action: "Conversa assumida",
         user_id: user.id,
@@ -1143,7 +1144,7 @@ export default function ChatPage() {
         targetConv = newConv;
 
         if (protocolo) {
-          await supabase.from("historico").insert({
+          await insertHistorico({
             conversation_id: targetConv.id,
             action: "Chamado criado",
             details: `Protocolo: #${protocolo}`,
@@ -1217,7 +1218,7 @@ export default function ChatPage() {
         }]);
       }
 
-      await supabase.from("historico").insert({
+      await insertHistorico({
         conversation_id: targetConv.id,
         action: "Mensagem encaminhada",
         user_id: user.id,
@@ -1273,7 +1274,7 @@ export default function ChatPage() {
 
       // Registrar no histórico DB
       const targetUser = store.users.find(u => u.id === transferTo);
-      await supabase.from("historico").insert({
+      await insertHistorico({
         conversation_id: id,
         action: `Transferida de ${user.name} para ${targetUser?.name || transferTo}`,
         user_id: user.id,
@@ -1301,7 +1302,7 @@ export default function ChatPage() {
         .eq("id", id);
       if (error) throw error;
 
-      await supabase.from("historico").insert([{
+      await insertHistorico([{
         conversation_id: id,
         action: `Atendimento encerrado`,
         user_id: user.id,
@@ -1444,7 +1445,7 @@ export default function ChatPage() {
       if (convError) throw convError;
 
       // Registrar no histórico DB
-      await supabase.from("historico").insert({
+      await insertHistorico({
         conversation_id: id,
         customer_id: newCustomer.id,
         action: "Novo cliente cadastrado e vinculado",
@@ -1539,17 +1540,15 @@ export default function ChatPage() {
       // 4. Registrar nos logs (Conversa e Cliente)
       const logDetails = `CNPJ: ${cleanCnpj} - ${customerData.nome_fantasia || customerData.razao_social}${contactNameInput ? ` (Setor: ${contactNameInput})` : ""}`;
       
-      await supabase.from("historico").insert([
-        {
-          conversation_id: id,
-          customer_id: customerData.id,
-          action: "Cliente vinculado via CNPJ",
-          user_id: user?.id,
-          user_name: user?.name,
-          details: logDetails,
-          timestamp: new Date().toISOString()
-        }
-      ]);
+      await insertHistorico({
+        conversation_id: id,
+        customer_id: customerData.id,
+        action: "Cliente vinculado via CNPJ",
+        user_id: user?.id,
+        user_name: user?.name,
+        details: logDetails,
+        timestamp: new Date().toISOString()
+      });
 
       // Atualizar store local
       store.addDbConversation({
@@ -1645,7 +1644,18 @@ export default function ChatPage() {
                 alt={conv.clientName} 
                 className="absolute inset-0 w-full h-full object-cover" 
                 referrerPolicy="no-referrer"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  if (conv.clientAvatar?.includes('whatsapp.net') && !conv.isGroup) {
+                    fetch('/api/sync-avatar', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ conversationId: conv.id })
+                    }).then(r => r.json()).then(d => {
+                      if (d.ok && d.url) store.addDbConversation({ id: conv.id, clientAvatar: d.url } as any);
+                    }).catch(() => {});
+                  }
+                }}
               />
             )}
             {conv.isGroup ? (
@@ -2344,7 +2354,18 @@ export default function ChatPage() {
                           <img 
                             src={c.clientAvatar} 
                             className="absolute inset-0 w-full h-full rounded-full object-cover" 
-                            onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              if (c.clientAvatar?.includes('whatsapp.net') && !c.isGroup) {
+                                fetch('/api/sync-avatar', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ conversationId: c.id })
+                                }).then(r => r.json()).then(d => {
+                                  if (d.ok && d.url) store.addDbConversation({ id: c.id, clientAvatar: d.url } as any);
+                                }).catch(() => {});
+                              }
+                            }} 
                           />
                         )}
                         <span>{c.clientName?.charAt(0) || '?'}</span>

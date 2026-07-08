@@ -134,7 +134,7 @@ export function IAChatPanel() {
 
     const payload = {
       mensagem_texto: userMessage,
-      tenant_id: tenant?.id || user?.tenantId || "11111111-1111-1111-1111-111111111111",
+      tenant_id: tenant?.id || user?.tenantId,
       cliente_id: clienteId || null,
       origem: "replypal_interno",
       numero_whatsapp: user?.whatsapp || "interno",

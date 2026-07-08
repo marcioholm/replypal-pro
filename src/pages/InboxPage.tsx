@@ -10,6 +10,7 @@ import { Search, UserCheck, Users, Inbox as InboxIcon, Mail, RefreshCw, AlertTri
 import { checkConnection } from "@/lib/evolution";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { insertHistorico } from "@/lib/historico";
 import { useAuth } from "@/lib/auth";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { useNotification } from "@/hooks/useNotifications";
@@ -271,7 +272,7 @@ export default function InboxPage() {
         started_at: new Date().toISOString()
       }).eq('id', convId);
       
-      await supabase.from('historico').insert({
+      await insertHistorico({
         conversation_id: convId,
         action: `Atribuída para ${store.users.find(u => u.id === userId)?.name}`,
         user_id: user?.id,
@@ -509,7 +510,18 @@ export default function InboxPage() {
                           alt={conv.clientName} 
                           className="absolute inset-0 w-full h-full object-cover" 
                           referrerPolicy="no-referrer"
-                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            if (conv.clientAvatar?.includes('whatsapp.net') && !conv.isGroup) {
+                              fetch('/api/sync-avatar', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ conversationId: conv.id })
+                              }).then(r => r.json()).then(d => {
+                                if (d.ok && d.url) store.addDbConversation({ id: conv.id, clientAvatar: d.url } as any);
+                              }).catch(() => {});
+                            }
+                          }}
                         />
                       )}
                       {conv.isGroup ? (

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore, formatDuration, STATUS_CONFIG, ensureDate } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
+import { insertHistorico } from "@/lib/historico";
 import type { ConversationStatus } from "@/lib/store";
 import { TagBadge } from "@/components/TagBadge";
 import { SLABadge } from "@/components/SLABadge";
@@ -134,7 +135,7 @@ export default function PipelinePage() {
           assigned_to: null, 
           resolved_at: new Date().toISOString() 
         }).eq("id", draggedId).then(() => {
-          supabase.from("historico").insert([{
+          insertHistorico([{
             conversation_id: draggedId,
             action: "Atendimento encerrado (Pipeline)",
             user_id: user.id,
