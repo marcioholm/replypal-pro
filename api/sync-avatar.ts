@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { createHash } from 'crypto';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
@@ -14,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { data: conv } = await supabase
       .from('conversas')
-      .select('id, client_phone, client_avatar, tenant_id')
+      .select('id, client_phone, client_avatar, tenant_id, customer_id')
       .eq('id', conversationId)
       .single();
 
@@ -77,7 +78,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 3. If found, store permanently
+    // 3. Try Gravatar via clientes.email
+    if (!avatarUrl) {
+      try {
+        let email: string | null = null;
+
+        // 3a. Via conversas.customer_id -> clientes.email
+        if (conv.customer_id) {
+          const { data: cliente } = await supabase
+            .from('clientes')
+            .select('email')
+            .eq('id', conv.customer_id)
+            .maybeSingle();
+          if (cliente?.email) email = cliente.email;
+        }
+
+        // 3b. Via contatos table by phone
+        if (!email) {
+          const searchPhones2 = [phone];
+          if (phone.startsWith('55')) searchPhones2.push(phone.substring(2));
+          else searchPhones2.push('55' + phone);
+          for (const sp of searchPhones2) {
+            const { data: contato } = await supabase
+              .from('contatos')
+              .select('email')
+              .or(`whatsapp.eq.${sp},telefone.eq.${sp}`)
+              .not('email', 'is', null)
+              .maybeSingle();
+            if (contato?.email) { email = contato.email; break; }
+          }
+        }
+
+        if (email) {
+          const hash = createHash('md5').update(email.trim().toLowerCase()).digest('hex');
+          const gravatarUrl = `https://www.gravatar.com/avatar/${hash}?d=404&s=200`;
+          const gravResp = await fetch(gravatarUrl, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+          if (gravResp.ok) {
+            avatarUrl = gravatarUrl;
+            console.log(`[SyncAvatar] Avatar encontrado via Gravatar para ${email}`);
+          } else {
+            console.log(`[SyncAvatar] Gravatar sem foto para ${email} (HTTP ${gravResp.status})`);
+          }
+        }
+      } catch (e: any) {
+        console.log(`[SyncAvatar] Gravatar exception: ${e.message}`);
+      }
+    }
+
+    // 4. If found, store permanently
     if (avatarUrl) {
       if (!avatarUrl.includes('supabase.co')) {
         const stored = await storeProfilePic(avatarUrl, phone);
