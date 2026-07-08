@@ -1,4 +1,4 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -9,333 +9,166 @@ const supabase = createClient(
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { tenantId, dryRun } = req.body || {};
-
-  if (!tenantId) {
-    return res.status(400).json({ error: 'Missing tenantId' });
-  }
+  const { tenantId, dryRun, limit = 20 } = req.body || {};
+  if (!tenantId) return res.status(400).json({ error: 'Missing tenantId' });
 
   const isDryRun = dryRun === true;
+  const maxContacts = Math.min(Math.max(1, Number(limit) || 20), 200);
 
   try {
-    // Buscar config da Evolution em company_settings
-    let evolutionUrl = process.env.EVOLUTION_URL || "";
-    let apiKey = process.env.EVOLUTION_API_KEY || "";
-    let instance = process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI";
-
-    const { data: companyCfg } = await supabase
+    const { data: cfg } = await supabase
       .from('company_settings')
       .select('evolution_url, evolution_api_key, instance_name')
       .eq('tenant_id', tenantId)
       .maybeSingle();
 
-    if (companyCfg) {
-      if (companyCfg.evolution_url) evolutionUrl = companyCfg.evolution_url;
-      if (companyCfg.evolution_api_key) apiKey = companyCfg.evolution_api_key;
-      if (companyCfg.instance_name) instance = companyCfg.instance_name;
-    }
+    const evolutionUrl = (cfg?.evolution_url || process.env.EVOLUTION_URL || "").replace(/\/+$/, "");
+    const apiKey = cfg?.evolution_api_key || process.env.EVOLUTION_API_KEY || "";
+    const instance = cfg?.instance_name || process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI";
 
     if (!evolutionUrl || !apiKey) {
-      return res.status(404).json({ error: 'Evolution API não configurada. Configure em Configurações > WhatsApp.' });
-    }
-
-    evolutionUrl = evolutionUrl.replace(/\/+$/, "");
-
-    if (!evolutionUrl || !apiKey || !instance) {
-      return res.status(400).json({ error: 'Incomplete Evolution configuration' });
+      return res.status(400).json({ error: 'Evolution API nao configurada' });
     }
 
     const logs: string[] = [];
     const stats = {
-      contacts_encontrados: 0,
-      individuais: 0,
-      grupos: 0,
-      com_foto_evolution: 0,
+      contactos_carregados: 0,
+      processados: 0,
+      evolution_retornou_foto: 0,
+      fotos_validas_storeProfilePic: 0,
       salvos_storage: 0,
-      atualizados_contacts: 0,
-      atualizados_conversas: 0,
-      sem_foto: 0,
+      contacts_atualizados: 0,
+      conversas_atualizadas: 0,
+      sem_foto_evolution: 0,
+      storeProfilePic_falhou: 0,
       erros: 0
     };
 
-    function log(msg: string) {
-      console.log(`[SyncContacts] ${msg}`);
-      logs.push(msg);
-    }
+    function log(msg: string) { console.log(`[SyncAvatars] ${msg}`); logs.push(msg); }
 
     // ============================================================
-    // 1. Buscar contatos/chats da Evolution API
-    //    Tenta múltiplos endpoints (diferentes versões da API)
+    // 1. Carregar contacts que precisam de foto
     // ============================================================
-    const contactEndpoints = [
-      `contact/fetchContacts/${encodeURIComponent(instance)}`,
-      `chat/fetchAllChats/${encodeURIComponent(instance)}`,
-      `chat/getAllChats/${encodeURIComponent(instance)}`,
-      `contact/list/${encodeURIComponent(instance)}`,
-      `contact/fetchAllContacts/${encodeURIComponent(instance)}`,
-    ];
+    const { data: allContacts, error: fetchErr } = await supabase
+      .from('contacts')
+      .select('id, jid, telefone_formatado, telefone, nome, foto_perfil')
+      .eq('tenant_id', tenantId)
+      .order('updated_at', { ascending: false })
+      .limit(maxContacts);
 
-    let allContacts: any[] = [];
-    let usedEndpoint = '';
+    if (fetchErr) return res.status(500).json({ error: fetchErr.message });
+    stats.contactos_carregados = allContacts?.length || 0;
+    log(`${stats.contactos_carregados} contatos carregados (limit=${maxContacts})`);
 
-    for (const ep of contactEndpoints) {
-      log(`Tentando ${evolutionUrl}/${ep}...`);
-      const resp = await fetch(`${evolutionUrl}/${ep}`, {
-        method: 'GET',
-        headers: { 'apikey': apiKey, 'Content-Type': 'application/json' }
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        allContacts = Array.isArray(data) ? data : (data.contacts || data.chats || data.data || []);
-        if (Array.isArray(allContacts) && allContacts.length > 0) {
-          usedEndpoint = ep;
-          log(`Endpoint ${ep} retornou ${allContacts.length} registros`);
-          break;
-        }
-      } else {
-        const txt = await resp.text();
-        log(`Endpoint ${ep} falhou: ${resp.status} ${txt.substring(0, 100)}`);
-      }
+    if (stats.contactos_carregados === 0) {
+      return res.json({ success: true, stats, logs, message: 'Nenhum contato pendente' });
     }
-
-    if (allContacts.length === 0) {
-      log('Nenhum endpoint retornou contatos');
-      // Fallback: buscar contatos já existentes no DB (populados via webhook)
-      log('Usando fallback: contacts existentes no banco...');
-      const { data: dbContacts } = await supabase
-        .from('contacts')
-        .select('id, jid, telefone_formatado, telefone, nome, foto_perfil')
-        .eq('tenant_id', tenantId)
-        .limit(2000);
-
-      if (dbContacts && dbContacts.length > 0) {
-        allContacts = dbContacts.map(c => ({
-          id: c.jid,
-          remoteJid: c.jid,
-          name: c.nome,
-          telefone_formatado: c.telefone_formatado,
-          telefone: c.telefone,
-        }));
-        usedEndpoint = 'db_fallback';
-        log(`Fallback DB: ${allContacts.length} contatos carregados`);
-      }
-    }
-
-    if (allContacts.length === 0) {
-      log('Nenhum contato encontrado');
-      return res.json({ success: true, stats, logs, message: 'Nenhum contato encontrado' });
-    }
-
-    stats.contacts_encontrados = allContacts.length;
-    log(`${allContacts.length} contatos obtidos via ${usedEndpoint}`);
-
-    // Separar individuais e grupos
-    const individuals = allContacts.filter((c: any) => {
-      const jid = c.id || c.remoteJid || c.jid || '';
-      return !jid.endsWith('@g.us');
-    });
-    const groupEntries = allContacts.filter((c: any) => {
-      const jid = c.id || c.remoteJid || c.jid || '';
-      return jid.endsWith('@g.us');
-    });
-
-    stats.individuais = individuals.length;
-    stats.grupos = groupEntries.length;
-    log(`${individuals.length} individuais, ${groupEntries.length} grupos`);
 
     if (isDryRun) {
-      log('=== DRY RUN - Nenhum dado foi alterado ===');
-      return res.json({
-        success: true,
-        dryRun: true,
-        stats,
-        logs,
-        message: `Dry run: ${stats.contacts_encontrados} contatos (${stats.individuais} individuais, ${stats.grupos} grupos) seriam processados`,
-        sample_individual: individuals.slice(0, 3),
-        sample_group: groupEntries.slice(0, 2)
-      });
+      const semFoto = allContacts!.filter(c => !c.foto_perfil || c.foto_perfil.includes('whatsapp.net')).length;
+      log(`Dry run: ${semFoto} contatos sem foto ou com foto expirada seriam processados`);
+      return res.json({ success: true, dryRun: true, stats, logs, message: `Dry run: ${stats.contactos_carregados} contatos carregados, ${semFoto} precisam de foto` });
     }
 
     // ============================================================
-    // 2. Processar individuais: buscar foto, salvar, atualizar
+    // 2. Processar cada contato
     // ============================================================
-    for (const contact of individuals) {
+    for (const contact of allContacts!) {
+      stats.processados++;
+      const phone = contact.telefone_formatado || contact.telefone || contact.jid?.split('@')[0];
+      if (!phone) { stats.erros++; continue; }
+
       try {
-        const remoteJid = contact.id || contact.remoteJid || contact.jid;
-        if (!remoteJid) { stats.erros++; continue; }
+        log(`[${stats.processados}/${stats.contactos_carregados}] ${contact.nome || phone}...`);
 
-        const rawPhone = remoteJid.split('@')[0];
-        const pushName = contact.name || contact.pushName || contact.subject || remoteJid;
-        const rawPic = contact.profilePicUrl || contact.imgUrl || contact.picture;
-
-        // 2a. Buscar foto de perfil na Evolution API (sempre, pra garantir URL fresca)
-        let avatarUrl: string | null = null;
-
-        try {
-          const picResp = await fetch(`${evolutionUrl}/chat/fetchProfilePictureUrl/${encodeURIComponent(instance)}`, {
+        // 2a. Buscar foto na Evolution
+        const rawPhone = phone.replace(/\D/g, '');
+        const picResp = await fetch(
+          `${evolutionUrl}/chat/fetchProfilePictureUrl/${encodeURIComponent(instance)}`,
+          {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
             body: JSON.stringify({ number: rawPhone })
-          });
-          if (picResp.ok) {
-            const picData = await picResp.json() as any;
-            if (picData?.profilePictureUrl) {
-              avatarUrl = picData.profilePictureUrl;
-              stats.com_foto_evolution++;
-            }
           }
-        } catch (e: any) {
-          log(`Erro fetchProfilePictureUrl para ${rawPhone}: ${e.message}`);
-        }
+        );
 
-        // 2b. Fallback: usar a URL que veio junto com o contato (se houver)
-        if (!avatarUrl && rawPic && !rawPic.includes('whatsapp.net') && !rawPic.includes('pps.whatsapp')) {
-          avatarUrl = rawPic;
-        }
-
-        // 2c. Passar por storeProfilePic
-        let storedUrl: string | null = null;
-        if (avatarUrl) {
-          storedUrl = await storeProfilePic(avatarUrl, rawPhone);
-          if (storedUrl) {
-            stats.salvos_storage++;
-          } else {
-            log(`storeProfilePic falhou para ${rawPhone}`);
-          }
-        } else {
-          stats.sem_foto++;
-        }
-
-        // 2d. Upsert em contacts
-        const { error: hygieneErr, data: hygiene } = analyzeAndHygienize(rawPhone);
-
-        const contactPayload: any = {
-          tenant_id: tenantId,
-          instance_name: instance,
-          jid: remoteJid,
-          telefone: rawPhone,
-          telefone_formatado: hygiene?.telefone_formatado || rawPhone,
-          nome: pushName,
-          nome_exibicao: pushName,
-          foto_perfil: storedUrl || null,
-          ddi: hygiene?.ddi || '55',
-          ddd: hygiene?.ddd || '',
-          status_normalizacao: hygiene?.status_normalizacao || 'NORMALIZADO',
-          tipo_numero: hygiene?.tipo_numero || 'DESCONHECIDO',
-          status_validacao: hygiene?.status_validacao || 'VALIDO',
-          motivo_validacao: hygiene?.motivo_validacao || '',
-          updated_at: new Date().toISOString()
-        };
-
-        const { error: upsertErr } = await supabase
-          .from('contacts')
-          .upsert(contactPayload, { onConflict: 'jid,tenant_id' });
-
-        if (upsertErr) {
-          log(`Erro upsert contacts ${rawPhone}: ${upsertErr.message}`);
+        if (!picResp.ok) {
+          const txt = await picResp.text();
+          log(`  Evolution API erro ${picResp.status}: ${txt.substring(0, 100)}`);
           stats.erros++;
-        } else {
-          stats.atualizados_contacts++;
+          continue;
         }
 
-        // 2e. Atualizar conversas.client_avatar por match de telefone/JID
-        if (storedUrl) {
-          const searchPhones = [rawPhone, `55${rawPhone}`, hygiene?.telefone_formatado || rawPhone].filter(Boolean);
-          const uniquePhones = [...new Set(searchPhones)];
+        const picData = await picResp.json() as any;
+        const profileUrl = picData?.profilePictureUrl || picData?.url || picData?.imgUrl;
 
-          for (const sp of uniquePhones) {
-            if (!sp) continue;
-            const { data: convs } = await supabase
+        if (!profileUrl) {
+          log(`  Evolution respondeu sem foto`);
+          stats.sem_foto_evolution++;
+          // Atualizar contacts com NULL se tinha URL expirada
+          if (contact.foto_perfil?.includes('whatsapp.net')) {
+            await supabase.from('contacts').update({ foto_perfil: null }).eq('id', contact.id);
+            log(`  Foto expirada limpa em contacts`);
+          }
+          continue;
+        }
+
+        stats.evolution_retornou_foto++;
+        log(`  Evolution retornou foto (${profileUrl.substring(0, 60)}...)`);
+
+        // 2b. storeProfilePic: baixar e salvar no Storage
+        const storedUrl = await storeProfilePic(profileUrl, rawPhone);
+        if (!storedUrl) {
+          log(`  storeProfilePic falhou`);
+          stats.storeProfilePic_falhou++;
+          // Se tinha URL expirada, limpar
+          if (contact.foto_perfil?.includes('whatsapp.net')) {
+            await supabase.from('contacts').update({ foto_perfil: null }).eq('id', contact.id);
+          }
+          continue;
+        }
+
+        stats.salvos_storage++;
+        log(`  Foto salva no Storage: ${storedUrl.substring(0, 60)}...`);
+
+        // 2c. Atualizar contacts.foto_perfil
+        await supabase.from('contacts').update({ foto_perfil: storedUrl }).eq('id', contact.id);
+        stats.contacts_atualizados++;
+
+        // 2d. Atualizar conversas.client_avatar por match de telefone/JID
+        const searchPhones = [rawPhone, contact.telefone_formatado, contact.jid, `${rawPhone}@s.whatsapp.net`].filter(Boolean);
+        const uniquePhones = [...new Set(searchPhones)];
+
+        for (const sp of uniquePhones) {
+          if (!sp) continue;
+          const { data: convs } = await supabase
+            .from('conversas')
+            .select('id')
+            .or(`client_phone.eq.${sp},client_phone.eq.${sp}`)
+            .eq('tenant_id', tenantId);
+
+          if (convs && convs.length > 0) {
+            const { error: updErr } = await supabase
               .from('conversas')
-              .select('id')
-              .or(`client_phone.eq.${sp},client_phone.eq.${sp}@s.whatsapp.net`)
-              .eq('tenant_id', tenantId);
-
-            if (convs && convs.length > 0) {
-              const { error: updErr } = await supabase
-                .from('conversas')
-                .update({ client_avatar: storedUrl })
-                .in('id', convs.map(c => c.id));
-
-              if (!updErr) stats.atualizados_conversas += convs.length;
-            }
+              .update({ client_avatar: storedUrl })
+              .in('id', convs.map(c => c.id));
+            if (!updErr) stats.conversas_atualizadas += convs.length;
           }
         }
       } catch (e: any) {
         stats.erros++;
-        log(`Erro processando contato: ${e.message}`);
+        log(`  ERRO: ${e.message}`);
       }
     }
 
-    // ============================================================
-    // 3. Processar grupos
-    // ============================================================
-    for (const group of groupEntries) {
-      try {
-        const remoteJid = group.id || group.remoteJid || group.jid;
-        if (!remoteJid) { stats.erros++; continue; }
-
-        const subject = group.name || group.subject || remoteJid;
-        const rawPic = group.profilePicUrl || group.imgUrl || group.picture;
-
-        // Buscar foto do grupo
-        let groupPic: string | null = null;
-        if (rawPic && !rawPic.includes('whatsapp.net') && !rawPic.includes('pps.whatsapp')) {
-          groupPic = rawPic;
-        }
-
-        let storedGroupPic: string | null = null;
-        if (groupPic) {
-          storedGroupPic = await storeProfilePic(groupPic, remoteJid.replace(/\D/g, '_'));
-          if (storedGroupPic) stats.salvos_storage++;
-        }
-
-        const now = new Date();
-        const slaDeadline = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-
-        const { error: upsertErr } = await supabase
-          .from('conversas')
-          .upsert({
-            client_name: subject,
-            client_phone: remoteJid,
-            status: 'novo',
-            tenant_id: tenantId,
-            client_avatar: storedGroupPic || null,
-            is_group: true,
-            sla_deadline: slaDeadline.toISOString(),
-            last_message_time: now.toISOString()
-          }, { onConflict: 'client_phone,tenant_id' });
-
-        if (upsertErr) {
-          log(`Erro upsert grupo ${remoteJid}: ${upsertErr.message}`);
-          stats.erros++;
-        }
-      } catch (e: any) {
-        stats.erros++;
-        log(`Erro processando grupo: ${e.message}`);
-      }
-    }
-
-    log('=== Sincronização concluída ===');
-    log(`Contacts: ${stats.atualizados_contacts} atualizados | Conversas: ${stats.atualizados_conversas} atualizadas`);
-    log(`Fotos: ${stats.com_foto_evolution} retornadas, ${stats.salvos_storage} salvas no Storage, ${stats.sem_foto} sem foto`);
-
-    return res.status(200).json({
-      success: true,
-      stats,
-      logs,
-      message: `Sincronização concluída! ${stats.atualizados_contacts} contatos, ${stats.atualizados_conversas} conversas atualizadas`
-    });
+    log('=== Sincronizacao concluida ===');
+    return res.json({ success: true, stats, logs, message: `${stats.processados} processados, ${stats.salvos_storage} fotos salvas` });
 
   } catch (error: any) {
-    console.error('[SyncContacts] Error:', error);
+    console.error('[SyncAvatars] Error:', error);
     return res.status(500).json({ error: error.message });
   }
 }
-
-// ============================================================
-// Helpers
-// ============================================================
 
 async function storeProfilePic(url: string, phone: string): Promise<string | null> {
   if (!url || url.includes('supabase.co')) return url || null;
@@ -354,82 +187,5 @@ async function storeProfilePic(url: string, phone: string): Promise<string | nul
     return publicUrl;
   } catch {
     return null;
-  }
-}
-
-async function analyzeAndHygienize(phone: string): Promise<{ error?: any; data?: any }> {
-  try {
-    const original = phone;
-    let cleaned = phone.replace(/\D/g, "");
-    let ddi = "55";
-    let ddd = "";
-    let status_normalizacao = "NORMALIZADO";
-    let tipo_numero = "DESCONHECIDO";
-    let status_validacao = "VALIDO";
-    let motivo_validacao = "";
-
-    if (!cleaned) {
-      return { data: { status_normalizacao: "FORMATO_INVALIDO", status_validacao: "INVALIDO", motivo_validacao: "Vazio" } };
-    }
-
-    if (cleaned.startsWith("55")) {
-      ddi = "55";
-      if (cleaned.length >= 4) ddd = cleaned.substring(2, 4);
-    } else {
-      ddi = "55";
-      if (cleaned.length >= 2) ddd = cleaned.substring(0, 2);
-      cleaned = "55" + cleaned;
-    }
-
-    if (!ddd || ddd.length < 2) {
-      status_normalizacao = "PENDENTE_DDD";
-      status_validacao = "PENDENTE_REVISAO";
-      motivo_validacao = "DDD não identificado";
-    }
-
-    const numberPart = cleaned.startsWith("55") ? cleaned.substring(4) : cleaned.substring(2);
-    const firstDigit = numberPart[0];
-
-    if (["2", "3", "4", "5"].includes(firstDigit)) {
-      tipo_numero = "FIXO";
-    } else if (["6", "7", "8", "9"].includes(firstDigit)) {
-      tipo_numero = "MOVEL";
-    } else {
-      tipo_numero = "INVALIDO";
-      status_validacao = "INVALIDO";
-      motivo_validacao = "Início de número inválido";
-    }
-
-    if (tipo_numero === "MOVEL") {
-      if (numberPart.length === 8) {
-        status_validacao = "SEM_NONO_DIGITO";
-        motivo_validacao = "Celular sem o dígito 9";
-      } else if (numberPart.length === 9) {
-        if (firstDigit !== "9") {
-          status_validacao = "INVALIDO";
-          motivo_validacao = "Celular com 9 dígitos não inicia com 9";
-        }
-      } else if (numberPart.length > 9) {
-        status_validacao = "DIGITOS_EXCEDENTES";
-        motivo_validacao = "Número muito longo";
-      } else {
-        status_validacao = "INCOMPLETO";
-        motivo_validacao = "Número muito curto";
-      }
-    } else if (tipo_numero === "FIXO") {
-      if (numberPart.length !== 8) {
-        status_validacao = "INCOMPLETO";
-        motivo_validacao = "Fixo deve ter 8 dígitos";
-      }
-    }
-
-    return {
-      data: {
-        ddi, ddd, telefone: original, telefone_formatado: cleaned,
-        status_normalizacao, tipo_numero, status_validacao, motivo_validacao
-      }
-    };
-  } catch (e) {
-    return { error: e, data: { telefone_formatado: phone } };
   }
 }
