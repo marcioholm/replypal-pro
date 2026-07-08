@@ -64,31 +64,70 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // ============================================================
-    // 1. Buscar contatos da Evolution API
+    // 1. Buscar contatos/chats da Evolution API
+    //    Tenta múltiplos endpoints (diferentes versões da API)
     // ============================================================
-    log(`Buscando contatos de ${evolutionUrl}/contact/fetchContacts/${instance}...`);
+    const contactEndpoints = [
+      `contact/fetchContacts/${encodeURIComponent(instance)}`,
+      `chat/fetchAllChats/${encodeURIComponent(instance)}`,
+      `chat/getAllChats/${encodeURIComponent(instance)}`,
+      `contact/list/${encodeURIComponent(instance)}`,
+      `contact/fetchAllContacts/${encodeURIComponent(instance)}`,
+    ];
 
-    const contactsResp = await fetch(`${evolutionUrl}/contact/fetchContacts/${encodeURIComponent(instance)}`, {
-      method: 'GET',
-      headers: { 'apikey': apiKey, 'Content-Type': 'application/json' }
-    });
+    let allContacts: any[] = [];
+    let usedEndpoint = '';
 
-    if (!contactsResp.ok) {
-      const errText = await contactsResp.text();
-      log(`Erro Evolution API: ${contactsResp.status} ${errText.substring(0, 200)}`);
-      return res.status(502).json({ error: `Evolution API error: ${contactsResp.status}`, detail: errText.substring(0, 300) });
+    for (const ep of contactEndpoints) {
+      log(`Tentando ${evolutionUrl}/${ep}...`);
+      const resp = await fetch(`${evolutionUrl}/${ep}`, {
+        method: 'GET',
+        headers: { 'apikey': apiKey, 'Content-Type': 'application/json' }
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        allContacts = Array.isArray(data) ? data : (data.contacts || data.chats || data.data || []);
+        if (Array.isArray(allContacts) && allContacts.length > 0) {
+          usedEndpoint = ep;
+          log(`Endpoint ${ep} retornou ${allContacts.length} registros`);
+          break;
+        }
+      } else {
+        const txt = await resp.text();
+        log(`Endpoint ${ep} falhou: ${resp.status} ${txt.substring(0, 100)}`);
+      }
     }
 
-    const contactsData = await contactsResp.json();
-    const allContacts = Array.isArray(contactsData) ? contactsData : (contactsData.contacts || contactsData.data || []);
+    if (allContacts.length === 0) {
+      log('Nenhum endpoint retornou contatos');
+      // Fallback: buscar contatos já existentes no DB (populados via webhook)
+      log('Usando fallback: contacts existentes no banco...');
+      const { data: dbContacts } = await supabase
+        .from('contacts')
+        .select('id, jid, telefone_formatado, telefone, nome, foto_perfil')
+        .eq('tenant_id', tenantId)
+        .limit(2000);
 
-    if (!Array.isArray(allContacts) || allContacts.length === 0) {
-      log('Nenhum contato retornado pela Evolution API');
-      return res.json({ success: true, stats, logs, message: 'Nenhum contato encontrado na Evolution' });
+      if (dbContacts && dbContacts.length > 0) {
+        allContacts = dbContacts.map(c => ({
+          id: c.jid,
+          remoteJid: c.jid,
+          name: c.nome,
+          telefone_formatado: c.telefone_formatado,
+          telefone: c.telefone,
+        }));
+        usedEndpoint = 'db_fallback';
+        log(`Fallback DB: ${allContacts.length} contatos carregados`);
+      }
+    }
+
+    if (allContacts.length === 0) {
+      log('Nenhum contato encontrado');
+      return res.json({ success: true, stats, logs, message: 'Nenhum contato encontrado' });
     }
 
     stats.contacts_encontrados = allContacts.length;
-    log(`${allContacts.length} contatos recebidos da Evolution API`);
+    log(`${allContacts.length} contatos obtidos via ${usedEndpoint}`);
 
     // Separar individuais e grupos
     const individuals = allContacts.filter((c: any) => {
