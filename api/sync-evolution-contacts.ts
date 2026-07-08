@@ -49,10 +49,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ============================================================
     // 1. Carregar contacts que precisam de foto
     // ============================================================
+    // Log quantos contacts tem foto valida vs expirada vs nula
+    const { count: totalContacts } = await supabase
+      .from('contacts')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId);
+    const { count: comFotoStorage } = await supabase
+      .from('contacts')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .like('foto_perfil', '%supabase.co%');
+    const { count: comFotoExpirada } = await supabase
+      .from('contacts')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .or('foto_perfil.like.%whatsapp.net%,foto_perfil.like.%pps.whatsapp%');
+    log(`Contacts totais: ${totalContacts} | Storage: ${comFotoStorage} | Expirada: ${comFotoExpirada} | Nula: ${(totalContacts || 0) - (comFotoStorage || 0) - (comFotoExpirada || 0)}`);
+
     const { data: allContacts, error: fetchErr } = await supabase
       .from('contacts')
       .select('id, jid, telefone_formatado, telefone, nome, foto_perfil')
       .eq('tenant_id', tenantId)
+      .or('foto_perfil.like.%whatsapp.net%,foto_perfil.like.%pps.whatsapp%,foto_perfil.is.null')
       .order('updated_at', { ascending: false })
       .limit(maxContacts);
 
