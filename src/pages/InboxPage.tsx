@@ -481,7 +481,7 @@ export default function InboxPage() {
                   <div className="relative">
                     <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black overflow-hidden cursor-pointer hover:bg-primary/20 transition-colors group"
                       onClick={async (e) => {
-                        if (conv.clientAvatar || conv.isGroup) return;
+                        if ((conv.clientAvatar?.includes('supabase.co') ?? false) || conv.isGroup) return;
                         e.stopPropagation();
                         const btn = e.currentTarget;
                         btn.innerHTML = '<svg class="animate-spin w-5 h-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>';
