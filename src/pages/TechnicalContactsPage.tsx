@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ export default function TechnicalContactsPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<any>(null);
   const [contacts, setContacts] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
@@ -50,29 +52,32 @@ export default function TechnicalContactsPage() {
     }
   };
 
-  const handleSyncTrigger = async () => {
+  const handleSyncTrigger = async (isDryRun = false) => {
     if (!user?.tenantId) return;
-    setLoading(true);
+    setSyncing(true);
+    setSyncResult(null);
     try {
       const response = await fetch("/api/sync-evolution-contacts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId: user.tenantId })
+        body: JSON.stringify({ tenantId: user.tenantId, dryRun: isDryRun })
       });
       
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Erro ao iniciar sincronismo");
+      if (!response.ok) throw new Error(result.error || "Erro na sincronização");
 
+      setSyncResult(result);
       toast.success(result.message);
       
-      // Aguardar um pouco e atualizar a lista
-      setTimeout(fetchContacts, 3000);
+      if (!isDryRun) setTimeout(fetchContacts, 2000);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
-      setLoading(false);
+      setSyncing(false);
     }
   };
+
+  const dismissSyncResult = useCallback(() => setSyncResult(null), []);
 
   const metrics = useMemo(() => {
     const total = contacts.length;
@@ -147,13 +152,67 @@ export default function TechnicalContactsPage() {
             Gestão técnica e higienização da base sincronizada via WhatsApp
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={handleSyncTrigger} disabled={loading} className="gap-2">
-            <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-            Sincronizar Agora
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => handleSyncTrigger(true)} disabled={syncing} className="gap-1.5 text-xs">
+            <RefreshCw className={cn("w-3.5 h-3.5", syncing && "animate-spin")} />
+            Dry Run
+          </Button>
+          <Button variant="default" onClick={() => handleSyncTrigger(false)} disabled={syncing} className="gap-2">
+            <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
+            {syncing ? 'Sincronizando...' : 'Sincronizar Agora'}
           </Button>
         </div>
       </div>
+
+      {/* Sync Result Banner */}
+      {syncResult && syncResult.stats && !syncResult.dryRun && (
+        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-primary" />
+              Sincronização concluída
+            </h3>
+            <Button variant="ghost" size="sm" onClick={dismissSyncResult} className="h-6 w-6 p-0">
+              <XCircle className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="bg-background/80 rounded-xl p-2.5">
+              <p className="text-muted-foreground">Contatos</p>
+              <p className="font-bold text-lg">{syncResult.stats.atualizados_contacts}</p>
+            </div>
+            <div className="bg-background/80 rounded-xl p-2.5">
+              <p className="text-muted-foreground">Conversas</p>
+              <p className="font-bold text-lg">{syncResult.stats.atualizados_conversas}</p>
+            </div>
+            <div className="bg-background/80 rounded-xl p-2.5">
+              <p className="text-muted-foreground">Fotos no Storage</p>
+              <p className="font-bold text-lg">{syncResult.stats.salvos_storage}</p>
+            </div>
+            <div className="bg-background/80 rounded-xl p-2.5">
+              <p className="text-muted-foreground">Sem foto</p>
+              <p className="font-bold text-lg">{syncResult.stats.sem_foto}</p>
+            </div>
+          </div>
+          {syncResult.stats.erros > 0 && (
+            <p className="text-xs text-destructive font-medium">{syncResult.stats.erros} erro(s)</p>
+          )}
+        </div>
+      )}
+
+      {syncResult && syncResult.dryRun && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold flex items-center gap-2">
+              <Info className="w-4 h-4 text-amber-500" />
+              Dry Run: {syncResult.stats?.contacts_encontrados} contatos encontrados
+            </p>
+            <Button variant="ghost" size="sm" onClick={dismissSyncResult} className="h-6 w-6 p-0">
+              <XCircle className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
