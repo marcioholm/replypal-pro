@@ -49,6 +49,7 @@ import { supabase } from "@/lib/supabase";
 import { insertHistorico } from "@/lib/historico";
 import { useAuth } from "@/lib/auth";
 import { MessageBubble } from "@/components/chat/MessageBubble";
+import { InitialsAvatar } from "@/components/conta-ui";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { ScheduleMessageDialog } from "@/components/chat/ScheduleMessageDialog";
 import { format } from "date-fns";
@@ -77,6 +78,7 @@ export default function ChatPage() {
 
   const [messageInput, setMessageInput] = useState("");
   const [noteInput, setNoteInput] = useState("");
+  const [avatarSyncing, setAvatarSyncing] = useState(false);
   const [showPanel, setShowPanel] = useState<"customer" | "members" | "notes" | "tags" | "history" | null>("customer");
   const [groupInfo, setGroupInfo] = useState<any>(null);
   const [loadingGroupInfo, setLoadingGroupInfo] = useState(false);
@@ -1612,20 +1614,22 @@ export default function ChatPage() {
   const slaStatus = store.getSLAStatus(conv);
 
   return (
-    <div className="h-[calc(100vh-3rem)] flex bg-background overflow-hidden">
+    <div className="flex h-[calc(100vh-88px)] gap-5 px-8 pb-8">
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0 border-r">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-card">
         {/* Header */}
-        <div className="p-4 border-b bg-card flex items-center gap-4 shrink-0">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="h-9 w-9 p-0">
+        <div className="flex shrink-0 flex-wrap items-center gap-x-3.5 gap-y-2.5 border-b border-border px-5 py-3.5">
+          <Button variant="outline" size="icon" onClick={() => navigate("/")} className="h-9 w-9" aria-label="Voltar para a caixa de entrada">
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div
-            className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shadow-sm border border-primary/20 overflow-hidden relative cursor-pointer hover:bg-primary/20 transition-colors group"
-            onClick={async (e) => {
+          <button
+            type="button"
+            aria-label="Buscar foto do perfil"
+            disabled={avatarSyncing}
+            className="relative shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={async () => {
               if ((conv.clientAvatar?.includes('supabase.co') ?? false) || conv.isGroup) return;
-              const btn = e.currentTarget;
-              btn.innerHTML = '<svg class="animate-spin w-4 h-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>';
+              setAvatarSyncing(true);
               try {
                 const res = await fetch('/api/sync-avatar', {
                   method: 'POST',
@@ -1641,42 +1645,36 @@ export default function ChatPage() {
                 }
               } catch {
                 toast.error('Erro ao buscar foto');
+              } finally {
+                setAvatarSyncing(false);
               }
             }}
             title={conv.clientAvatar?.includes('supabase.co') ? '' : 'Clique para buscar foto do perfil'}
           >
-            {conv.clientAvatar && (
-              <img 
-                src={conv.clientAvatar} 
-                alt={conv.clientName} 
-                className="absolute inset-0 w-full h-full object-cover" 
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  if (conv.clientAvatar?.includes('whatsapp.net') && !conv.isGroup) {
-                    fetch('/api/sync-avatar', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ conversationId: conv.id })
-                    }).then(r => r.json()).then(d => {
-                      if (d.ok && d.url) store.addDbConversation({ id: conv.id, clientAvatar: d.url } as any);
-                    }).catch(() => {});
-                  }
-                }}
-              />
-            )}
-            {conv.isGroup ? (
-              <Users className="w-5 h-5" />
-            ) : (
-              <span>{conv.clientName?.charAt(0) || '?'}</span>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">
+            <InitialsAvatar
+              name={conv.clientName}
+              src={conv.clientAvatar}
+              size={42}
+              icon={avatarSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : conv.isGroup ? <Users className="h-5 w-5" /> : undefined}
+              onImageError={() => {
+                if (conv.clientAvatar?.includes('whatsapp.net') && !conv.isGroup) {
+                  fetch('/api/sync-avatar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ conversationId: conv.id })
+                  }).then(r => r.json()).then(d => {
+                    if (d.ok && d.url) store.addDbConversation({ id: conv.id, clientAvatar: d.url } as any);
+                  }).catch(() => {});
+                }
+              }}
+            />
+          </button>
+          <div className="min-w-[180px] flex-1">
+            <p className="truncate text-base font-extrabold">
               {conv.clientName}
-              {conv.protocolo && <span className="ml-2 text-[10px] text-muted-foreground font-mono font-bold">#{conv.protocolo}</span>}
+              {conv.protocolo && <span className="ml-2 text-xs font-semibold text-muted-foreground">#{conv.protocolo}</span>}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
               {conv.isTyping ? (
                 <span className="text-xs text-primary font-medium animate-pulse flex items-center gap-1">
                   <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></span>
@@ -1692,16 +1690,17 @@ export default function ChatPage() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleSyncHistory} 
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleSyncHistory}
               disabled={syncing}
-              className="gap-2"
+              className="h-9 w-9"
+              aria-label="Sincronizar histórico do WhatsApp"
+              title="Sincronizar histórico do WhatsApp"
             >
               <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-              {syncing ? "Sincronizando..." : "Sincronizar"}
             </Button>
             {!isAssigned && (
               <Button size="sm" onClick={handleAssume}>Assumir</Button>
@@ -1712,9 +1711,9 @@ export default function ChatPage() {
                 initialName={conv.clientName === conv.clientPhone ? "" : conv.clientName}
                 onSuccess={handleCustomerCreated}
                 trigger={
-                  <Button size="sm" variant="success" className="gap-2 bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-500/20">
+                  <Button size="sm" variant="success" className="gap-2">
                     <UserPlus className="h-4 w-4" />
-                    Salvar Contato
+                    Salvar contato
                   </Button>
                 }
               />
@@ -1743,7 +1742,7 @@ export default function ChatPage() {
                 </Dialog>
                 <Dialog open={closeOpen} onOpenChange={setCloseOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10">Encerrar</Button>
+                    <Button size="sm" variant="success">Encerrar</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader><DialogTitle>Encerrar Atendimento</DialogTitle></DialogHeader>
@@ -1768,7 +1767,7 @@ export default function ChatPage() {
         </div>
 
         {/* Messages List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-transparent">
+        <div className="flex-1 space-y-1 overflow-y-auto bg-muted/30 px-5 py-5">
           {(() => {
             // Criar mapa de reações
             const reactionMap: Record<string, string> = {};
@@ -1803,7 +1802,7 @@ export default function ChatPage() {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 border-t bg-card">
+        <div className="border-t border-border px-4 py-3.5">
           {conv.status === "resolvido" ? (
             <div className="text-center py-3 text-xs font-bold uppercase tracking-widest text-muted-foreground bg-muted/10 rounded-xl border border-dashed border-muted/30">
               Atendimento Encerrado
@@ -1905,7 +1904,7 @@ export default function ChatPage() {
                 <div className="flex gap-1 mb-1">
                   <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" aria-label="Emojis">
                         <Smile className="w-5 h-5" />
                       </Button>
                     </PopoverTrigger>
@@ -1926,21 +1925,21 @@ export default function ChatPage() {
                       </div>
                     </PopoverContent>
                   </Popover>
-                  <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="text-muted-foreground hover:text-primary">
+                  <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="text-muted-foreground hover:text-primary" aria-label="Anexar arquivo">
                     <Paperclip className="w-5 h-5" />
                   </Button>
                   <ScheduleMessageDialog 
                     initialMessage={messageInput}
                     onSchedule={handleSchedule} 
                     trigger={
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" aria-label="Agendar mensagem">
                         <Clock className="w-5 h-5" />
                       </Button>
                     } 
                   />
                   <Popover open={showQuickReplies} onOpenChange={setShowQuickReplies}>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" aria-label="Respostas rápidas">
                         <Zap className="w-5 h-5" />
                       </Button>
                     </PopoverTrigger>
@@ -1980,16 +1979,17 @@ export default function ChatPage() {
                           }, 3000);
                         }
                       }}
-                      className="min-h-[40px] h-10 py-2.5 resize-none bg-muted/50 border-none rounded-2xl focus-visible:ring-1"
+                      aria-label="Mensagem"
+                      className="min-h-[44px] h-11 resize-none rounded-[22px] border-none bg-secondary px-4 py-3 focus-visible:ring-1"
                       onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSend())}
                     />
                   )}
                 </div>
 
                 {(!messageInput.trim() && selectedFiles.length === 0 && !isRecording) ? (
-                  <Button size="icon" className="h-10 w-10 rounded-full" onClick={startRecording}><Mic className="w-5 h-5" /></Button>
+                  <Button size="icon" className="h-11 w-11 rounded-full" onClick={startRecording} aria-label="Gravar áudio"><Mic className="w-5 h-5" /></Button>
                 ) : (
-                  <Button size="icon" className="h-10 w-10 rounded-full" onClick={handleSend} disabled={isRecording}><Send className="w-5 h-5" /></Button>
+                  <Button size="icon" className="h-11 w-11 rounded-full" onClick={handleSend} disabled={isRecording} aria-label="Enviar"><Send className="w-5 h-5" /></Button>
                 )}
               </div>
             </div>
@@ -1998,8 +1998,40 @@ export default function ChatPage() {
       </div>
 
       {/* Sidebar Panel */}
-      <div className="w-80 flex flex-col bg-card shrink-0">
-        <div className="flex border-b">
+      <div className="hidden w-[300px] shrink-0 flex-col gap-4 lg:order-first lg:flex 2xl:w-[340px]">
+        {conv.status !== "resolvido" && conv.slaDeadline && (() => {
+          const start = (conv.startedAt ?? conv.lastMessageTime).getTime();
+          const end = new Date(conv.slaDeadline).getTime();
+          const nowMs = Date.now();
+          const total = Math.max(end - start, 1);
+          const pct = Math.min(100, Math.max(0, ((nowMs - start) / total) * 100));
+          const mins = (ms: number) => {
+            const m = Math.round(Math.abs(ms) / 60000);
+            return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}` : `${m} min`;
+          };
+          const bar = slaStatus === "estourado" ? "bg-destructive" : slaStatus === "em_risco" ? "bg-amber-500" : "bg-success";
+          return (
+            <section className="flex flex-col gap-3 rounded-xl bg-card p-5">
+              <p className="text-[11px] text-muted-foreground">Tempo de resposta (SLA)</p>
+              <p className="-mt-2 text-[15px] font-extrabold">
+                {slaStatus === "estourado"
+                  ? `Estourado há ${mins(nowMs - end)}`
+                  : `Responder até ${new Date(end).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`}
+              </p>
+              <div className="h-3 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
+                <div className={`h-full rounded-full ${bar}`} style={{ width: `${pct}%` }} />
+              </div>
+              <div className="flex gap-4 text-xs">
+                <span className="flex items-center gap-1.5"><span className={`h-2.5 w-2.5 rounded-full ${bar}`} />{mins(nowMs - start)} decorridos</span>
+                {slaStatus !== "estourado" && (
+                  <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/40" />{mins(end - nowMs)} restantes</span>
+                )}
+              </div>
+            </section>
+          );
+        })()}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-card">
+        <div className="flex border-b border-border">
           {[
             { key: "customer" as const, icon: User, label: "Cliente" },
             ...(conv?.isGroup ? [{ key: "members" as const, icon: Users, label: "Membros" }] : []),
@@ -2010,7 +2042,7 @@ export default function ChatPage() {
             <button
               key={tab.key}
               onClick={() => setShowPanel(tab.key)}
-              className={`flex-1 py-3 text-[9px] uppercase font-bold flex flex-col items-center gap-1 border-b-2 transition-all ${showPanel === tab.key ? "border-primary text-primary bg-primary/5" : "border-transparent text-muted-foreground hover:bg-muted/50"}`}
+              className={`flex-1 py-3 text-[11px] font-bold flex flex-col items-center gap-1 border-b-2 transition-colors ${showPanel === tab.key ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
             >
               <tab.icon className="w-4 h-4" />
               {tab.label}
@@ -2285,6 +2317,7 @@ export default function ChatPage() {
               )}
             </div>
           )}
+        </div>
         </div>
       </div>
       

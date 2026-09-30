@@ -39,17 +39,16 @@ export function IAChatButton({ collapsed }: { collapsed: boolean }) {
           ? "bg-[rgba(34,199,169,0.2)] text-[#22C7A9]" 
           : "hover:bg-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.65)] hover:text-white"
       }`}
-      title="Operai - Assistente IA"
+      title="Assistente Conta+"
     >
-      <img 
-        src="/operai-icon.png" 
-        alt="Operai" 
+      <Sparkles
+        aria-hidden="true"
         className={`w-6 h-6 flex-shrink-0 transition-transform duration-300 ${store.isIAChatOpen ? "scale-110" : "opacity-70 group-hover:opacity-100 group-hover:scale-110"}`} 
       />
       <span className={`text-sm font-medium tracking-tight whitespace-nowrap transition-all duration-300 overflow-hidden ${
         collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
       }`}>
-        Operai
+        Assistente
       </span>
       {store.isIAChatOpen && !collapsed && <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-[#22C7A9] animate-pulse" />}
     </button>
@@ -64,7 +63,7 @@ export function IAChatPanel() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { user, tenant } = useAuth();
-  const [companyName, setCompanyName] = useState("Operai");
+  const [companyName, setCompanyName] = useState("Assistente Conta+");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Detectar se está na página de um cliente para enviar cliente_id
@@ -74,7 +73,7 @@ export function IAChatPanel() {
   useEffect(() => {
     const loadHistory = async () => {
       if (isOpen && tenant && user) {
-        setCompanyName(`Operai | ${tenant.name || "IA"}`);
+        setCompanyName(`Assistente Conta+ · ${tenant.name || "IA"}`);
         
         try {
           // Carregar histórico do Supabase
@@ -98,7 +97,7 @@ export function IAChatPanel() {
             setMessages([
               {
                 role: "ia",
-                content: `Olá! Sou a **Operai**, assistente inteligente da **${tenant.name || 'sua empresa'}**. Como posso ajudar você hoje?`,
+                content: `Olá! Sou o **Assistente Conta+**, assistente inteligente da **${tenant.name || 'sua empresa'}**. Como posso ajudar você hoje?`,
               },
             ]);
           }
@@ -108,7 +107,7 @@ export function IAChatPanel() {
           setMessages([
             {
               role: "ia",
-              content: `Olá! Sou a **Operai**. Como posso ajudar você hoje?`,
+              content: `Olá! Sou o **Assistente Conta+**. Como posso ajudar você hoje?`,
             },
           ]);
         }
@@ -254,17 +253,17 @@ export function IAChatPanel() {
       editData={knowledgeData}
     />
     <div 
-      className="h-screen sticky top-0 flex flex-col bg-white border-r shadow-xl animate-in slide-in-from-left duration-500 ease-out z-40 overflow-hidden shrink-0"
+      className="h-screen sticky top-0 flex flex-col bg-card border-l border-border shadow-xl animate-in slide-in-from-left duration-500 ease-out z-40 overflow-hidden shrink-0"
       style={{ width: "380px" }}
     >
       {/* Premium Header */}
-      <div className="flex items-center justify-between p-5 bg-gradient-to-r from-sidebar-primary to-sidebar-primary/80 text-white shadow-md">
+      <div className="flex items-center justify-between p-5 bg-sidebar-gradient text-white">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-white p-1 flex items-center justify-center shadow-inner">
-            <img src="/operai-icon.png" alt="Operai" className="w-full h-full object-contain" />
+            <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="text-sm font-bold leading-tight">✦ {companyName}</h2>
+            <h2 className="text-sm font-bold leading-tight">{companyName}</h2>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
               <span className="text-[10px] font-medium text-white/70 uppercase tracking-widest">Online Agora</span>
@@ -292,7 +291,7 @@ export function IAChatPanel() {
               <div
                 className={`max-w-[90%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm transition-all ${
                   msg.role === "user"
-                    ? "bg-sidebar-primary text-white rounded-tr-none"
+                    ? "bg-primary text-primary-foreground rounded-tr-none"
                     : "bg-white text-slate-700 rounded-tl-none border border-slate-200"
                 }`}
               >
@@ -305,7 +304,7 @@ export function IAChatPanel() {
                 <div className="flex items-center gap-2">
                   {msg.role === "ia" && (
                     <div className="w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200">
-                      <img src="/operai-icon.png" alt="O" className="w-full h-full object-contain" />
+                      <Sparkles className="h-2.5 w-2.5 text-primary" aria-hidden="true" />
                     </div>
                   )}
                   <span className="text-[10px] text-slate-400 font-medium">
@@ -348,9 +347,9 @@ export function IAChatPanel() {
             <div className="flex flex-col items-start">
               <div className="bg-white px-4 py-3 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm">
                 <div className="flex gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-sidebar-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-1.5 h-1.5 bg-sidebar-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-1.5 h-1.5 bg-sidebar-primary/40 rounded-full animate-bounce" />
+                  <span className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce" />
                 </div>
               </div>
             </div>
@@ -366,7 +365,7 @@ export function IAChatPanel() {
             e.preventDefault();
             handleSend();
           }}
-          className="flex items-center gap-2 bg-slate-100/80 p-1.5 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-sidebar-primary/20 transition-all"
+          className="flex items-center gap-2 bg-secondary p-1.5 rounded-full border border-border focus-within:ring-2 focus-within:ring-primary/20 transition-all"
         >
           <Input
             placeholder="Digite sua dúvida aqui..."
@@ -379,7 +378,7 @@ export function IAChatPanel() {
             type="submit" 
             size="icon" 
             disabled={isLoading || !input.trim()} 
-            className="bg-sidebar-primary hover:bg-sidebar-primary/90 text-white rounded-lg shadow-lg shadow-sidebar-primary/20 shrink-0 h-9 w-9 transition-transform active:scale-95"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shrink-0 h-9 w-9 transition-transform active:scale-95"
           >
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>

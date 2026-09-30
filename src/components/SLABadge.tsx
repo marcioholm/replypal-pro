@@ -1,20 +1,20 @@
 import type { SLAStatus } from "@/lib/store";
-import { Badge } from "@/components/ui/badge";
 import { Clock, AlertTriangle, XCircle } from "lucide-react";
+import { Chip, type ChipTone } from "@/components/conta-ui";
 
-const config: Record<SLAStatus, { label: string; className: string; icon: typeof Clock }> = {
-  ok: { label: "No prazo", className: "bg-success/15 text-success border-success/30", icon: Clock },
-  em_risco: { label: "Em risco", className: "bg-warning/15 text-warning border-warning/30", icon: AlertTriangle },
-  estourado: { label: "SLA estourado", className: "bg-destructive/15 text-destructive border-destructive/30", icon: XCircle },
+const config: Record<SLAStatus, { label: string; tone: ChipTone; icon: typeof Clock }> = {
+  ok: { label: "No prazo", tone: "green", icon: Clock },
+  em_risco: { label: "SLA em risco", tone: "amber", icon: AlertTriangle },
+  estourado: { label: "SLA estourado", tone: "red", icon: XCircle },
 };
 
 export function SLABadge({ slaStatus }: { slaStatus: SLAStatus }) {
   const c = config[slaStatus];
   const Icon = c.icon;
   return (
-    <Badge variant="outline" className={`text-[10px] font-medium px-2 py-0.5 gap-1 ${c.className}`}>
-      <Icon className="w-3 h-3" />
+    <Chip tone={c.tone}>
+      <Icon className="h-3 w-3" />
       {c.label}
-    </Badge>
+    </Chip>
   );
 }

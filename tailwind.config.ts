@@ -14,8 +14,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["'Source Sans 3'", "'Segoe UI'", "sans-serif"],
-        serif: ["'Playfair Display'", "Georgia", "serif"],
+        sans: ["'Plus Jakarta Sans'", "system-ui", "'Segoe UI'", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -60,6 +59,7 @@ export default {
           "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
+          muted: "hsl(var(--sidebar-muted))",
         },
         success: {
           DEFAULT: "hsl(var(--success))",
@@ -82,9 +82,10 @@ export default {
         },
       },
       borderRadius: {
+        xl: "calc(var(--radius) + 4px)",
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        md: "calc(var(--radius) - 4px)",
+        sm: "calc(var(--radius) - 8px)",
       },
       keyframes: {
         "accordion-down": {

@@ -266,6 +266,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
           onClick={() => window.dispatchEvent(new CustomEvent('chat-reaction', { detail: { msgId: msg.id, externalId: msg.external_message_id } }))}
           className="p-1.5 hover:bg-primary/10 rounded-full transition-colors text-muted-foreground hover:text-primary"
           title="Reagir"
+          aria-label="Reagir"
         >
           <Smile className="w-4 h-4" />
         </button>
@@ -273,6 +274,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
           onClick={() => window.dispatchEvent(new CustomEvent('chat-reply', { detail: { msg } }))}
           className="p-1.5 hover:bg-primary/10 rounded-full transition-colors text-muted-foreground hover:text-primary"
           title="Responder"
+          aria-label="Responder"
         >
           <Reply className="w-4 h-4" />
         </button>
@@ -280,6 +282,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
           onClick={() => window.dispatchEvent(new CustomEvent('chat-forward', { detail: { msg } }))}
           className="p-1.5 hover:bg-primary/10 rounded-full transition-colors text-muted-foreground hover:text-primary"
           title="Encaminhar"
+          aria-label="Encaminhar"
         >
           <Share2 className="w-4 h-4" />
         </button>
@@ -288,6 +291,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
             onClick={() => window.dispatchEvent(new CustomEvent('chat-delete', { detail: { msgId: msg.id, externalId: msg.external_message_id } }))}
             className="p-1.5 hover:bg-destructive/10 rounded-full transition-colors text-muted-foreground hover:text-destructive"
             title="Apagar"
+            aria-label="Apagar"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -304,10 +308,10 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
           </div>
         )}
 
-        <div className={`rounded-2xl px-4 py-3 shadow-sm relative ${
+        <div className={`rounded-[18px] px-3.5 py-2.5 relative text-sm leading-relaxed ${
           isAgent 
-            ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-br-md" 
-            : "bg-card border border-border/50 rounded-bl-md"
+            ? "bg-primary text-primary-foreground rounded-br-md" 
+            : "bg-secondary text-secondary-foreground rounded-bl-md"
         }`}>
           {/* Citação (Reply) */}
           {msg.quotedMessage && (
@@ -319,7 +323,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
             </div>
           )}
 
-          <p className={`text-[10px] font-semibold mb-1 flex justify-between items-center ${isAgent ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+          <p className={`text-[11px] font-bold mb-0.5 flex justify-between items-center ${isAgent ? "text-primary-foreground/85" : "text-muted-foreground"}`}>
             <span>{isAgent ? msg.senderName : clientName}</span>
           </p>
           
@@ -327,7 +331,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
             {renderContent()}
           </div>
           
-          <div className={`text-[9px] mt-2 flex items-center justify-end gap-1.5 ${isAgent ? "text-primary-foreground/60" : "text-muted-foreground/60"}`}>
+          <div className={`text-[11px] mt-1 flex items-center justify-end gap-1.5 ${isAgent ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
             <span>{formatTime(msg.timestamp)}</span>
             {getStatusIcon()}
           </div>

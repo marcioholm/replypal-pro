@@ -1,44 +1,68 @@
-import { useState, useEffect } from "react";
-import { 
-  MessageSquare, 
-  LayoutDashboard, 
-  Columns3, 
-  Settings, 
-  Users, 
-  Calendar, 
-  LogOut, 
-  Bot, 
+import { useEffect } from "react";
+import {
+  Home,
+  MessageSquare,
+  Columns3,
   Send,
   Building2,
+  Users,
+  Calendar,
+  LayoutDashboard,
+  Bell,
+  Bot,
+  Settings,
+  LogOut,
   ChevronRight,
-  Bell
+  type LucideIcon,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
-import { useStore } from "@/lib/store";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useStore, type UserRole } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
-import { useNavigate } from "react-router-dom";
-import { IAChatButton } from "./IAChat";
-import { NewChatDialog } from "./chat/NewChatDialog";
 import { supabase } from "@/lib/supabase";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ContaMaisLogo } from "@/components/brand/ContaMaisLogo";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { title: "Caixa de Entrada", url: "/", icon: MessageSquare, badge: "inbox" },
-  { title: "Pipeline", url: "/pipeline", icon: Columns3, badge: "pipeline" },
-  { title: "Clientes", url: "/customers", icon: Building2, badge: "customers" },
-  { title: "Contatos", url: "/contacts", icon: Users, badge: "contacts" },
-  { title: "Treinamento da IA", url: "/training", icon: Bot, badge: "training" },
-  { title: "Alertas Inteligentes", url: "/alerts", icon: Bell, badge: "alerts" },
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, badge: "dashboard" },
-  { title: "Agendamentos", url: "/scheduled", icon: Send, badge: "scheduled" },
-  { title: "Calendário Fiscal", url: "/calendar", icon: Calendar, badge: "calendar" },
-  { title: "Configurações", url: "/settings", icon: Settings, badge: "settings" },
-];
+type BadgeKey = "inbox" | "alerts";
 
-const SIDEBAR_WIDTH = "240px";
-const SIDEBAR_COLLAPSED_WIDTH = "72px";
+interface NavItem {
+  title: string;
+  url: string;
+  icon: LucideIcon;
+  badge?: BadgeKey;
+  /** Se definido, só esses papéis veem o item */
+  roles?: UserRole[];
+}
+
+const navGroups: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Atendimento",
+    items: [
+      { title: "Início", url: "/inicio", icon: Home },
+      { title: "Caixa de Entrada", url: "/", icon: MessageSquare, badge: "inbox" },
+      { title: "Pipeline", url: "/pipeline", icon: Columns3 },
+      { title: "Agendamentos", url: "/scheduled", icon: Send },
+    ],
+  },
+  {
+    label: "Carteira",
+    items: [
+      { title: "Clientes", url: "/customers", icon: Building2 },
+      { title: "Contatos", url: "/contacts", icon: Users },
+      { title: "Calendário Fiscal", url: "/calendar", icon: Calendar },
+    ],
+  },
+  {
+    label: "Gestão",
+    items: [
+      { title: "Relatórios", url: "/dashboard", icon: LayoutDashboard },
+      { title: "Alertas", url: "/alerts", icon: Bell, badge: "alerts" },
+      { title: "Treinamento da IA", url: "/training", icon: Bot, roles: ["admin", "supervisor"] },
+      { title: "Configurações", url: "/settings", icon: Settings, roles: ["admin"] },
+    ],
+  },
+];
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -48,48 +72,16 @@ interface AppSidebarProps {
 export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const location = useLocation();
   const store = useStore();
-  const { user, tenant, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [company, setCompany] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("replypal_company") || "null");
-    } catch {
-      return null;
-    }
-  });
-
-  useEffect(() => {
-    const handleStorage = () => {
-      try {
-        const c = JSON.parse(localStorage.getItem("replypal_company") || "null");
-        setCompany(c);
-      } catch {}
-    };
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener("replypal_company_updated", handleStorage);
-    return () => {
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("replypal_company_updated", handleStorage);
-    };
-  }, []);
-
-  // Calcular contagens baseadas na store
-  const openCount = store.conversations.filter(c => 
-    c.assignedTo === user?.id && 
-    c.status?.toLowerCase() !== "resolvido"
-  ).length;
-
-  const queueCount = store.conversations.filter(c => 
-    !c.assignedTo && 
-    c.status?.toLowerCase() !== "resolvido"
-  ).length;
-
+  const openCount = store.conversations.filter(c => c.status?.toLowerCase() !== "resolvido").length;
   const atRiskCount = store.conversations.filter(c => {
     if (c.status?.toLowerCase() === "resolvido") return false;
-    const slaStatus = store.getSLAStatus(c);
-    return slaStatus === "estourado" || slaStatus === "em_risco";
+    const sla = store.getSLAStatus(c);
+    return sla === "estourado" || sla === "em_risco";
   }).length;
+  const badges: Record<BadgeKey, number> = { inbox: openCount, alerts: atRiskCount };
 
   // Hidrata a store uma única vez se ela estiver vazia. Depois disso as
   // contagens vêm da store, que o realtime mantém atualizada (antes: select * a cada 10s).
@@ -127,189 +119,118 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     navigate("/login");
   };
 
-  const width = collapsed ? "w-20" : "w-[280px]";
-  const left = 20;
-  const top = 20;
-  const bottom = 20;
+  const role = (user?.role || "atendente") as UserRole;
+
+  const isActive = (url: string) =>
+    url === "/"
+      ? location.pathname === "/" || location.pathname.startsWith("/chat/")
+      : location.pathname === url || location.pathname.startsWith(url + "/");
 
   return (
-    <aside 
+    <aside
       className={cn(
-        "fixed left-0 top-0 bottom-0 z-50 transition-all duration-350 ease-out flex flex-col border-r border-[#26211d] bg-[#12100e]",
-        width
+        "fixed left-0 top-0 bottom-0 z-50 flex flex-col bg-sidebar-gradient text-sidebar-foreground transition-[width] duration-300 ease-out",
+        collapsed ? "w-20" : "w-[256px]"
       )}
     >
       <TooltipProvider delayDuration={0}>
-        <div className="relative h-full w-full overflow-hidden flex flex-col">
+        <div className={cn("flex items-end justify-between pt-6 pb-6", collapsed ? "px-3 justify-center" : "px-[18px]")}>
+          <div className={cn("flex items-center rounded-2xl bg-white", collapsed ? "p-2.5" : "px-3.5 py-2.5")}>
+            <ContaMaisLogo compact={collapsed} />
+          </div>
+          {!collapsed && (
+            <span className="text-right text-[10px] leading-tight text-sidebar-muted">
+              v 3.0
+              <br />
+              {new Date().getFullYear()}
+            </span>
+          )}
+        </div>
 
-          <div className="relative z-10 flex flex-col h-full">
-            <div className="p-6 flex items-center gap-4 border-b border-[#26211d]">
-                <div 
-                  className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-300 hover:rotate-3 active:scale-90 shadow-sm"
-                  style={{
-                    background: "white",
-                    border: "1px solid #3d342d",
-                  }}
-                >
-                  <img src="/sasaki-logo.jpeg" alt="Sasaki" className="w-10 h-10 object-contain" />
-                </div>
-              <div className={cn(
-                "flex flex-col overflow-hidden transition-all duration-300 ease-out",
-                collapsed ? "opacity-0 w-0" : "opacity-100"
-              )}>
-                <span className="font-bold text-base text-[#f2efe9] tracking-tight whitespace-nowrap">
-                  Sasaki
-                </span>
-                <span className="text-[10px] text-[#cda483] font-bold uppercase tracking-widest whitespace-nowrap opacity-90">Soluções Contábeis</span>
-              </div>
-            </div>
-
-            <div className="p-3">
-              <div className={cn(
-                "px-3 py-3 rounded-lg bg-[#1e1915] border border-[#2c231c] transition-all duration-300 overflow-hidden",
-                collapsed ? "opacity-0 max-h-0 py-0" : "opacity-100 max-h-[200px]"
-              )}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold text-[#b2a59a] uppercase tracking-widest">Atendimento</span>
-                  <div className="relative">
-                    <div className="w-2 h-2 rounded-full bg-[#a37f61]" />
-                    <div className="absolute inset-0 w-2 h-2 rounded-full bg-[#a37f61] animate-ping opacity-75" />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <p className="text-xl font-bold text-[#f2efe9]">{openCount}</p>
-                      <p className="text-[9px] text-[#b2a59a] font-medium uppercase">Meus atendimentos</p>
-                    </div>
-                    {queueCount > 0 && (
-                      <div className="flex-1 text-right">
-                        <p className="text-xl font-bold text-[#a37f61]">{queueCount}</p>
-                        <p className="text-[9px] text-[#b2a59a] font-medium uppercase">Na fila</p>
-                      </div>
-                    )}
-                  </div>
-                  {atRiskCount > 0 && (
-                    <div className="px-2.5 py-1.5 rounded-[10px] bg-destructive/10 border border-destructive/20 flex items-center justify-between">
-                      <p className="text-[9px] text-destructive font-bold uppercase tracking-wider">Atenção (SLA)</p>
-                      <p className="text-xs font-black text-destructive">{atRiskCount}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="px-4 py-2">
-              <NewChatDialog collapsed={collapsed} />
-            </div>
-
-            <div className="flex-1 px-4 overflow-y-auto overflow-x-hidden scrollbar-thin">
-              <div className="space-y-2 py-4">
-                {navItems.map((item) => {
-                  const isActive = location.pathname === item.url || 
-                    (item.url !== "/" && location.pathname.startsWith(item.url));
-                  
-                  return (
+        <nav aria-label="Principal" className="flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-3.5 pb-4 scrollbar-thin">
+          {navGroups.map(group => {
+            const items = group.items.filter(i => !i.roles || i.roles.includes(role));
+            if (items.length === 0) return null;
+            return (
+              <div key={group.label} className="space-y-0.5">
+                {!collapsed && (
+                  <p className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-muted">
+                    {group.label}
+                  </p>
+                )}
+                {items.map(item => {
+                  const active = isActive(item.url);
+                  const count = item.badge ? badges[item.badge] : 0;
+                  const link = (
                     <NavLink
-                      key={item.title}
+                      key={item.url}
                       to={item.url}
                       end={item.url === "/"}
+                      aria-current={active ? "page" : undefined}
                       className={cn(
-                        "group relative flex items-center gap-4 px-4 py-3.5 rounded-lg",
-                        "transition-all duration-300 ease-out",
-                        isActive 
-                          ? "bg-[#2c231c] text-[#f2efe9] border-l-4 border-[#a37f61] rounded-l-none" 
-                          : "text-[#b2a59a] hover:bg-[#1e1915] hover:text-[#f2efe9]"
+                        "group flex h-10 items-center gap-2.5 rounded-full text-sm transition-colors",
+                        collapsed ? "justify-center px-0" : "pl-1 pr-3",
+                        active ? "bg-sidebar-accent font-bold" : "font-medium hover:bg-white/[0.08]"
                       )}
                     >
-                      <div className="relative z-10 flex items-center gap-4">
-                        {item.title === "Treinamento da IA" ? (
-                           <img src="/operai-logo.png" className={cn("w-5 h-5 flex-shrink-0 transition-all duration-300 object-contain filter brightness-125", isActive ? "scale-110" : "opacity-60 group-hover:opacity-100 group-hover:scale-110")} alt="IA" />
-                        ) : (
-                          <item.icon className={cn(
-                            "w-5 h-5 flex-shrink-0 transition-all duration-300",
-                            isActive 
-                              ? "text-[#f2efe9] scale-110" 
-                              : "text-[#8c7a6e] group-hover:text-[#f2efe9] group-hover:scale-110"
-                          )} />
+                      <span
+                        className={cn(
+                          "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
+                          active ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/80 group-hover:text-sidebar-foreground"
                         )}
-                        <span className={cn(
-                          "text-[13px] font-bold tracking-tight whitespace-nowrap transition-all duration-300 overflow-hidden",
-                          collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
-                        )}>
-                          {item.title}
+                      >
+                        <item.icon className="h-[17px] w-[17px]" />
+                        {collapsed && count > 0 && (
+                          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[hsl(var(--sidebar-background))] bg-[#22B573]" />
+                        )}
+                      </span>
+                      {!collapsed && <span className="truncate">{item.title}</span>}
+                      {!collapsed && count > 0 && (
+                        <span className="ml-auto flex h-5 min-w-[22px] items-center justify-center rounded-full bg-[#22B573] px-1.5 text-[11px] font-extrabold text-[#04311C] tabular">
+                          {count > 99 ? "99+" : count}
                         </span>
-                      </div>
+                      )}
                     </NavLink>
+                  );
+                  return collapsed ? (
+                    <Tooltip key={item.url}>
+                      <TooltipTrigger asChild>{link}</TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs font-semibold">
+                        {item.title}
+                        {count > 0 ? ` (${count})` : ""}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    link
                   );
                 })}
               </div>
-            </div>
+            );
+          })}
+        </nav>
 
-            <div className="p-4 border-t border-[#26211d] space-y-2.5">
-              
-              <IAChatButton collapsed={collapsed} />
-              
-              <div className={cn(
-                "flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#1e1915] transition-all duration-300 overflow-hidden",
-                collapsed ? "opacity-0 max-h-0 py-0" : "opacity-100 max-h-[70px]"
-              )}>
-                <div className="w-10 h-10 rounded-lg bg-[#2c231c] flex items-center justify-center overflow-hidden flex-shrink-0 border border-[#3d342d]">
-                  {user?.avatar ? (
-                    <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-sm font-black text-[#a37f61]">
-                      {(user?.name || "").split(" ").map((n: string) => n[0]).join("")}
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-[#f2efe9] truncate">{user?.name}</p>
-                  <p className="text-[10px] text-[#b2a59a] font-bold uppercase tracking-wider">{user?.role}</p>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="p-2.5 rounded-lg hover:bg-[#2c231c] text-[#b2a59a] hover:text-destructive transition-all flex-shrink-0"
-                  title="Sair"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-
-              {collapsed && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full h-10 rounded-lg flex items-center justify-center text-[#b2a59a] hover:bg-destructive/10 hover:text-destructive transition-all"
-                      title="Sair"
-                    >
-                      <LogOut className="w-4 h-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="bg-[#12100e] border-[#26211d] text-[#f2efe9] font-bold text-xs">
-                    Sair
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-          </div>
+        <div className={cn("space-y-1 pb-5", collapsed ? "px-3" : "px-3.5")}>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className={cn(
+              "flex h-10 w-full items-center gap-2.5 rounded-full text-sm font-medium text-sidebar-foreground transition-colors hover:bg-white/[0.08]",
+              collapsed ? "justify-center" : "px-3"
+            )}
+            aria-label="Sair"
+          >
+            <LogOut className="h-[17px] w-[17px]" />
+            {!collapsed && <span>Sair</span>}
+          </button>
         </div>
 
         <button
+          type="button"
           onClick={onToggle}
-          className="absolute -right-4 top-1/2 -translate-y-1/2 z-[60] group/toggle"
+          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+          className="absolute -right-3.5 top-1/2 z-[60] flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card text-primary shadow-md transition-transform hover:scale-110"
         >
-          <div
-            className="w-8 h-8 rounded-full bg-[#12100e] border border-[#26211d] flex items-center justify-center shadow-md transition-all duration-300 hover:scale-110 active:scale-95 hover:border-[#a37f61]"
-          >
-            <div className={cn(
-              "transition-transform duration-500 ease-in-out",
-              collapsed ? "rotate-0" : "rotate-180"
-            )}>
-              <ChevronRight className="w-5 h-5 text-[#a37f61]" />
-            </div>
-          </div>
+          <ChevronRight className={cn("h-4 w-4 transition-transform duration-300", !collapsed && "rotate-180")} />
         </button>
       </TooltipProvider>
     </aside>
