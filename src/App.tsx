@@ -1,4 +1,4 @@
-import { Suspense, Component, type ReactNode } from "react";
+import { Suspense, Component, lazy, type ComponentType, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -15,22 +15,43 @@ import { NotificationProvider } from "@/hooks/useNotifications";
 import LoginPage from "@/pages/LoginPage";
 import InboxPage from "@/pages/InboxPage";
 
-// Lazy loading apenas para páginas secundárias
-import ChatPage from "@/pages/ChatPage";
-import PipelinePage from "@/pages/PipelinePage";
-import DashboardPage from "@/pages/DashboardPage";
-import SettingsPage from "@/pages/SettingsPage";
-import CustomersPage from "@/pages/CustomersPage";
-import CustomerDetailsPage from "@/pages/CustomerDetailsPage";
-import CalendarPage from "@/pages/CalendarPage";
-import TrainingPage from "@/pages/TrainingPage";
-import AlertsPage from "@/pages/AlertsPage";
-import ScheduledMessagesPage from "@/pages/ScheduledMessagesPage";
-import DailyReportPage from "@/pages/DailyReportPage";
-import ContactsPage from "@/pages/ContactsPage";
-import HygienePage from "@/pages/HygienePage";
-import TechnicalContactsPage from "@/pages/TechnicalContactsPage";
-import NotFound from "@/pages/NotFound";
+// Páginas secundárias carregadas sob demanda (cada uma vira um arquivo separado).
+// Se um deploy novo invalidar os arquivos antigos, recarrega a página uma vez
+// em vez de quebrar — era esse o problema que fazia o lazy falhar em produção.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function lazyWithRetry<T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) {
+  return lazy(async () => {
+    const key = "chunk-reload";
+    try {
+      const mod = await factory();
+      sessionStorage.removeItem(key);
+      return mod;
+    } catch (err) {
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        window.location.reload();
+        return new Promise<{ default: T }>(() => {});
+      }
+      throw err;
+    }
+  });
+}
+
+const ChatPage = lazyWithRetry(() => import("@/pages/ChatPage"));
+const PipelinePage = lazyWithRetry(() => import("@/pages/PipelinePage"));
+const DashboardPage = lazyWithRetry(() => import("@/pages/DashboardPage"));
+const SettingsPage = lazyWithRetry(() => import("@/pages/SettingsPage"));
+const CustomersPage = lazyWithRetry(() => import("@/pages/CustomersPage"));
+const CustomerDetailsPage = lazyWithRetry(() => import("@/pages/CustomerDetailsPage"));
+const CalendarPage = lazyWithRetry(() => import("@/pages/CalendarPage"));
+const TrainingPage = lazyWithRetry(() => import("@/pages/TrainingPage"));
+const AlertsPage = lazyWithRetry(() => import("@/pages/AlertsPage"));
+const ScheduledMessagesPage = lazyWithRetry(() => import("@/pages/ScheduledMessagesPage"));
+const DailyReportPage = lazyWithRetry(() => import("@/pages/DailyReportPage"));
+const ContactsPage = lazyWithRetry(() => import("@/pages/ContactsPage"));
+const HygienePage = lazyWithRetry(() => import("@/pages/HygienePage"));
+const TechnicalContactsPage = lazyWithRetry(() => import("@/pages/TechnicalContactsPage"));
+const NotFound = lazyWithRetry(() => import("@/pages/NotFound"));
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -98,10 +119,6 @@ function PageLoader() {
   );
 }
 
-function LoadingFallback() {
-  return <PageLoader />;
-}
-
 const queryClient = new QueryClient();
 
 type UserRole = "admin" | "supervisor" | "atendente" | "recepcionista";
@@ -167,6 +184,7 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <AppLayout>
+                <Suspense fallback={<PageLoader />}>
                   <Routes>
                     <Route path="/" element={<InboxPage />} />
                     <Route path="/chat/:id" element={<ChatPage />} />
@@ -185,6 +203,7 @@ function AppRoutes() {
                     <Route path="/settings/reports/daily" element={<DailyReportPage />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
+                </Suspense>
               </AppLayout>
             </ProtectedRoute>
           }

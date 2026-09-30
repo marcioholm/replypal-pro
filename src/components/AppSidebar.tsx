@@ -91,43 +91,36 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     return slaStatus === "estourado" || slaStatus === "em_risco";
   }).length;
 
+  // Hidrata a store uma única vez se ela estiver vazia. Depois disso as
+  // contagens vêm da store, que o realtime mantém atualizada (antes: select * a cada 10s).
+  const storeEmpty = store.conversations.length === 0;
   useEffect(() => {
-    const fetchCounts = async () => {
-      const tenantId = user?.tenantId;
-      if (!tenantId || tenantId.length < 5) return;
+    const tenantId = user?.tenantId;
+    if (!tenantId || tenantId.length < 5 || !storeEmpty) return;
 
-      try {
-        const { data } = await supabase
-          .from("conversas")
-          .select("*") // Buscar tudo para garantir que a store tenha os dados se estiver vazia
-          .eq("tenant_id", tenantId)
-          .neq("status", "resolvido");
-        
-        if (data) {
-          // Opcional: atualizar a store se ela estiver vazia
-          if (store.conversations.length === 0 && data.length > 0) {
-            store.addDbConversations(data.map(c => ({
-              id: c.id,
-              clientName: c.client_name || "Cliente",
-              clientPhone: c.client_phone || "",
-              lastMessage: c.last_message || "",
-              lastMessageTime: new Date(c.last_message_time || Date.now()),
-              status: c.status,
-              tenantId: c.tenant_id,
-              slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
-              tags: c.tags || []
-            })));
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching counts:", err);
-      }
-    };
-
-    fetchCounts();
-    const interval = setInterval(fetchCounts, 10000); // Aumentado para 10s já que a store sincroniza em tempo real
-    return () => clearInterval(interval);
-  }, [user?.tenantId, store.conversations.length]);
+    let cancelled = false;
+    supabase
+      .from("conversas")
+      .select("id, client_name, client_phone, last_message, last_message_time, status, tenant_id, sla_deadline, tags, assigned_to")
+      .eq("tenant_id", tenantId)
+      .neq("status", "resolvido")
+      .then(({ data, error }) => {
+        if (cancelled || error || !data?.length) return;
+        store.addDbConversations(data.map(c => ({
+          id: c.id,
+          clientName: c.client_name || "Cliente",
+          clientPhone: c.client_phone || "",
+          lastMessage: c.last_message || "",
+          lastMessageTime: new Date(c.last_message_time || Date.now()),
+          status: c.status,
+          tenantId: c.tenant_id,
+          assignedTo: c.assigned_to,
+          slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
+          tags: c.tags || []
+        })));
+      });
+    return () => { cancelled = true; };
+  }, [user?.tenantId, storeEmpty]);
 
   const handleLogout = () => {
     logout();

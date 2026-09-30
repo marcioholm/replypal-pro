@@ -1,7 +1,6 @@
 import { createContext, useContext, ReactNode, useState, useCallback, useEffect } from "react";
 import { User, Tenant, setCurrentTenantId } from "./store";
 import { supabase } from "./supabase";
-import { initializeDatabase } from "./dbSetup";
 import { updateEvolutionConfig } from "./evolution";
 
 const PBKDF2_ITERATIONS = 100000;
@@ -57,12 +56,6 @@ async function verifyPassword(password: string, salt: string, storedHash: string
   }
 }
 
-function bufferToHex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
 interface AuthContextType {
   user: User | null;
   tenant: Tenant | null;
@@ -81,7 +74,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initializeDatabase();
     const savedUser = localStorage.getItem("replypal_user");
     if (savedUser) {
       try {
@@ -181,9 +173,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("Secure hash check failed, trying legacy fallback.");
       }
       
-      // Fallback
-      if (!isValidPassword && foundUser.senha === password) {
+      // Legado: só aceita senha em texto puro para quem ainda NÃO tem hash,
+      // e já migra na hora (grava hash + salt e apaga a senha em texto).
+      if (!isValidPassword && !storedHash && foundUser.senha && foundUser.senha === password) {
         isValidPassword = true;
+        try {
+          const { salt: newSalt, hash: newHash } = await hashPasswordForMigration(password);
+          await supabase
+            .from("usuarios")
+            .update({ senha_hash: newHash, senha_salt: newSalt, senha: null })
+            .eq("id", foundUser.id);
+        } catch (migrationError) {
+          console.error("Falha ao migrar senha legada:", migrationError);
+        }
       }
       
       if (!isValidPassword) {
@@ -294,7 +296,6 @@ export function useAuth() {
 }
 
 // Utilitário para gerar hash de senha (usar no console do browser para migrar senhas)
-// Exemplo: auth.hashPassword('admin123').then(console.log)
 export async function hashPasswordForMigration(password: string): Promise<{ salt: string; hash: string }> {
   const salt = await generateSalt();
   const hash = await hashPassword(password, salt);
