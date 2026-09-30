@@ -175,9 +175,14 @@ export default function LoginPage() {
 
             <div className="text-center pt-4">
               <span className="text-[13px] text-zinc-500 font-medium">Não tem uma conta? </span>
-              <button type="button" className="text-[13px] text-white font-medium hover:text-[#1b56b8] bg-zinc-800/50 px-4 py-1.5 rounded-md ml-2 transition-colors hover:bg-zinc-800">
+              <a 
+                href="https://wa.me/5542999896358?text=Ol%C3%A1!%20Gostaria%20de%20falar%20com%20a%20equipe%20do%20Conta%2B."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block text-[13px] text-white font-medium hover:text-[#1b56b8] bg-zinc-800/50 px-4 py-1.5 rounded-md ml-2 transition-colors hover:bg-zinc-800"
+              >
                 Fale conosco
-              </button>
+              </a>
             </div>
           </form>
         </div>
