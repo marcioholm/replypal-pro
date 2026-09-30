@@ -119,10 +119,6 @@ export default function App() {
             Como apoiamos o Empreenda Hub <ChevronDown size={16} className="-rotate-90" />
           </a>
         </div>
-
-        <div className="mt-20 relative w-full max-w-5xl aspect-video md:aspect-[16/10] bg-[#f5f5f7] rounded-[40px] shadow-2xl overflow-hidden border border-gray-200">
-          <img src="/tela-sistema.jpg" alt="Tela do sistema Conta+" className="absolute inset-0 w-full h-full object-cover" />
-        </div>
       </section>
 
       {/* 3. Problema (Bento Box Minimalista) */}
