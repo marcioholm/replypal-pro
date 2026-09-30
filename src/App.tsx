@@ -54,6 +54,7 @@ const HygienePage = lazyWithRetry(() => import("@/pages/HygienePage"));
 const TechnicalContactsPage = lazyWithRetry(() => import("@/pages/TechnicalContactsPage"));
 const NotFound = lazyWithRetry(() => import("@/pages/NotFound"));
 const LandingPage = lazyWithRetry(() => import("@/pages/LandingPage"));
+const PrivacyPolicyPage = lazyWithRetry(() => import("@/pages/PrivacyPolicyPage"));
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -184,6 +185,7 @@ function AppRoutes() {
           }
         />
         <Route path="/conheca" element={<Suspense fallback={<PageLoader />}><LandingPage /></Suspense>} />
+        <Route path="/privacidade" element={<Suspense fallback={<PageLoader />}><PrivacyPolicyPage /></Suspense>} />
         <Route
           path="/*"
           element={

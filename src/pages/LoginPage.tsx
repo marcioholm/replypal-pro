@@ -101,7 +101,7 @@ export default function LoginPage() {
         <div className="w-full md:w-1/2 p-12 lg:p-16 flex flex-col justify-center">
           <div className="mb-10">
             <div className="inline-flex items-center justify-center p-3.5 bg-white/5 border border-white/10 rounded-2xl shadow-xl backdrop-blur-sm mb-8">
-              <ContaMaisLogo theme="dark" className="scale-110 origin-left ml-1" />
+              <ContaMaisLogo theme="dark" />
             </div>
             
             <h1 className="text-3xl font-bold text-white mb-2">Login</h1>

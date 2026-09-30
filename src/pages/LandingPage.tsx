@@ -14,13 +14,12 @@ import placarData from "../data/placar.json";
 
 function Logo() {
   return (
-    <div className="flex items-center gap-1.5 font-bold text-xl tracking-tight">
-      <div className="w-8 h-8 rounded-[8px] bg-brand-blue text-white flex items-center justify-center font-extrabold text-2xl leading-none pt-0.5 shadow-sm">
-        +
-      </div>
-      <div className="text-[#0C2D5A] flex items-center">
-        Conta<span className="text-brand-green font-extrabold">+</span>
-      </div>
+    <div className="flex items-center gap-2">
+      <img 
+        src="/conta-mais-logo.png" 
+        alt="Conta+" 
+        className="h-8 w-auto object-contain" 
+      />
     </div>
   );
 }
@@ -59,7 +58,7 @@ export default function App() {
     if (!isFormValid) return;
 
     const saudacao = origem === "empreenda-hub" 
-      ? "Olá! Quero ser escritório parceiro do Empreenda Hub com o Conta+." 
+      ? "Olá! Quero ser escritório parceiro do EmpreendUp com o Conta+." 
       : "Olá! Quero conhecer o Conta+.";
 
     const message = `${saudacao}\n\nNome: ${form.nome}\nWhatsApp: ${form.whatsapp}\nEscritório: ${form.escritorio}\nColaboradores: ${form.colaboradores}\n\nVim pela página do Conta+ (botão: ${origem})`;
@@ -83,7 +82,7 @@ export default function App() {
           </div>
           <div className="flex items-center gap-8">
             <a href="#empreenda-hub" className="hidden md:block text-xs font-semibold text-gray-800 hover:text-black transition-colors tracking-wide">
-              Empreenda Hub
+              EmpreendUp
             </a>
             <button 
               onClick={() => scrollToForm("topo")}
@@ -97,10 +96,6 @@ export default function App() {
 
       {/* 2. Abertura (Hero) */}
       <section className="pt-32 pb-16 px-6 max-w-7xl mx-auto w-full flex flex-col items-center text-center">
-        <div className="mt-4 mb-6 inline-flex items-center gap-2 bg-[#f5f5f7] text-gray-900 px-4 py-2 rounded-full text-xs font-semibold">
-          <span className="flex h-1.5 w-1.5 rounded-full bg-brand-green"></span>
-          Cada escritório no Conta+ apoia o Empreenda Hub da ACEBRAZ.
-        </div>
         <h1 className="text-5xl md:text-7xl font-bold leading-tight tracking-[-0.02em] text-black max-w-4xl">
           O atendimento do seu escritório, <br className="hidden md:block" />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-action to-blue-400">brilhantemente organizado.</span>
@@ -116,12 +111,40 @@ export default function App() {
             Conhecer o Conta+
           </button>
           <a href="#empreenda-hub" className="text-base font-medium text-brand-action hover:underline px-4 py-2 flex items-center gap-1">
-            Como apoiamos o Empreenda Hub <ChevronDown size={16} className="-rotate-90" />
+            Como apoiamos o EmpreendUp <ChevronDown size={16} className="-rotate-90" />
           </a>
         </div>
 
-        <div className="mt-20 relative w-full max-w-5xl aspect-video md:aspect-[16/10] bg-[#f5f5f7] rounded-[40px] shadow-2xl overflow-hidden border border-gray-200">
-          <img src="/tela-sistema.jpg" alt="Tela do sistema Conta+" className="absolute inset-0 w-full h-full object-cover" />
+        {/* Showcase / Mockup Apple Style */}
+        <div className="mt-16 md:mt-20 relative w-full max-w-5xl mx-auto">
+          {/* Ambient colorful glow behind mockup */}
+          <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/20 via-indigo-500/15 to-emerald-500/20 rounded-[48px] blur-3xl -z-10 opacity-70 transform-gpu" />
+
+          {/* Device / Window container */}
+          <div className="relative rounded-[28px] md:rounded-[36px] bg-slate-900/5 p-2 sm:p-3 md:p-3.5 backdrop-blur-md border border-black/5 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.18)]">
+            {/* Window header dots */}
+            <div className="hidden sm:flex items-center justify-between px-4 py-2.5 bg-[#f6f8fb] rounded-t-[20px] md:rounded-t-[28px] border-b border-gray-200/80">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-[#ff5f57] border border-[#e0443e]/40 inline-block shadow-inner" />
+                <span className="w-3 h-3 rounded-full bg-[#febc2e] border border-[#d89e24]/40 inline-block shadow-inner" />
+                <span className="w-3 h-3 rounded-full bg-[#28c840] border border-[#1aab29]/40 inline-block shadow-inner" />
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-white border border-gray-200/60 text-[11px] font-medium text-gray-500 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                app.contamais.com.br
+              </div>
+              <div className="w-12" />
+            </div>
+
+            {/* Screen Content */}
+            <div className="relative aspect-[16/10] overflow-hidden rounded-[20px] sm:rounded-t-none sm:rounded-b-[20px] md:rounded-b-[24px] bg-white">
+              <img 
+                src="/tela-sistema.jpg" 
+                alt="Interface do sistema Conta+" 
+                className="w-full h-full object-cover object-top select-none" 
+              />
+            </div>
+          </div>
         </div>
       </section>
 
@@ -226,7 +249,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* 6. Empreenda Hub (Dark Mode Apple Style) */}
+      {/* 6. EmpreendUp (Dark Mode Apple Style) */}
       <section id="empreenda-hub" className="py-32 px-6 bg-black text-white">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-4xl mx-auto text-center mb-24">
@@ -234,7 +257,7 @@ export default function App() {
               Educação que<br />transforma.
             </h2>
             <p className="text-xl md:text-2xl text-gray-400 font-medium leading-relaxed max-w-3xl mx-auto">
-              O Empreenda Hub forma jovens empreendedores em Wenceslau Braz. Todo escritório que contrata o Conta+ vira empresa parceira, fomentando inovação na raiz.
+              O EmpreendUp forma jovens empreendedores em Wenceslau Braz. Todo escritório que contrata o Conta+ se torna empresa parceira, apoiando a inovação na raiz.
             </p>
           </div>
 
@@ -242,7 +265,7 @@ export default function App() {
             <div className="bg-[#1c1c1e] p-10 rounded-[32px]">
               <GraduationCap className="w-10 h-10 text-white mb-6" strokeWidth={1.5} />
               <h3 className="font-semibold text-2xl mb-3 tracking-tight">Formação</h3>
-              <p className="text-gray-400 font-medium text-lg leading-relaxed">Encontros mensais sobre MEI, precificação, digital e finanças.</p>
+              <p className="text-gray-400 font-medium text-lg leading-relaxed">Encontros práticos sobre empreendedorismo, inovação, gestão e digital.</p>
             </div>
             <div className="bg-[#1c1c1e] p-10 rounded-[32px]">
               <Briefcase className="w-10 h-10 text-white mb-6" strokeWidth={1.5} />
@@ -252,7 +275,7 @@ export default function App() {
             <div className="bg-[#1c1c1e] p-10 rounded-[32px]">
               <Network className="w-10 h-10 text-white mb-6" strokeWidth={1.5} />
               <h3 className="font-semibold text-2xl mb-3 tracking-tight">Networking</h3>
-              <p className="text-gray-400 font-medium text-lg leading-relaxed">Encontros trimestrais para apresentação de projetos a empresários.</p>
+              <p className="text-gray-400 font-medium text-lg leading-relaxed">Conexão direta com empresários e encontros trimestrais para apresentação de projetos.</p>
             </div>
           </div>
 
@@ -260,7 +283,7 @@ export default function App() {
             <div className="flex-1">
               <h3 className="font-bold text-4xl mb-6 tracking-tight">Faça parte.</h3>
               <p className="text-gray-400 text-xl font-medium leading-relaxed mb-10">
-                Parte da assinatura do Conta+ vai para o Hub, apoiando a formação de novos empreendedores, e o escritório participa ativamente do programa.
+                Parte da assinatura do Conta+ vai para o programa EmpreendUp, apoiando diretamente a formação e capacitação de novos empreendedores.
               </p>
               <button 
                 onClick={() => scrollToForm("empreenda-hub")}
@@ -270,11 +293,7 @@ export default function App() {
               </button>
             </div>
             <div className="flex-1 flex flex-col items-center justify-center w-full">
-              <img src="/empreenda-logo.png" alt="Empreenda Hub Logo" className="w-full max-w-[300px] h-auto mb-8" />
-              <div className="text-center">
-                <div className="text-3xl font-bold text-white mb-2 tracking-tight">Em breve</div>
-                <div className="text-sm font-semibold text-gray-500 uppercase tracking-widest">Lançamento da primeira turma</div>
-              </div>
+              <img src="/empreenda-logo.png" alt="EmpreendUp Logo" className="w-full max-w-[320px] h-auto drop-shadow-md" />
             </div>
           </div>
         </div>
@@ -294,8 +313,8 @@ export default function App() {
               a: "Toda a equipe, com perfis de admin, supervisor, atendente e recepção." 
             },
             { 
-              q: "Como funciona a parceria com o Empreenda Hub?", 
-              a: "Parte da assinatura vai para o programa, apoiando diretamente a formação de jovens de Wenceslau Braz." 
+              q: "Como funciona a parceria com o EmpreendUp?", 
+              a: "Parte da assinatura vai para o programa EmpreendUp, apoiando diretamente a formação de jovens de Wenceslau Braz." 
             }
           ].map((faq, i) => (
             <div key={i} className="border-b border-gray-200 py-6">
@@ -402,13 +421,14 @@ export default function App() {
       {/* Rodapé */}
       <footer className="py-12 px-6 bg-white border-t border-gray-200 text-gray-500">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex flex-col items-center md:items-start gap-4">
-            <div className="opacity-50 grayscale scale-90 origin-left">
+          <div className="flex flex-col items-center md:items-start gap-3">
+            <div className="flex items-center gap-2">
               <Logo />
             </div>
-            <div className="text-xs font-medium text-center md:text-left flex flex-col gap-1">
-              <span>Conta+ · [RESPONSÁVEL] · CNPJ: 56.745.517/0001-64</span>
-              <span>Desenvolvido por <a href="https://www.northwaycompany.com.br/" target="_blank" rel="noreferrer" className="underline hover:text-black transition-colors">Northway Company</a></span>
+            <div className="text-xs font-medium text-center md:text-left flex flex-col gap-1 text-gray-600">
+              <span>Conta+ · CNPJ: 56.745.517/0001-64</span>
+              <span>Responsável: Marcio Holm</span>
+              <span>Desenvolvido por <a href="https://www.northwaycompany.com.br/" target="_blank" rel="noreferrer" className="underline hover:text-black transition-colors font-medium">Northway Company</a></span>
             </div>
           </div>
           <div>
