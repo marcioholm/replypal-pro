@@ -269,22 +269,11 @@ export default function App() {
                 Quero ser parceiro
               </button>
             </div>
-            <div className="flex-1 grid grid-cols-2 gap-6 w-full">
+            <div className="flex-1 flex flex-col items-center justify-center w-full">
+              <img src="/empreenda-logo.png" alt="Empreenda Hub Logo" className="w-full max-w-[300px] h-auto mb-8" />
               <div className="text-center">
-                <div className="text-5xl font-bold text-white mb-2 tracking-tight">{placarData.participantes}</div>
-                <div className="text-sm font-semibold text-gray-500 uppercase tracking-widest">Jovens</div>
-              </div>
-              <div className="text-center">
-                <div className="text-5xl font-bold text-white mb-2 tracking-tight">{placarData.oficinas}</div>
-                <div className="text-sm font-semibold text-gray-500 uppercase tracking-widest">Sessões</div>
-              </div>
-              <div className="text-center">
-                <div className="text-5xl font-bold text-white mb-2 tracking-tight">{placarData.mentoria}h</div>
-                <div className="text-sm font-semibold text-gray-500 uppercase tracking-widest">Mentoria</div>
-              </div>
-              <div className="text-center">
-                <div className="text-5xl font-bold text-white mb-2 tracking-tight">{placarData.negocios}</div>
-                <div className="text-sm font-semibold text-gray-500 uppercase tracking-widest">Negócios</div>
+                <div className="text-3xl font-bold text-white mb-2 tracking-tight">Em breve</div>
+                <div className="text-sm font-semibold text-gray-500 uppercase tracking-widest">Lançamento da primeira turma</div>
               </div>
             </div>
           </div>
@@ -417,8 +406,9 @@ export default function App() {
             <div className="opacity-50 grayscale scale-90 origin-left">
               <Logo />
             </div>
-            <div className="text-xs font-medium text-center md:text-left">
-              Conta+ · [RESPONSÁVEL] · CNPJ: [00.000.000/0000-00]
+            <div className="text-xs font-medium text-center md:text-left flex flex-col gap-1">
+              <span>Conta+ · [RESPONSÁVEL] · CNPJ: 56.745.517/0001-64</span>
+              <span>Desenvolvido por <a href="https://www.northwaycompany.com.br/" target="_blank" rel="noreferrer" className="underline hover:text-black transition-colors">Northway Company</a></span>
             </div>
           </div>
           <div>
