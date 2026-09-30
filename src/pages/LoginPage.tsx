@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Loader2, Shield, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -94,20 +93,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#0d1117] relative px-4 font-sans">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#0a0a0b] relative px-4 font-sans">
       {/* Modal Container */}
-      <div className="w-full max-w-[900px] bg-[#1a1c23] rounded-[2rem] overflow-hidden shadow-2xl flex flex-col md:flex-row relative z-10 border border-white/5">
+      <div className="w-full max-w-[960px] min-h-[600px] bg-[#18181b] rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(27,86,184,0.15)] flex flex-col md:flex-row relative z-10 border border-white/5">
         
         {/* Left Side - Form */}
-        <div className="w-full md:w-1/2 p-10 lg:p-14 flex flex-col relative justify-center">
-          <ContaMaisLogo theme="dark" className="mb-12 scale-90 origin-left" />
+        <div className="w-full md:w-1/2 p-12 lg:p-16 flex flex-col justify-center">
+          <div className="mb-14">
+            <ContaMaisLogo theme="dark" className="scale-90 origin-left" />
+          </div>
           
-          <div className="mb-8">
-            <h1 className="text-[28px] font-bold text-white mb-2 tracking-tight">Login</h1>
-            <p className="text-sm text-slate-400">Entre com os detalhes da sua conta</p>
+          <div className="mb-10">
+            <h1 className="text-3xl font-bold text-white mb-2">Login</h1>
+            <p className="text-[13px] text-zinc-400 font-medium">Entre com os detalhes da sua conta</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-8">
             {errors.general && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm animate-in fade-in zoom-in duration-200">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -116,57 +117,53 @@ export default function LoginPage() {
             )}
 
             {/* Email Input */}
-            <div className="space-y-2 relative">
-              <Label htmlFor="email" className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Email</Label>
-              <div className="relative">
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleInputChange("email")}
-                  className="bg-transparent border-0 border-b border-slate-700 rounded-none px-0 h-10 text-white shadow-none focus-visible:ring-0 focus-visible:border-[#1b56b8] transition-colors"
-                  disabled={isSubmitting}
-                />
-              </div>
-              {errors.email && <p className="text-xs text-red-400 mt-1">{errors.email}</p>}
+            <div className="relative">
+              <Input
+                id="email"
+                type="email"
+                placeholder="Email corporativo"
+                value={formData.email}
+                onChange={handleInputChange("email")}
+                className="bg-transparent border-0 border-b border-zinc-700 rounded-none px-0 py-3 h-auto text-white text-[15px] shadow-none focus-visible:ring-0 focus-visible:border-[#1b56b8] placeholder:text-zinc-500 transition-colors"
+                disabled={isSubmitting}
+              />
+              {errors.email && <p className="text-xs text-red-400 absolute -bottom-5 left-0">{errors.email}</p>}
             </div>
 
             {/* Password Input */}
-            <div className="space-y-2 relative">
-              <Label htmlFor="password" className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Senha</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={formData.password}
-                  onChange={handleInputChange("password")}
-                  className="bg-transparent border-0 border-b border-slate-700 rounded-none px-0 pr-8 h-10 text-white shadow-none focus-visible:ring-0 focus-visible:border-[#1b56b8] transition-colors font-mono"
-                  disabled={isSubmitting}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {errors.password && <p className="text-xs text-red-400 mt-1">{errors.password}</p>}
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Senha"
+                value={formData.password}
+                onChange={handleInputChange("password")}
+                className="bg-transparent border-0 border-b border-zinc-700 rounded-none px-0 py-3 pr-8 h-auto text-white text-[15px] shadow-none focus-visible:ring-0 focus-visible:border-[#1b56b8] placeholder:text-zinc-500 transition-colors font-mono"
+                disabled={isSubmitting}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-0 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+              {errors.password && <p className="text-xs text-red-400 absolute -bottom-5 left-0">{errors.password}</p>}
             </div>
 
             {/* Forgot Password */}
-            <div className="flex justify-start pt-1">
-              <button type="button" className="text-[11px] text-slate-400 hover:text-white transition-colors">
+            <div className="flex justify-start mt-2">
+              <button type="button" className="text-[12px] text-zinc-400 hover:text-white transition-colors font-medium">
                 Esqueceu a senha?
               </button>
             </div>
 
             {/* Submit */}
-            <div className="pt-2">
+            <div className="pt-4">
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full h-12 bg-[#1b56b8] hover:bg-[#154699] text-white font-semibold rounded-xl transition-all"
+                className="w-full h-12 bg-[#1b56b8] hover:bg-[#154699] text-white font-semibold rounded-lg transition-all"
               >
                 {isSubmitting ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -176,9 +173,9 @@ export default function LoginPage() {
               </Button>
             </div>
 
-            <div className="text-center pt-2">
-              <span className="text-xs text-slate-500">Não tem uma conta? </span>
-              <button type="button" className="text-xs text-white font-medium hover:underline bg-white/5 px-3 py-1.5 rounded-lg ml-2 transition-colors hover:bg-white/10">
+            <div className="text-center pt-4">
+              <span className="text-[13px] text-zinc-500 font-medium">Não tem uma conta? </span>
+              <button type="button" className="text-[13px] text-white font-medium hover:text-[#1b56b8] bg-zinc-800/50 px-4 py-1.5 rounded-md ml-2 transition-colors hover:bg-zinc-800">
                 Fale conosco
               </button>
             </div>
@@ -186,35 +183,41 @@ export default function LoginPage() {
         </div>
 
         {/* Right Side - Brand / Illustration */}
-        <div className="hidden md:flex w-1/2 bg-[#1b56b8] p-12 flex-col justify-center items-center relative overflow-hidden">
-          {/* Background Pattern */}
-          <div className="absolute inset-0 opacity-10 pointer-events-none">
-            <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="1"/>
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#grid)" />
-            </svg>
+        <div className="hidden md:flex w-1/2 bg-[#1b56b8] p-12 flex-col relative overflow-hidden">
+          {/* Abstract SVG Background to emulate the illustration vibe */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center">
+             <svg width="150%" height="150%" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg" className="opacity-80">
+                <g fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="2">
+                   <circle cx="400" cy="400" r="200" />
+                   <circle cx="400" cy="400" r="300" />
+                   <circle cx="400" cy="400" r="400" />
+                   <path d="M 0 400 L 800 400" />
+                   <path d="M 400 0 L 400 800" />
+                </g>
+                <circle cx="400" cy="200" r="6" fill="white" className="animate-pulse" />
+                <circle cx="600" cy="400" r="4" fill="white" className="animate-pulse" />
+                <circle cx="200" cy="600" r="8" fill="white" className="animate-pulse" />
+             </svg>
           </div>
-          
-          {/* Decorative Elements */}
-          <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-black/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 text-center space-y-6 flex flex-col items-center">
-            {/* Minimalist illustration placeholder (using large icon) */}
-            <div className="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center mb-6 backdrop-blur-sm border border-white/20">
-              <Shield className="w-16 h-16 text-white" />
+          {/* Decorative Blur */}
+          <div className="absolute -top-20 -right-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col h-full">
+            <div className="mt-8 space-y-4">
+              <h2 className="text-[40px] font-bold text-white leading-[1.1] tracking-tight">
+                Bem-vindo ao<br/>portal do escritório
+              </h2>
+              <p className="text-white/80 text-[15px] max-w-[300px] leading-relaxed font-medium">
+                O atendimento do seu escritório, organizado do WhatsApp à carteira de clientes.
+              </p>
             </div>
 
-            <h2 className="text-4xl font-extrabold text-white leading-tight tracking-tight">
-              Bem-vindo ao<br/>portal do escritório
-            </h2>
-            <p className="text-white/80 text-sm max-w-[280px] mx-auto leading-relaxed font-medium">
-              O atendimento do seu escritório, organizado do WhatsApp à carteira de clientes.
-            </p>
+            <div className="flex-1 flex items-center justify-center mt-12">
+               <div className="w-56 h-56 bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl flex items-center justify-center rotate-3 hover:rotate-0 transition-transform duration-500">
+                 <Shield className="w-20 h-20 text-white" strokeWidth={1.5} />
+               </div>
+            </div>
           </div>
         </div>
 
