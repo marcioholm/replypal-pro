@@ -425,6 +425,8 @@ export default function ChatPage() {
   }, [forwardSearch, user?.tenantId]);
 
   const viewedRef = useRef<Set<string>>(new Set());
+  // Sincroniza o histórico da Evolution no máximo uma vez por conversa aberta
+  const historySyncedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!id) return;
@@ -547,7 +549,8 @@ export default function ChatPage() {
 
         // Se tiver poucas mensagens no banco, sincronizar histórico da Evolution
         const currentConv = conv || storeRef.current.getConversation(id || "");
-        if (dbMsgs && dbMsgs.length < 15 && currentConv?.clientPhone) {
+        if (dbMsgs && dbMsgs.length < 15 && currentConv?.clientPhone && !historySyncedRef.current.has(id!)) {
+          historySyncedRef.current.add(id!);
           const sync = await syncConversationHistory(currentConv.clientPhone, user?.tenantId || "");
           
           if (sync.success && sync.messages.length > 0) {
@@ -668,7 +671,11 @@ export default function ChatPage() {
     };
 
     loadRealData();
-    const pollInterval = setInterval(loadRealData, 3000);
+    // Mensagens novas chegam pelo realtime (useRealtimeChat). Este polling é só
+    // uma rede de segurança caso o websocket caia — antes rodava a cada 3s.
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === "visible") loadRealData();
+    }, 30000);
     return () => clearInterval(pollInterval);
   }, [id, !!conv]);
 

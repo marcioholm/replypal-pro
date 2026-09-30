@@ -14,7 +14,7 @@ export function updateEvolutionConfig(config: { url?: string; key?: string; inst
 
 const EVO_CONFIG = {
   getUrl: () => DYNAMIC_CONFIG.url || localStorage.getItem("evolution_url") || import.meta.env.VITE_EVOLUTION_URL || "",
-  getKey: () => DYNAMIC_CONFIG.key || localStorage.getItem("evolution_key") || import.meta.env.VITE_EVOLUTION_API_KEY || "",
+  getKey: () => DYNAMIC_CONFIG.key || localStorage.getItem("evolution_key") || "",
   getInstance: () => (DYNAMIC_CONFIG.instance || localStorage.getItem("evolution_instance") || import.meta.env.VITE_INSTANCE_NAME || "SASAKI").trim(),
 };
 

@@ -17,7 +17,6 @@ import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { webhooks } from "@/lib/webhooks";
-import { initializeDatabase } from "@/lib/dbSetup";
 
 const sampleData = [
   ["Razão Social", "Nome Fantasia", "CNPJ", "Responsável", "WhatsApp", "Telefone", "E-mail", "Cidade", "Estado", "Regime", "Natureza Jurídica", "CNAE", "Status", "Prioridade", "Nível", "Plano", "Valor Mensal", "Origem"],
