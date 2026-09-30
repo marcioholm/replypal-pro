@@ -122,8 +122,8 @@ export default function App() {
           </div>
         </div>
         <div className="relative w-full aspect-video md:aspect-[4/3] lg:aspect-square bg-white rounded-[20px] shadow-xl overflow-hidden border border-white/50">
-          <div className="absolute inset-0 bg-gradient-to-tr from-brand-action/5 to-transparent"></div>
-          <img src="/tela-sistema.png" alt="Tela do sistema Conta+" className="absolute inset-0 w-full h-full object-cover object-left-top" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-brand-action/5 to-transparent pointer-events-none"></div>
+          <img src="/tela-sistema.jpg" alt="Tela do sistema Conta+" className="absolute inset-0 w-full h-full object-cover object-left-top" />
         </div>
       </section>
 
