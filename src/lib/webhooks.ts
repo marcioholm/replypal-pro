@@ -1,7 +1,6 @@
 import { User, Conversation, Customer } from "./store";
 
 const N8N_URLS = {
-  financeiro: import.meta.env.VITE_N8N_FINANCEIRO_WEBHOOK || "",
   documentos: "https://northway.vps8204.panel.icontainer.cloud/webhook/documentos/upload",
   // Endpoint para eventos operacionais do sistema
   eventos: import.meta.env.VITE_N8N_IA_WEBHOOK || "", 
@@ -67,8 +66,5 @@ export const webhooks = {
   // 7. Transferência de Responsável
   triggerTransferOwner: (conversation: Conversation, fromAgent: User, toAgentName: string, reason?: string) => 
     sendWebhook(N8N_URLS.eventos, { event: "transferencia_responsavel", conversation, fromAgent, toAgentName, reason }),
-  
-  // 8. Financeiro (Específico)
-  triggerFinancialData: (data: any) => 
-    sendWebhook(N8N_URLS.financeiro, { event: "dados_financeiros", ...data }),
+
 };
