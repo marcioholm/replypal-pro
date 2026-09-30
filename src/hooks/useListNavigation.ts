@@ -79,13 +79,12 @@ export function useListKeyboardNav(
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleMove = useCallback((direction: "up" | "down") => {
+    let newIndex = 0;
     setSelectedIndex((prev) => {
-      if (direction === "down") {
-        return Math.min(prev + 1, items.length - 1);
-      } else {
-        return Math.max(prev - 1, 0);
-      }
+      newIndex = direction === "down" ? Math.min(prev + 1, items.length - 1) : Math.max(prev - 1, 0);
+      return newIndex;
     });
+    return newIndex;
   }, [items.length]);
 
   const handleSelect = useCallback((id: string) => {

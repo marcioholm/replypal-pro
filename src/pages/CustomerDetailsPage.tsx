@@ -3,8 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { Chip, PillToggle, InitialsAvatar } from "@/components/conta-ui";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CustomerForm } from "@/components/CustomerForm";
@@ -14,7 +13,7 @@ import {
   ArrowLeft, Edit, Building, BookOpen, Users, Headphones, 
   DollarSign, FileText, History, MessageSquare, Mail, 
   Phone, Globe, MapPin, Calendar, ShieldCheck, Star,
-  Cake, Handshake, Loader2, AlertTriangle
+  Cake, Handshake, Loader2, AlertTriangle, ExternalLink
 } from "lucide-react";
 import ClienteDocumentos from "@/components/clientes/ClienteDocumentos";
 
@@ -112,26 +111,29 @@ export default function CustomerDetailsPage() {
     tags: [],
     documents: [],
     createdAt: customerData.created_at ? new Date(customerData.created_at) : new Date(),
+    responsibleName: customerData.responsavel || "",
+    preferredChannel: customerData.preferred_channel || "whatsapp",
+    tenantId: customerData.tenant_id,
   };
 
   const conversationHistory = store.conversations.filter(c => c.customerId === id);
-  const actionHistory = store.getHistory(undefined, id);
+  const actionHistory = store.getHistory(id);
 
-  const statusColors: Record<string, string> = {
-    "Ativo": "bg-green-100 text-green-700 border-green-200",
-    "Onboarding": "bg-blue-100 text-blue-700 border-blue-200",
-    "Inativo": "bg-yellow-100 text-yellow-700 border-yellow-200",
-    "Encerrado": "bg-red-100 text-red-700 border-red-200",
+  const statusColors: Record<string, import("@/components/conta-ui").ChipTone> = {
+    "Ativo": "green",
+    "Onboarding": "blue",
+    "Inativo": "amber",
+    "Encerrado": "red",
   };
 
   const priorityColors: Record<string, string> = {
-    "Alta": "text-red-600 font-bold",
-    "Média": "text-yellow-600 font-semibold",
-    "Baixa": "text-blue-600 font-medium",
+    "Alta": "text-destructive font-bold",
+    "Média": "text-warning font-semibold",
+    "Baixa": "text-primary font-medium",
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="flex flex-col gap-5 px-8 pb-8 pt-5">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -141,13 +143,13 @@ export default function CustomerDetailsPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h1 className="text-2xl font-bold tracking-tight text-foreground">{customer.name}</h1>
-              <Badge variant="outline" className={statusColors[customer.status] || ""}>
+              <Chip tone={statusColors[customer.status] || "grey"}>
                 {customer.status}
-              </Badge>
+              </Chip>
               {customer.serviceLevel === 'Premium' && (
-                <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white border-none shadow-sm">
-                  <Star className="w-3 h-3 mr-1 fill-white" /> Premium
-                </Badge>
+                <Chip tone="amber" className="shadow-sm">
+                  <Star className="w-3 h-3 mr-1 fill-current" /> Premium
+                </Chip>
               )}
             </div>
             <p className="text-muted-foreground text-sm flex items-center gap-2">
@@ -173,20 +175,20 @@ export default function CustomerDetailsPage() {
         </Dialog>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-muted/50 p-1 w-full justify-start overflow-x-auto no-scrollbar h-auto flex-wrap">
-          <TabsTrigger value="overview" className="gap-2 py-2"><Building className="w-3.5 h-3.5" /> Visão Geral</TabsTrigger>
-          <TabsTrigger value="contacts" className="gap-2 py-2"><Users className="w-3.5 h-3.5" /> Contatos ({customer.contacts.length})</TabsTrigger>
-          <TabsTrigger value="chat" className="gap-2 py-2"><MessageSquare className="w-3.5 h-3.5" /> Atendimento ({conversationHistory.length})</TabsTrigger>
-          <TabsTrigger value="docs" className="gap-2 py-2"><FileText className="w-3.5 h-3.5" /> Documentos</TabsTrigger>
-          <TabsTrigger value="history" className="gap-2 py-2"><History className="w-3.5 h-3.5" /> Histórico</TabsTrigger>
-        </TabsList>
+      <div className="flex flex-wrap gap-2">
+        <PillToggle active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}><Building className="w-3.5 h-3.5 mr-1.5 inline" /> Visão Geral</PillToggle>
+        <PillToggle active={activeTab === 'contacts'} onClick={() => setActiveTab('contacts')} count={customer.contacts.length}><Users className="w-3.5 h-3.5 mr-1.5 inline" /> Contatos</PillToggle>
+        <PillToggle active={activeTab === 'chat'} onClick={() => setActiveTab('chat')} count={conversationHistory.length}><MessageSquare className="w-3.5 h-3.5 mr-1.5 inline" /> Atendimento</PillToggle>
+        <PillToggle active={activeTab === 'docs'} onClick={() => setActiveTab('docs')}><FileText className="w-3.5 h-3.5 mr-1.5 inline" /> Documentos</PillToggle>
+        <PillToggle active={activeTab === 'history'} onClick={() => setActiveTab('history')}><History className="w-3.5 h-3.5 mr-1.5 inline" /> Histórico</PillToggle>
+      </div>
 
-        <div className="mt-6">
-          <TabsContent value="overview" className="space-y-6 outline-none">
+      <div className="mt-2">
+        {activeTab === 'overview' && (
+          <div className="space-y-6 outline-none animate-in fade-in duration-300">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Info Contábil */}
-              <Card className="hover:shadow-md transition-shadow group">
+              <Card className="rounded-xl bg-card border-0 shadow-none hover:bg-muted/50 transition-colors group">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
                     <BookOpen className="w-4 h-4 text-primary" /> Dados Contábeis
@@ -208,7 +210,7 @@ export default function CustomerDetailsPage() {
               </Card>
 
               {/* Atendimento */}
-              <Card className="hover:shadow-md transition-shadow group">
+              <Card className="rounded-xl bg-card border-0 shadow-none hover:bg-muted/50 transition-colors group">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
                     <Headphones className="w-4 h-4 text-primary" /> Atendimento
@@ -229,7 +231,7 @@ export default function CustomerDetailsPage() {
               </Card>
 
               {/* Comercial */}
-              <Card className="hover:shadow-md transition-shadow group">
+              <Card className="rounded-xl bg-card border-0 shadow-none hover:bg-muted/50 transition-colors group">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-primary" /> Comercial
@@ -238,7 +240,7 @@ export default function CustomerDetailsPage() {
                 <CardContent className="space-y-3 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Plano:</span><span className="font-medium">{customer.plan || "Não definido"}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Valor Mensal:</span><span className="font-bold text-green-600">R$ {customer.monthlyValue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || "0,00"}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Financeiro:</span><Badge variant="outline" className={customer.financialStatus === 'Adimplente' ? 'text-green-600 border-green-200' : 'text-red-600 border-red-200'}>{customer.financialStatus}</Badge></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Financeiro:</span><Chip tone={customer.financialStatus === 'Adimplente' ? 'green' : 'red'}>{customer.financialStatus}</Chip></div>
                   <Separator className="my-2" />
                   <div className="flex justify-between"><span className="text-muted-foreground">Origem:</span><span className="font-medium italic">{customer.origin}</span></div>
                 </CardContent>
@@ -247,7 +249,7 @@ export default function CustomerDetailsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Contato Principal */}
-              <Card className="md:col-span-1">
+              <Card className="md:col-span-1 rounded-xl bg-card border-0 shadow-none">
                 <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /> Contato e Localização</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-2 gap-4 text-sm">
                   <div className="flex flex-col gap-1.5 p-3 rounded-lg bg-muted/30"><span className="text-[10px] uppercase text-muted-foreground font-bold">Local</span><div className="flex items-center gap-2">{customer.city} - {customer.state}</div></div>
@@ -256,7 +258,7 @@ export default function CustomerDetailsPage() {
               </Card>
 
               {/* Links do Drive */}
-              <Card className="md:col-span-1 border-blue-100 bg-blue-50/5">
+              <Card className="md:col-span-1 rounded-xl bg-primary/5 border border-primary/10 shadow-none">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2 text-blue-600">
                     <Globe className="w-4 h-4" /> Links do Drive (IA)
@@ -293,7 +295,7 @@ export default function CustomerDetailsPage() {
               </Card>
 
               {/* Observações */}
-              <Card className="md:col-span-1">
+              <Card className="md:col-span-1 rounded-xl bg-card border-0 shadow-none">
                 <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><FileText className="w-4 h-4 text-primary" /> Obs. Internas</CardTitle></CardHeader>
                 <CardContent>
                   <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200/50 text-[11px] text-amber-900 min-h-[60px] italic line-clamp-3">
@@ -302,10 +304,12 @@ export default function CustomerDetailsPage() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="contacts" className="outline-none">
-            <Card>
+        {activeTab === 'contacts' && (
+          <div className="outline-none animate-in fade-in duration-300">
+            <Card className="rounded-xl bg-card border-0 shadow-none">
               <CardContent className="pt-6">
                 {customer.contacts.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
@@ -323,7 +327,7 @@ export default function CustomerDetailsPage() {
                             </div>
                             <div>
                               <p className="font-bold">{c.name}</p>
-                              <Badge variant="secondary" className="text-[10px] font-medium">{c.type}</Badge>
+                              <Chip tone="grey" className="text-[10px] font-medium">{c.type}</Chip>
                             </div>
                           </div>
                           <p className="text-xs text-muted-foreground">{c.role}</p>
@@ -339,10 +343,12 @@ export default function CustomerDetailsPage() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="chat" className="outline-none">
-            <Card>
+        {activeTab === 'chat' && (
+          <div className="outline-none animate-in fade-in duration-300">
+            <Card className="rounded-xl bg-card border-0 shadow-none">
               <CardContent className="pt-6">
                 {conversationHistory.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
@@ -363,8 +369,8 @@ export default function CustomerDetailsPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <Badge variant="outline" className="capitalize text-[10px]">{conv.status.replace('_', ' ')}</Badge>
-                          <p className="text-xs font-medium italic opacity-60">por {conv.assignedToName || "Fila"}</p>
+                          <Chip tone="soft" className="capitalize text-[10px]">{conv.status.replace('_', ' ')}</Chip>
+                          <p className="text-xs font-medium italic opacity-60">por {conv.assignedTo || "Fila"}</p>
                         </div>
                       </div>
                     ))}
@@ -372,14 +378,18 @@ export default function CustomerDetailsPage() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="docs" className="outline-none">
+        {activeTab === 'docs' && (
+          <div className="outline-none animate-in fade-in duration-300">
             <ClienteDocumentos clienteId={id!} clienteNome={customer.name} />
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="history" className="outline-none">
-            <Card>
+        {activeTab === 'history' && (
+          <div className="outline-none animate-in fade-in duration-300">
+            <Card className="rounded-xl bg-card border-0 shadow-none">
               <CardHeader>
                 <CardTitle className="text-sm font-semibold">Logs e Auditoria</CardTitle>
                 <CardDescription>Rastreabilidade completa de ações realizadas neste cadastro.</CardDescription>
@@ -405,9 +415,9 @@ export default function CustomerDetailsPage() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </div>
-      </Tabs>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

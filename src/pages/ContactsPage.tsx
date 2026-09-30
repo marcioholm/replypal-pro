@@ -12,6 +12,7 @@ import { SmartHygieneDialog } from "@/components/clientes/SmartHygieneDialog";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { Chip, InitialsAvatar } from "@/components/conta-ui";
 import { 
   Users, Search, Filter, 
   MessageSquare, ChevronRight, FilterX,
@@ -121,22 +122,8 @@ export default function ContactsPage() {
   }, [search]);
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto animate-in fade-in duration-700">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
-            <Users className="w-7 h-7 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Central Operacional de Contatos</h1>
-            <p className="text-sm text-muted-foreground flex items-center gap-2">
-              <ClipboardList className="w-3.5 h-3.5" />
-              Gestão de relacionamento e auditoria cadastral contábil
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-5 px-8 pb-8 pt-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-end gap-4">
           <Button 
             onClick={() => navigate("/contacts/hygiene")} 
             className="gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 rounded-xl px-4 font-bold shadow-sm"
@@ -147,7 +134,6 @@ export default function ContactsPage() {
           </Button>
           <SimpleContactDialog onSuccess={() => {}} />
           <ContactImportDialog onSuccess={() => window.location.reload()} />
-        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -181,8 +167,8 @@ export default function ContactsPage() {
         />
       </div>
 
-      <Card className="border-none shadow-xl shadow-primary/5 overflow-hidden">
-        <CardHeader className="bg-muted/20 pb-4 border-b">
+      <Card className="rounded-xl bg-card border-0 shadow-none overflow-hidden">
+        <CardHeader className="pb-4">
           <div className="flex flex-col md:flex-row items-center gap-4">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -227,12 +213,7 @@ export default function ContactsPage() {
                     <TableRow key={c.id} className="group hover:bg-muted/30 transition-all cursor-pointer border-b border-border/30" onClick={() => navigate(`/customers/${c.id}`)}>
                       <TableCell className="pl-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs border shadow-sm",
-                            c.cnpj ? "bg-primary/10 text-primary border-primary/20" : "bg-muted text-muted-foreground"
-                          )}>
-                            {c.cnpj ? <Building2 className="w-4 h-4" /> : (c.name || "??").substring(0, 2).toUpperCase()}
-                          </div>
+                          <InitialsAvatar name={c.cnpj ? "B" : (c.name || "??")} />
                           <div className="min-w-0">
                             <p className="font-bold text-sm tracking-tight truncate">{c.name || "Sem Nome"}</p>
                             <p className="text-[10px] text-muted-foreground uppercase font-black truncate tracking-widest">
@@ -242,10 +223,10 @@ export default function ContactsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <Badge variant="outline" className="w-fit text-[9px] font-black uppercase tracking-tighter rounded-md bg-muted/50">
+                        <div className="flex flex-col gap-1 items-start">
+                          <Chip tone={c.sector ? "blue" : "grey"} className="uppercase">
                             {c.sector || 'Geral'}
-                          </Badge>
+                          </Chip>
                           <p className="text-[10px] text-muted-foreground font-medium">{c.responsibleName || 'Não informado'}</p>
                         </div>
                       </TableCell>
@@ -275,14 +256,13 @@ export default function ContactsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={cn(
-                          "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border-none",
-                          c.operational_status === "Ativo" ? "bg-green-500/10 text-green-600" :
-                          c.operational_status === "Número inválido" ? "bg-red-500/10 text-red-600" :
-                          "bg-amber-500/10 text-amber-600"
-                        )}>
+                        <Chip tone={
+                          c.operational_status === "Ativo" ? "green" :
+                          c.operational_status === "Número inválido" ? "red" :
+                          "amber"
+                        } className="uppercase">
                           {c.operational_status || 'Revisão Pendente'}
-                        </Badge>
+                        </Chip>
                       </TableCell>
                       <TableCell className="text-right pr-6">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -355,22 +335,15 @@ export default function ContactsPage() {
   );
 }
 
-function InsightCard({ label, value, icon: Icon, color, description }: any) {
-  const colors: any = {
-    amber: "bg-amber-500/10 text-amber-600 shadow-amber-500/5",
-    red: "bg-red-500/10 text-red-600 shadow-red-500/5",
-    blue: "bg-blue-500/10 text-blue-600 shadow-blue-500/5",
-    primary: "bg-primary/10 text-primary shadow-primary/5",
-  };
-
+function InsightCard({ label, value, icon: Icon, description }: any) {
   return (
-    <Card className="relative overflow-hidden border-none shadow-xl shadow-black/5 group">
+    <Card className="rounded-xl bg-card border-0 shadow-none hover:bg-muted/50 transition-colors group">
       <CardContent className="pt-6">
         <div className="flex items-center justify-between mb-4">
-          <div className={cn("p-2.5 rounded-2xl transition-all group-hover:scale-110 duration-300", colors[color])}>
+          <div className="p-2.5 rounded-2xl transition-all group-hover:scale-110 duration-300 bg-primary/10 text-primary">
             <Icon className="w-5 h-5" />
           </div>
-          <Badge variant="outline" className="text-[10px] font-black opacity-40">INSIGHT</Badge>
+          <Chip tone="soft" className="opacity-60 uppercase">INSIGHT</Chip>
         </div>
         <div className="space-y-1">
           <p className="text-3xl font-black tracking-tighter">{value}</p>

@@ -1,7 +1,7 @@
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useStore, User, Customer, Contact, RegimeTributario, StatusCliente, Prioridade, NivelAtendimento, CanalPreferencial, StatusFinanceiro, TipoContato } from "@/lib/store";
+import { useStore, User, Customer, Contact, RegimeTributario, StatusCliente, Prioridade, StatusFinanceiro } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -149,6 +149,8 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
     resolver: zodResolver(customerFormSchema),
     defaultValues: initialData ? {
       ...initialData,
+      serviceLevel: (initialData.serviceLevel as any) || "Padrão",
+      preferredChannel: (initialData.preferredChannel as any) || "WhatsApp",
       contacts: initialData.contacts || [],
       tags: initialData.tags || [],
     } : {
@@ -379,7 +381,7 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
           responsibleName: row.responsavel || row.responsável || "",
           whatsapp: row.whatsapp || "",
           phone: row.telefone || "",
-          email: row.email || row.e-mail || "",
+          email: String(row.email || row['e-mail'] || ""),
           city: row.cidade || "",
           state: row.estado || row.uf || "",
           regime: (row.regime || "Simples Nacional") as RegimeTributario,
@@ -387,7 +389,7 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
           cnae: row.cnae || "",
           status: (row.status || "Ativo") as StatusCliente,
           priority: (row.prioridade || "Média") as Prioridade,
-          serviceLevel: (row.nivel || row.nível || "Padrão") as NivelAtendimento,
+          serviceLevel: (row.nivel || row.nível || "Padrão") as "Padrão" | "Premium" | "Estratégico",
           plan: row.plano || "",
           monthlyValue: parseFloat(row.valormensal || row["valor mensal"] || "0") || 0,
           origin: row.origem || "",
@@ -397,12 +399,11 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
           observations: "",
           hasEmployees: false,
           employeeCount: 0,
-          consultantId: "",
           attendantId: "",
           preferredChannel: "WhatsApp",
           startDate: undefined,
           openingDate: undefined,
-        });
+        } as Customer);
         
         successCount++;
       } catch {

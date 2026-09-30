@@ -16,35 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
-import Search from "lucide-react/dist/esm/icons/search";
-import Paperclip from "lucide-react/dist/esm/icons/paperclip";
-import Clock from "lucide-react/dist/esm/icons/clock";
-import Zap from "lucide-react/dist/esm/icons/zap";
-import Mic from "lucide-react/dist/esm/icons/mic";
-import Send from "lucide-react/dist/esm/icons/send";
-import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
-import Loader2 from "lucide-react/dist/esm/icons/loader-2";
-import User from "lucide-react/dist/esm/icons/user";
-import StickyNote from "lucide-react/dist/esm/icons/sticky-note";
-import Tag from "lucide-react/dist/esm/icons/tag";
-import History from "lucide-react/dist/esm/icons/history";
-import Activity from "lucide-react/dist/esm/icons/activity";
-import MessageSquare from "lucide-react/dist/esm/icons/message-square";
-import UserPlus from "lucide-react/dist/esm/icons/user-plus";
-import X from "lucide-react/dist/esm/icons/x";
-import Users from "lucide-react/dist/esm/icons/users";
-import StopCircle from "lucide-react/dist/esm/icons/stop-circle";
-import CheckCircle from "lucide-react/dist/esm/icons/check-circle";
-import Share2 from "lucide-react/dist/esm/icons/share-2";
-import Smile from "lucide-react/dist/esm/icons/smile";
-import Reply from "lucide-react/dist/esm/icons/reply";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import ArrowRight from "lucide-react/dist/esm/icons/arrow-right";
-import PlayCircle from "lucide-react/dist/esm/icons/play-circle";
-import FileText from "lucide-react/dist/esm/icons/file-text";
-import Play from "lucide-react/dist/esm/icons/play";
-import Pause from "lucide-react/dist/esm/icons/pause";
+import { ArrowLeft, Search, Paperclip, Clock, Zap, Mic, Send, RefreshCw, Loader2, User, StickyNote, Tag, History, Activity, MessageSquare, UserPlus, X, Users, StopCircle, CheckCircle, Share2, Smile, Reply, Trash2, ArrowRight, PlayCircle, FileText, Play, Pause } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { insertHistorico } from "@/lib/historico";
 import { useAuth } from "@/lib/auth";
@@ -1093,8 +1065,7 @@ export default function ChatPage() {
           forwardingMsg.mediaUrl, 
           forwardingMsg.type, 
           forwardingMsg.fileName || "arquivo", 
-          caption,
-          user.name
+          caption
         );
       }
 

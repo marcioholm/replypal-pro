@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { Chip } from "@/components/conta-ui";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
@@ -41,6 +41,7 @@ interface ReportLog {
   enviado_em: string;
   erro?: string;
   tipo: string;
+  response_json?: any;
 }
 
 const N8N_RELATORIO_TESTE_WEBHOOK_URL = "https://northway.vps8204.panel.icontainer.cloud/webhook/replypal/relatorio-atendimento/teste";
@@ -274,25 +275,9 @@ export default function DailyReportPage() {
   };
 
   return (
-    <div className="container max-w-7xl py-8 space-y-10 animate-in fade-in duration-700">
-      {/* Header Premium */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-muted-foreground/60 text-[10px] font-bold uppercase tracking-[0.2em]">
-            <Settings2 className="w-3 h-3" />
-            Configurações
-            <ArrowRight className="w-2 h-2" />
-            Relatórios
-          </div>
-          <h1 className="text-4xl font-black tracking-tight italic uppercase">
-            Daily <span className="text-primary not-italic">Report</span>
-          </h1>
-          <p className="text-muted-foreground text-sm max-w-xl">
-            Painel executivo para gestão de disparos automáticos de métricas via WhatsApp.
-          </p>
-        </div>
-        
-        <div className="flex gap-3">
+    <div className="flex flex-col gap-5 px-8 pb-8 pt-5">
+      {/* Ações */}
+      <div className="flex flex-col md:flex-row md:items-center justify-end gap-3">
           <Button 
             variant="outline" 
             onClick={handleTest} 
@@ -311,7 +296,6 @@ export default function DailyReportPage() {
             Salvar Alterações
           </Button>
         </div>
-      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -321,7 +305,7 @@ export default function DailyReportPage() {
           { label: "Taxa de Sucesso", value: `${metrics.successRate}%`, icon: Activity, color: "text-blue-500" },
           { label: "Último Envio", value: metrics.lastSend ? format(new Date(metrics.lastSend), "HH:mm", { locale: ptBR }) : "--:--", icon: Clock, color: "text-primary" },
         ].map((kpi, i) => (
-          <Card key={i} className="rounded-2xl border-border/40 bg-card/30 backdrop-blur-md shadow-sm">
+          <Card key={i} className="rounded-xl bg-card border-0 shadow-none hover:bg-muted/50 transition-colors">
             <CardContent className="p-5 flex items-center gap-4">
               <div className={cn("w-10 h-10 rounded-xl bg-background border border-border/40 flex items-center justify-center", kpi.color)}>
                 <kpi.icon className="w-5 h-5" />
@@ -339,20 +323,17 @@ export default function DailyReportPage() {
         {/* Lado Esquerdo: Configurações Core */}
         <div className="lg:col-span-5 space-y-8">
           {/* Card 1: Status e Agendamento */}
-          <Card className="rounded-[28px] border-border/40 shadow-xl shadow-black/5 overflow-hidden bg-card/40 backdrop-blur-xl">
+          <Card className="rounded-xl bg-card border-0 shadow-none">
             <div className="p-8 space-y-8">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <h3 className="text-lg font-bold tracking-tight italic uppercase">Status do Serviço</h3>
                   <p className="text-xs text-muted-foreground">Controle a ativação e o horário de disparo.</p>
                 </div>
-                <div className={cn(
-                  "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5",
-                  ativo ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
-                )}>
+                <Chip tone={ativo ? "green" : "red"}>
                   <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", ativo ? "bg-green-500" : "bg-red-500")} />
                   {ativo ? "Ativo" : "Inativo"}
-                </div>
+                </Chip>
               </div>
 
               <div className="flex items-center justify-between p-5 rounded-2xl bg-background/50 border border-border/40">
@@ -384,7 +365,7 @@ export default function DailyReportPage() {
           </Card>
 
           {/* Card 2: Conteúdo do Relatório */}
-          <Card className="rounded-[28px] border-border/40 shadow-xl shadow-black/5 overflow-hidden bg-card/40 backdrop-blur-xl">
+          <Card className="rounded-xl bg-card border-0 shadow-none">
             <div className="p-8 space-y-6">
               <div className="space-y-1">
                 <h3 className="text-lg font-bold tracking-tight italic uppercase">Composição dos Dados</h3>
@@ -412,7 +393,7 @@ export default function DailyReportPage() {
         {/* Lado Direito: Destinatários e Logs */}
         <div className="lg:col-span-7 space-y-8">
           {/* Card 3: Destinatários */}
-          <Card className="rounded-[28px] border-border/40 shadow-xl shadow-black/5 overflow-hidden bg-card/40 backdrop-blur-xl">
+          <Card className="rounded-xl bg-card border-0 shadow-none">
             <div className="p-8 space-y-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
@@ -471,7 +452,7 @@ export default function DailyReportPage() {
           </Card>
 
           {/* Card 4: Histórico (Logs) */}
-          <Card className="rounded-[28px] border-border/40 shadow-xl shadow-black/5 overflow-hidden bg-card/40 backdrop-blur-xl">
+          <Card className="rounded-xl bg-card border-0 shadow-none">
             <div className="p-8 space-y-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
@@ -519,18 +500,20 @@ export default function DailyReportPage() {
                           <TableRow key={log.id} className="group border-border/10 hover:bg-primary/5 transition-colors">
                             <TableCell className="py-3">
                               {log.status === 'enviado' ? (
-                                <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0">
+                                <Chip tone="green">
                                   <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
                                   Enviado
-                                </Badge>
+                                </Chip>
                               ) : log.status === 'erro' ? (
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <Badge className="bg-red-500/10 text-red-500 border-red-500/20 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 cursor-help">
-                                        <XCircle className="w-2.5 h-2.5 mr-1" />
-                                        Erro
-                                      </Badge>
+                                      <div>
+                                        <Chip tone="red" className="cursor-help">
+                                          <XCircle className="w-2.5 h-2.5 mr-1" />
+                                          Erro
+                                        </Chip>
+                                      </div>
                                     </TooltipTrigger>
                                     <TooltipContent side="right" className="bg-destructive text-destructive-foreground border-none max-w-[300px]">
                                       <p className="text-[10px] font-bold break-words">{log.erro || "Falha desconhecida no envio"}</p>
@@ -538,10 +521,10 @@ export default function DailyReportPage() {
                                   </Tooltip>
                                 </TooltipProvider>
                               ) : (
-                                <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0">
+                                <Chip tone="amber">
                                   <Clock className="w-2.5 h-2.5 mr-1" />
                                   Pendente
-                                </Badge>
+                                </Chip>
                               )}
                             </TableCell>
                             <TableCell className="py-3">

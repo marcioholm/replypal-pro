@@ -7,9 +7,8 @@ import { checkWhatsappNumber } from "@/lib/whatsappCheck";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
+import { Chip, PillToggle } from "@/components/conta-ui";
 import { 
   ShieldCheck, AlertCircle, AlertTriangle, 
   CheckCircle2, Phone, Search, Download, 
@@ -447,59 +446,47 @@ export default function HygienePage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50/50 dark:bg-slate-950/50 animate-in fade-in duration-700">
-      {/* Top Banner/Header */}
-      <div className="bg-white dark:bg-slate-900 border-b px-8 py-6 shadow-sm sticky top-0 z-30">
-        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/contacts")} className="rounded-2xl bg-slate-100 hover:bg-slate-200 transition-all h-12 w-12">
-              <ChevronLeft className="h-6 w-6" />
-            </Button>
-            <div className="h-12 w-px bg-slate-200 hidden md:block" />
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="w-8 h-8 text-primary" />
-                <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Auditoria Inteligente</h1>
-              </div>
-              <p className="text-sm text-slate-500 font-medium">Higiene e validação completa da base de contatos contábeis</p>
-            </div>
-          </div>
+    <div className="flex flex-col gap-5 px-8 pb-8 pt-5">
+      {/* Ações / Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/contacts")} className="rounded-xl bg-muted hover:bg-muted/80 transition-all h-9 w-9">
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
 
-          <div className="flex items-center gap-4 w-full md:w-auto">
-            <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-[24px] flex items-center gap-6 shadow-inner border">
-              <div className="text-right">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Qualidade da Base</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-32 h-3 bg-slate-200 rounded-full overflow-hidden">
-                    <div 
-                      className={cn(
-                        "h-full transition-all duration-1000",
-                        metrics.qualityScore > 80 ? "bg-green-500" : metrics.qualityScore > 50 ? "bg-amber-500" : "bg-red-500"
-                      )}
-                      style={{ width: `${metrics.qualityScore}%` }}
-                    />
-                  </div>
-                  <span className="text-xl font-black text-slate-700 dark:text-slate-200">{metrics.qualityScore}%</span>
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="bg-card p-4 rounded-xl flex items-center gap-6 border-0 shadow-none">
+            <div className="text-right">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Qualidade da Base</p>
+              <div className="flex items-center gap-3">
+                <div className="w-32 h-3 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className={cn(
+                      "h-full transition-all duration-1000",
+                      metrics.qualityScore > 80 ? "bg-green-500" : metrics.qualityScore > 50 ? "bg-amber-500" : "bg-red-500"
+                    )}
+                    style={{ width: `${metrics.qualityScore}%` }}
+                  />
                 </div>
+                <span className="text-xl font-black text-foreground">{metrics.qualityScore}%</span>
               </div>
-              <Button 
-                variant="outline"
-                onClick={handleMergeAllDuplicates}
-                disabled={loading || metrics.duplicates === 0}
-                className="rounded-2xl h-14 px-6 gap-2 font-bold border-2 border-purple-500/20 text-purple-600 hover:bg-purple-50 transition-all hover:scale-105 active:scale-95"
-              >
-                <Zap className="w-5 h-5" />
-                Limpeza Automática
-              </Button>
-              <Button 
-                onClick={handleGlobalWhatsappAudit} 
-                disabled={isVerifying}
-                className="rounded-2xl h-14 px-6 gap-2 font-bold shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95"
-              >
-                {isVerifying ? <RefreshCw className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                Audit WhatsApp All
-              </Button>
             </div>
+            <Button 
+              variant="outline"
+              onClick={handleMergeAllDuplicates}
+              disabled={loading || metrics.duplicates === 0}
+              className="rounded-xl h-11 px-4 gap-2 font-bold border-purple-500/20 text-purple-600 hover:bg-purple-500/10 transition-all"
+            >
+              <Zap className="w-4 h-4" />
+              Limpeza Automática
+            </Button>
+            <Button 
+              onClick={handleGlobalWhatsappAudit} 
+              disabled={isVerifying}
+              className="rounded-xl h-11 px-4 gap-2 font-bold shadow-sm transition-all"
+            >
+              {isVerifying ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Audit WhatsApp All
+            </Button>
           </div>
         </div>
       </div>
@@ -581,9 +568,9 @@ export default function HygienePage() {
                       <p className="text-sm text-primary/60 font-medium">Verificando existência e status de cada número na base</p>
                     </div>
                   </div>
-                  <Badge className="bg-primary text-white font-black px-4 py-1.5 rounded-full text-sm">
+                  <div className="bg-primary text-white font-black px-4 py-1.5 rounded-full text-sm">
                     {verificationProgress.current} / {verificationProgress.total}
-                  </Badge>
+                  </div>
                 </div>
                 <Progress value={(verificationProgress.current / verificationProgress.total) * 100} className="h-4 bg-primary/10" />
               </CardContent>
@@ -604,9 +591,9 @@ export default function HygienePage() {
                       <p className="text-sm text-purple-600/60 font-medium">Consolidando registros e mantendo histórico principal</p>
                     </div>
                   </div>
-                  <Badge className="bg-purple-600 text-white font-black px-4 py-1.5 rounded-full text-sm">
+                  <div className="bg-purple-600 text-white font-black px-4 py-1.5 rounded-full text-sm">
                     {mergeProgress.current} / {mergeProgress.total}
-                  </Badge>
+                  </div>
                 </div>
                 <Progress value={(mergeProgress.current / mergeProgress.total) * 100} className="h-4 bg-purple-500/10" />
               </CardContent>
@@ -626,33 +613,31 @@ export default function HygienePage() {
           </div>
 
           {/* Main Content Area */}
-          <Card className="border-none shadow-2xl shadow-black/5 rounded-[40px] overflow-hidden bg-white dark:bg-slate-900/50 backdrop-blur-sm">
-            <CardHeader className="p-8 border-b bg-slate-50/50">
+          <Card className="border-0 shadow-none rounded-xl overflow-hidden bg-card">
+            <CardHeader className="pb-4">
               <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-slate-200/50 p-1.5 rounded-2xl">
-                  <TabsList className="bg-transparent h-10 gap-1">
-                    <TabItem value="all" label="Todos" count={metrics.total} />
-                    <TabItem value="critical" label="Críticos" count={metrics.critical} color="text-red-500" />
-                    <TabItem value="attention" label="Atenção" count={metrics.attention} color="text-amber-500" />
-                    <TabItem value="duplicates" label="Duplicados" count={metrics.duplicates} color="text-purple-500" />
-                    <TabItem value="fixed" label="Fixos" count={metrics.fixed} color="text-blue-500" />
-                    <TabItem value="whatsapp" label="WhatsApp" count={metrics.withWhatsapp} color="text-green-500" />
-                    <TabItem value="suggestions" label="Sugestões" count={metrics.withSuggestions} color="text-primary" />
-                  </TabsList>
-                </Tabs>
+                <div className="flex flex-wrap gap-2">
+                  <PillToggle active={activeTab === 'all'} onClick={() => setActiveTab('all')} count={metrics.total}>Todos</PillToggle>
+                  <PillToggle active={activeTab === 'critical'} onClick={() => setActiveTab('critical')} count={metrics.critical}>Críticos</PillToggle>
+                  <PillToggle active={activeTab === 'attention'} onClick={() => setActiveTab('attention')} count={metrics.attention}>Atenção</PillToggle>
+                  <PillToggle active={activeTab === 'duplicates'} onClick={() => setActiveTab('duplicates')} count={metrics.duplicates}>Duplicados</PillToggle>
+                  <PillToggle active={activeTab === 'fixed'} onClick={() => setActiveTab('fixed')} count={metrics.fixed}>Fixos</PillToggle>
+                  <PillToggle active={activeTab === 'whatsapp'} onClick={() => setActiveTab('whatsapp')} count={metrics.withWhatsapp}>WhatsApp</PillToggle>
+                  <PillToggle active={activeTab === 'suggestions'} onClick={() => setActiveTab('suggestions')} count={metrics.withSuggestions}>Sugestões</PillToggle>
+                </div>
 
                 <div className="flex items-center gap-4 w-full md:w-auto">
                   <div className="relative flex-1 md:w-80">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input 
                       placeholder="Buscar por nome ou telefone..." 
-                      className="pl-12 h-14 rounded-2xl bg-white border-slate-200 shadow-sm focus:ring-primary focus:border-primary text-lg"
+                      className="pl-9 h-11 bg-background border-muted/50 focus-visible:ring-primary"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                     />
                   </div>
-                  <Button variant="outline" className="h-14 w-14 rounded-2xl border-slate-200 bg-white shadow-sm hover:bg-slate-50">
-                    <Download className="w-6 h-6 text-slate-600" />
+                  <Button variant="outline" className="h-11 w-11 rounded-lg border-muted/50 bg-background shadow-sm hover:bg-muted">
+                    <Download className="w-4 h-4 text-muted-foreground" />
                   </Button>
                 </div>
               </div>
@@ -730,41 +715,29 @@ export default function HygienePage() {
 
 function MetricCard({ label, value, icon: Icon, color }: any) {
   const colors: any = {
-    slate: "bg-slate-500/10 text-slate-600 border-slate-500/20",
-    green: "bg-green-500/10 text-green-600 border-green-500/20",
-    red: "bg-red-500/10 text-red-600 border-red-500/20",
-    amber: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-    purple: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-    blue: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-    primary: "bg-primary/10 text-primary border-primary/20",
+    slate: "bg-muted text-muted-foreground",
+    green: "bg-green-500/10 text-green-600",
+    red: "bg-red-500/10 text-red-600",
+    amber: "bg-amber-500/10 text-amber-600",
+    purple: "bg-purple-500/10 text-purple-600",
+    blue: "bg-blue-500/10 text-blue-600",
+    primary: "bg-primary/10 text-primary",
   };
 
   return (
-    <Card className={cn("border-none shadow-lg shadow-black/5 transition-all hover:scale-105 duration-300 overflow-hidden group")}>
+    <Card className="rounded-xl bg-card border-0 shadow-none hover:bg-muted/50 transition-colors group overflow-hidden">
       <CardContent className="p-6 relative">
         <div className={cn("absolute top-0 right-0 p-2 rounded-bl-3xl opacity-10 transition-opacity group-hover:opacity-20", colors[color])}>
            <Icon className="w-12 h-12" />
         </div>
         <div className="flex flex-col gap-1 relative z-10">
-          <p className="text-3xl font-black tracking-tighter text-slate-800 dark:text-white">{value}</p>
+          <p className="text-3xl font-black tracking-tighter text-foreground">{value}</p>
           <div className="flex items-center gap-2">
-            <div className={cn("w-1.5 h-1.5 rounded-full", colors[color])} />
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+            <div className={cn("w-1.5 h-1.5 rounded-full", colors[color].split(" ")[0])} />
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</p>
           </div>
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function TabItem({ value, label, count, color }: any) {
-  return (
-    <TabsTrigger 
-      value={value} 
-      className="rounded-xl px-4 font-bold text-xs gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
-    >
-      <span className={cn(color)}>{label}</span>
-      <Badge variant="secondary" className="bg-slate-100 text-[10px] px-1.5 py-0 rounded-md font-black">{count}</Badge>
-    </TabsTrigger>
   );
 }

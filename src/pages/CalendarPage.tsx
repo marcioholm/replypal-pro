@@ -12,6 +12,7 @@ import {
   Calculator, Briefcase, Plus, Trash2, Save
 } from "lucide-react";
 import { toast } from "sonner";
+import { Chip, ChipTone } from "@/components/conta-ui";
 
 type ObligationType = "federal" | "estadual" | "municipal" | "outro";
 
@@ -23,11 +24,11 @@ interface Obligation {
   description: string;
 }
 
-const typeColors = {
-  federal: "bg-blue-500/10 text-blue-600 border-blue-200",
-  estadual: "bg-green-500/10 text-green-600 border-green-200",
-  municipal: "bg-purple-500/10 text-purple-600 border-purple-200",
-  outro: "bg-gray-500/10 text-gray-600 border-gray-200",
+const typeColors: Record<ObligationType, ChipTone> = {
+  federal: "blue",
+  estadual: "green",
+  municipal: "violet",
+  outro: "grey",
 };
 
 interface NewObligation {
@@ -115,20 +116,8 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto animate-in fade-in duration-700">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
-            <Calendar className="w-6 h-6 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Calendário Fiscal</h1>
-            <p className="text-sm text-muted-foreground flex items-center gap-2">
-              <Briefcase className="w-3.5 h-3.5" />
-              Gerencie obrigações e prazos do escritório contábil
-            </p>
-          </div>
-        </div>
+    <div className="flex flex-col gap-5 px-8 pb-8 pt-5">
+      <div className="flex items-center justify-end">
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -196,8 +185,8 @@ export default function CalendarPage() {
 
       <div className="grid lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3 space-y-6">
-          <Card className="border-none shadow-xl shadow-primary/5 overflow-hidden">
-            <CardHeader className="pb-4 border-b bg-muted/20">
+          <Card className="rounded-xl bg-card border-0 shadow-none overflow-hidden">
+            <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg font-semibold">
                   {monthNames[currentMonth]} {currentYear}
@@ -270,8 +259,8 @@ export default function CalendarPage() {
         </div>
 
         <div className="space-y-6">
-          <Card className="border-none shadow-xl shadow-primary/5">
-            <CardHeader className="pb-3 bg-muted/20 border-b flex flex-row items-center justify-between">
+          <Card className="rounded-xl bg-card border-0 shadow-none">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Clock className="w-4 h-4 text-primary" />
                 Próximos Prazos
@@ -299,9 +288,9 @@ export default function CalendarPage() {
                       </div>
                       <p className="text-xs text-muted-foreground mb-2">{o.description}</p>
                       <div className="flex items-center gap-2 text-[10px]">
-                        <Badge variant="outline" className={`text-[9px] ${typeColors[o.type]}`}>
+                        <Chip tone={typeColors[o.type]} className="uppercase">
                           {o.type}
-                        </Badge>
+                        </Chip>
                         <Clock className="w-3 h-3 text-muted-foreground" />
                         <span className="font-medium">
                           {o.deadline.toLocaleDateString('pt-BR')}
@@ -318,8 +307,8 @@ export default function CalendarPage() {
           </Card>
 
           {overdueObligations.length > 0 && (
-            <Card className="border-none shadow-xl shadow-destructive/5">
-              <CardHeader className="pb-3 bg-destructive/5 border-b border-destructive/20">
+            <Card className="rounded-xl bg-card border border-destructive/20 shadow-none">
+              <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2 text-destructive">
                   <AlertCircle className="w-4 h-4" />
                   Atrasadas ({overdueObligations.length})
@@ -338,8 +327,8 @@ export default function CalendarPage() {
             </Card>
           )}
 
-          <Card className="border-none shadow-xl shadow-primary/5">
-            <CardHeader className="pb-3 bg-muted/20 border-b">
+          <Card className="rounded-xl bg-card border-0 shadow-none">
+            <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Calculator className="w-4 h-4 text-primary" />
                 Resumo do Mês
@@ -347,29 +336,29 @@ export default function CalendarPage() {
             </CardHeader>
             <CardContent className="pt-4">
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-lg bg-blue-500/10 text-center">
-                  <p className="text-2xl font-bold text-blue-600">
+                <div className="p-3 rounded-xl bg-primary/5 text-center">
+                  <p className="text-2xl font-bold text-primary">
                     {obligations.filter(o => o.type === "federal" && o.deadline.getMonth() === currentMonth).length}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Federais</p>
+                  <p className="text-[11px] text-muted-foreground font-semibold">Federais</p>
                 </div>
-                <div className="p-3 rounded-lg bg-green-500/10 text-center">
-                  <p className="text-2xl font-bold text-green-600">
+                <div className="p-3 rounded-xl bg-success/10 text-center text-success">
+                  <p className="text-2xl font-bold">
                     {obligations.filter(o => o.type === "estadual" && o.deadline.getMonth() === currentMonth).length}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Estaduais</p>
+                  <p className="text-[11px] font-semibold">Estaduais</p>
                 </div>
-                <div className="p-3 rounded-lg bg-purple-500/10 text-center">
-                  <p className="text-2xl font-bold text-purple-600">
+                <div className="p-3 rounded-xl bg-violet-100 dark:bg-violet-400/15 text-center text-violet-800 dark:text-violet-300">
+                  <p className="text-2xl font-bold">
                     {obligations.filter(o => o.type === "municipal" && o.deadline.getMonth() === currentMonth).length}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Municipais</p>
+                  <p className="text-[11px] font-semibold">Municipais</p>
                 </div>
-                <div className="p-3 rounded-lg bg-muted text-center">
+                <div className="p-3 rounded-xl bg-muted text-center">
                   <p className="text-2xl font-bold">
                     {obligations.filter(o => o.deadline.getMonth() === currentMonth).length}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Total</p>
+                  <p className="text-[11px] text-muted-foreground font-semibold">Total</p>
                 </div>
               </div>
             </CardContent>

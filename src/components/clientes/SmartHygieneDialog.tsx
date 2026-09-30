@@ -772,7 +772,7 @@ function MetricCard({ label, value, icon: Icon, color }: { label: string; value:
         <div className={cn("p-2 rounded-xl transition-colors", colors[color])}>
           <Icon className="w-4 h-4" />
         </div>
-        <Badge variant="ghost" className="text-[10px] opacity-50 font-bold uppercase tracking-widest">Card</Badge>
+        <Badge variant="outline" className="text-[10px] opacity-50 font-bold uppercase tracking-widest border-0">Card</Badge>
       </div>
       <div className="space-y-0.5">
         <h4 className="text-3xl font-black tracking-tight">{value}</h4>

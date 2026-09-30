@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
+import { Chip, PillToggle } from "@/components/conta-ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
@@ -60,7 +60,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 export default function TrainingPage() {
   const { user } = useAuth();
@@ -163,21 +163,21 @@ export default function TrainingPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    if (status === 'ativo') return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1.5"><CheckCircle2 className="w-3 h-3" /> Ativo</Badge>;
-    if (status === 'pendente') return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 gap-1.5"><History className="w-3 h-3" /> Pendente</Badge>;
-    return <Badge variant="outline" className="text-muted-foreground gap-1.5"><XCircle className="w-3 h-3" /> Inativo</Badge>;
+    if (status === 'ativo') return <Chip tone="green"><CheckCircle2 className="w-3 h-3 inline mr-1" /> Ativo</Chip>;
+    if (status === 'pendente') return <Chip tone="amber"><History className="w-3 h-3 inline mr-1" /> Pendente</Chip>;
+    return <Chip tone="grey"><XCircle className="w-3 h-3 inline mr-1" /> Inativo</Chip>;
   };
 
   const getConfidenceBadge = (level: string) => {
     switch (level) {
-      case 'alta': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20"><ShieldCheck className="w-3 h-3 mr-1" /> Alta</Badge>;
-      case 'media': return <Badge variant="secondary" className="bg-orange-500/10 text-orange-600 border-orange-500/20"><AlertTriangle className="w-3 h-3 mr-1" /> MÉDIA</Badge>;
-      default: return <Badge variant="secondary" className="bg-destructive/10 text-destructive border-destructive/20"><AlertTriangle className="w-3 h-3 mr-1" /> REVISAR</Badge>;
+      case 'alta': return <Chip tone="blue"><ShieldCheck className="w-3 h-3 inline mr-1" /> Alta</Chip>;
+      case 'media': return <Chip tone="amber"><AlertTriangle className="w-3 h-3 inline mr-1" /> MÉDIA</Chip>;
+      default: return <Chip tone="red"><AlertTriangle className="w-3 h-3 inline mr-1" /> REVISAR</Chip>;
     }
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
+    <div className="flex flex-col gap-5 px-8 pb-8 pt-5 max-w-[1600px] mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
@@ -235,7 +235,7 @@ export default function TrainingPage() {
           { label: "Nível Confiança Alta", value: knowledges.filter(k => k.nivel_confianca === 'alta').length, icon: ShieldCheck, color: "text-primary" },
           { label: "Precisam de Revisão", value: knowledges.filter(k => k.nivel_confianca === 'revisar').length, icon: AlertTriangle, color: "text-orange-600" },
         ].map((stat, i) => (
-          <Card key={i} className="border-none shadow-sm bg-muted/30">
+          <Card key={i} className="rounded-xl bg-card border-0 shadow-none">
             <CardContent className="pt-4 flex items-center justify-between">
               <div>
                 <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{stat.label}</p>
@@ -247,20 +247,19 @@ export default function TrainingPage() {
         ))}
       </div>
 
-      {/* Abas de Navegação e Filtros */}
-      <Tabs defaultValue="oficial" className="space-y-6" onValueChange={setActiveTab}>
+      <div className="space-y-6">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <TabsList className="bg-muted/40 p-1">
-            <TabsTrigger value="oficial" className="gap-2 px-6">
-               <ShieldCheck className="w-4 h-4" /> Base Oficial
-            </TabsTrigger>
-            <TabsTrigger value="sugestoes" className="gap-2 px-6">
-               <Sparkles className="w-4 h-4" /> Sugestões da IA
-               {knowledges.length > 0 && activeTab === "sugestoes" && (
-                 <Badge className="ml-1 h-5 px-1.5 bg-primary text-white border-none">{knowledges.length}</Badge>
-               )}
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex flex-wrap gap-2">
+            <PillToggle active={activeTab === 'oficial'} onClick={() => setActiveTab('oficial')}>
+              <ShieldCheck className="w-4 h-4 mr-1 inline" /> Base Oficial
+            </PillToggle>
+            <PillToggle active={activeTab === 'sugestoes'} onClick={() => setActiveTab('sugestoes')}>
+              <Sparkles className="w-4 h-4 mr-1 inline" /> Sugestões da IA
+              {knowledges.length > 0 && activeTab === "sugestoes" && (
+                <span className="ml-1 px-1.5 py-0.5 bg-primary text-white text-[10px] font-bold rounded-full">{knowledges.length}</span>
+              )}
+            </PillToggle>
+          </div>
           
           <div className="flex items-center gap-2 w-full md:w-auto">
             <div className="relative flex-1 md:w-[300px]">
@@ -287,14 +286,10 @@ export default function TrainingPage() {
           </div>
         </div>
 
-        <TabsContent value="oficial" className="border-none p-0 m-0">
+        <div className="border-none p-0 m-0">
            {renderKnowledgeTable()}
-        </TabsContent>
-        
-        <TabsContent value="sugestoes" className="border-none p-0 m-0">
-           {renderKnowledgeTable()}
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
 
@@ -340,7 +335,7 @@ export default function TrainingPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="text-[10px] font-medium py-0 h-5 border-muted-foreground/20">{k.categoria}</Badge>
+                    <Chip tone="grey">{k.categoria}</Chip>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5 text-[11px] opacity-70">
@@ -351,7 +346,7 @@ export default function TrainingPage() {
                   <TableCell>{getConfidenceBadge(k.nivel_confianca)}</TableCell>
                   <TableCell>
                     {k.cliente ? (
-                       <Badge className="bg-primary/5 text-primary text-[10px] border-primary/10">{k.cliente.nome_fantasia}</Badge>
+                       <Chip tone="blue">{k.cliente.nome_fantasia}</Chip>
                     ) : (
                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight opacity-40">Todos Clientes</span>
                     )}

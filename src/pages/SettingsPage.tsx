@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { MOCK_USERS } from "@/lib/store";
 import type { User, UserRole } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Users, User, Edit, QrCode, Upload, Trash2, Plus, Smartphone, Loader2, CheckCircle2, XCircle, FileText, Bell, BellOff, Users2, MessageCircle, Database, RefreshCw, AlertCircle, CheckCircle, ExternalLink } from "lucide-react";
+import { Building2, Users, User as UserIcon, Edit, QrCode, Upload, Trash2, Plus, Smartphone, Loader2, CheckCircle2, XCircle, FileText, Bell, BellOff, Users2, MessageCircle, Database, RefreshCw, AlertCircle, CheckCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import ReciboGenerator from "@/components/settings/ReciboGenerator";
 import { getNotificationConfig, setNotificationConfig } from "@/hooks/useNotifications";
@@ -494,13 +493,11 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
-      <h1 className="text-xl font-semibold">Configurações</h1>
-
+    <div className="flex flex-col gap-5 px-8 pb-8 pt-5 max-w-4xl mx-auto">
       <Tabs defaultValue="empresa" className="space-y-4">
         <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
           <TabsTrigger value="perfil" className="flex items-center gap-2 text-xs py-2 px-4">
-            <User className="w-3.5 h-3.5" />
+            <UserIcon className="w-3.5 h-3.5" />
             Meu Perfil
           </TabsTrigger>
           <TabsTrigger value="empresa" className="flex items-center gap-2 text-xs py-2 px-4">

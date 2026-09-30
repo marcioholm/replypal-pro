@@ -9,15 +9,18 @@ import { SLABadge } from "@/components/SLABadge";
 import { Kanban, GripVertical, Clock, User, RefreshCw, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { InitialsAvatar, Chip } from "@/components/conta-ui";
 
 const COLUMNS: ConversationStatus[] = ["novo", "aguardando_aceite", "em_atendimento", "aguardando_cliente", "resolvido"];
 
 const columnColors: Record<ConversationStatus, string> = {
-  novo: "bg-blue-500",
-  aguardando_aceite: "bg-yellow-500",
-  em_atendimento: "bg-primary",
-  aguardando_cliente: "bg-purple-500",
-  resolvido: "bg-green-500",
+  novo: "bg-primary",
+  aguardando_aceite: "bg-amber-500",
+  em_atendimento: "bg-accent",
+  aguardando_cliente: "bg-violet-500",
+  resolvido: "bg-success",
+  pendente: "bg-blue-500",
+  respondido: "bg-teal-500",
 };
 
 export default function PipelinePage() {
@@ -170,31 +173,20 @@ export default function PipelinePage() {
   }
 
   return (
-    <div className="h-[calc(100vh-3rem)] flex flex-col bg-background">
-      <div className="p-4 border-b bg-card/50 backdrop-blur-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
-              <Kanban className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight">Pipeline de Atendimento</h1>
-              <p className="text-xs text-muted-foreground">Arraste os cards entre as colunas para atualizar o status</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={fetchData} className="h-8">
-              <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-              Atualizar
-            </Button>
-            <div className="text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-lg">
-              {totalConversations} conversas
-            </div>
-          </div>
+    <div className="flex flex-col gap-5 px-8 pb-8 h-[calc(100vh-4rem)]">
+      <div className="flex items-center justify-between pt-5">
+        <div className="text-[13px] font-semibold text-muted-foreground">
+          {totalConversations} conversas no funil
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={fetchData}>
+            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+            Atualizar
+          </Button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-x-auto p-4 bg-muted/20">
+      <div className="flex-1 overflow-x-auto min-h-0">
         <div className="flex gap-4 min-w-max h-full">
           {COLUMNS.map((status) => {
             const convs = getColumnConversations(status);
@@ -202,14 +194,14 @@ export default function PipelinePage() {
             return (
               <div
                 key={status}
-                className="w-80 flex flex-col bg-card rounded-xl border border-border/50 shadow-lg shadow-black/5"
+                className="w-80 flex flex-col bg-card rounded-xl"
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, status)}
               >
-                <div className="p-4 flex items-center gap-3 border-b border-border/30">
+                <div className="p-4 flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${columnColors[status]}`} />
-                  <span className="text-sm font-semibold tracking-tight">{config.label}</span>
-                  <span className="text-xs bg-muted/60 px-2 py-0.5 rounded-full text-muted-foreground ml-auto font-medium">
+                  <span className="text-[13px] font-bold tracking-tight">{config.label}</span>
+                  <span className="text-[11px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground ml-auto font-bold">
                     {convs.length}
                   </span>
                 </div>
@@ -219,43 +211,39 @@ export default function PipelinePage() {
                     const isAtRisk = sla === "em_risco" || sla === "estourado";
                     const assignedUser = store.users.find(u => u.id === conv.assignedTo);
                     const clientName = conv.clientName || "Cliente sem nome";
-                    const initials = clientName.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase() || "?";
-                    
                     return (
                       <div
                         key={conv.id}
                         draggable={canMoveCard(conv.id)}
                         onDragStart={(e) => handleDragStart(e, conv.id)}
                         onClick={() => navigate(`/chat/${conv.id}`)}
-                        className={`bg-background rounded-lg border border-border/50 p-4 cursor-pointer hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 group ${draggedId === conv.id ? "opacity-50 scale-95" : ""} ${isAtRisk ? "border-l-4 border-l-destructive" : ""} ${!canMoveCard(conv.id) ? "opacity-60" : ""}`}
+                        className={`bg-background rounded-xl p-4 cursor-pointer hover:bg-muted/50 transition-colors group ${draggedId === conv.id ? "opacity-50 scale-95" : ""} ${isAtRisk ? "border-l-4 border-l-destructive" : ""} ${!canMoveCard(conv.id) ? "opacity-60" : ""}`}
                       >
                         <div className="flex items-center gap-3 mb-3">
-                          <GripVertical className={`w-4 h-4 ${canMoveCard(conv.id) ? "text-muted-foreground/40 cursor-grab" : "text-muted-foreground/20 cursor-not-allowed"}`} />
-                          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-[10px] font-semibold text-primary">
-                            {initials}
-                          </div>
+                          <GripVertical className={`w-4 h-4 shrink-0 ${canMoveCard(conv.id) ? "text-muted-foreground/40 cursor-grab" : "text-muted-foreground/20 cursor-not-allowed"}`} />
+                          <InitialsAvatar name={clientName} size={36} shape="circle" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate">{clientName}</p>
+                            <p className="text-[13px] font-bold truncate">{clientName}</p>
                             {assignedUser && (
-                              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                              <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
                                 <User className="w-3 h-3" />
                                 {assignedUser.name}
                               </p>
                             )}
                           </div>
                         </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2 mb-3 pl-7">{conv.lastMessage || "Sem mensagem"}</p>
-                        <div className="flex items-center gap-2 flex-wrap pl-2">
+                        <p className="text-[11px] text-muted-foreground line-clamp-2 mb-3 pl-7">{conv.lastMessage || "Sem mensagem"}</p>
+                        <div className="flex items-center gap-2 flex-wrap pl-7">
                           {(conv.tags || []).slice(0, 2).map((t) => <TagBadge key={t} tagId={t} />)}
                           {isAtRisk && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-destructive/10 text-destructive text-[10px] rounded-full font-bold">
+                            <Chip tone="red">
                               <AlertTriangle className="w-2.5 h-2.5" />
                               SLA
-                            </span>
+                            </Chip>
                           )}
                           {status !== "resolvido" && !isAtRisk && <SLABadge slaStatus={sla} />}
                           {conv.startedAt && (
-                            <span className="text-[10px] text-muted-foreground ml-auto flex items-center gap-1">
+                            <span className="text-[11px] font-semibold text-muted-foreground ml-auto flex items-center gap-1">
                               <Clock className="w-3 h-3" />
                               {formatDuration(conv.startedAt)}
                             </span>

@@ -33,7 +33,6 @@ export function AudioPlayer({ url, sender }: AudioPlayerProps) {
       barWidth: 2,
       barGap: 3,
       barRadius: 30,
-      responsive: true,
       height: 35,
       normalize: true,
       backend: 'MediaElement',

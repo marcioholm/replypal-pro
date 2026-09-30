@@ -24,6 +24,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { PillToggle, Chip } from "@/components/conta-ui";
 
 interface AlertaConfig {
   id?: string;
@@ -162,22 +163,10 @@ export default function AlertsPage() {
   }
 
   return (
-    <div className="p-6 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-xl">
-            <Bell className="w-6 h-6 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Alertas Inteligentes</h1>
-        </div>
-        <p className="text-muted-foreground">
-          Configure automações para monitorar o tempo de resposta e garantir a excelência no atendimento.
-        </p>
-      </div>
-
+    <div className="flex flex-col gap-5 px-8 pb-8 pt-5">
       <div className="grid gap-6">
-        <Card className="border-primary/10 shadow-lg shadow-primary/5 overflow-hidden">
-          <CardHeader className="bg-primary/5 border-b border-primary/10 pb-6">
+        <Card className="rounded-xl bg-card border-0 shadow-none overflow-hidden">
+          <CardHeader className="pb-6">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <CardTitle className="text-xl flex items-center gap-2">
@@ -259,17 +248,13 @@ export default function AlertsPage() {
                       <Label className="text-sm font-medium">Dias da Semana</Label>
                       <div className="flex flex-wrap gap-2">
                         {DIAS_SEMANA.map((dia) => (
-                          <button
+                          <PillToggle
                             key={dia.id}
+                            active={alerta.dias_semana.includes(dia.id)}
                             onClick={() => toggleDia(dia.id)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                              alerta.dias_semana.includes(dia.id)
-                                ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
-                                : "bg-muted/50 text-muted-foreground border-transparent hover:border-primary/30"
-                            }`}
                           >
                             {dia.label}
-                          </button>
+                          </PillToggle>
                         ))}
                       </div>
                     </div>
@@ -315,7 +300,7 @@ export default function AlertsPage() {
                       <Textarea 
                         value={alerta.mensagem_template}
                         onChange={(e) => setAlerta(p => ({ ...p, mensagem_template: e.target.value }))}
-                        className="min-h-[220px] bg-transparent border-none text-slate-100 text-sm leading-relaxed resize-none focus-visible:ring-0 p-0"
+                        className="min-h-[220px] bg-transparent border-none text-slate-100 text-[13px] leading-relaxed resize-none focus-visible:ring-0 p-0"
                         placeholder="Digite a mensagem do alerta..."
                       />
                     </div>
@@ -342,7 +327,6 @@ export default function AlertsPage() {
               <Button 
                 onClick={handleSave} 
                 disabled={saving}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20 px-8 py-6 rounded-2xl transition-all active:scale-95"
               >
                 {saving ? (
                   <>
@@ -361,33 +345,33 @@ export default function AlertsPage() {
         </Card>
 
         <div className="grid md:grid-cols-3 gap-4 pt-4">
-          <div className="p-6 rounded-3xl bg-emerald-50/50 border border-emerald-100 flex flex-col gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+          <div className="p-6 rounded-xl bg-card border border-border flex flex-col gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="font-bold text-emerald-900 text-sm">Monitoramento 24h</p>
-              <p className="text-[11px] text-emerald-700/70 leading-relaxed">Nossa IA monitora seus atendimentos a cada 30 minutos em busca de atrasos.</p>
+              <p className="font-bold text-[13px]">Monitoramento 24h</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">Nossa IA monitora seus atendimentos a cada 30 minutos em busca de atrasos.</p>
             </div>
           </div>
           
-          <div className="p-6 rounded-3xl bg-blue-50/50 border border-blue-100 flex flex-col gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-blue-100 flex items-center justify-center">
-              <ShieldCheck className="w-5 h-5 text-blue-600" />
+          <div className="p-6 rounded-xl bg-card border border-border flex flex-col gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="font-bold text-blue-900 text-sm">Escala de Gestão</p>
-              <p className="text-[11px] text-blue-700/70 leading-relaxed">Garanta que nenhum cliente fique sem resposta por mais tempo do que o configurado.</p>
+              <p className="font-bold text-[13px]">Escala de Gestão</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">Garanta que nenhum cliente fique sem resposta por mais tempo do que o configurado.</p>
             </div>
           </div>
 
-          <div className="p-6 rounded-3xl bg-amber-50/50 border border-amber-100 flex flex-col gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center">
-              <AlertCircle className="w-5 h-5 text-amber-600" />
+          <div className="p-6 rounded-xl bg-card border border-border flex flex-col gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="font-bold text-amber-900 text-sm">Notificações Diretas</p>
-              <p className="text-[11px] text-amber-700/70 leading-relaxed">Receba os alertas diretamente no WhatsApp configurado da gestão.</p>
+              <p className="font-bold text-[13px]">Notificações Diretas</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">Receba os alertas diretamente no WhatsApp configurado da gestão.</p>
             </div>
           </div>
         </div>

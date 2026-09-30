@@ -1,0 +1,10 @@
+{
+  "name": "fetch-avatars",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.1",
+    "@whiskeysockets/baileys": "^6.7.0",
+    "pino": "^8.0.0"
+  }
+}

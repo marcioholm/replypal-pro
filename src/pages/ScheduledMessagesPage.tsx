@@ -3,12 +3,11 @@ import { useStore, ScheduledMessage, formatTime } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { 
   Calendar, Clock, Send, AlertCircle, XCircle, CheckCircle, 
-  Filter, MoreVertical, Trash2, Edit2, Play, RefreshCcw, Loader2
+  Filter, MoreVertical, Trash2, Edit2, Play, RefreshCcw, Loader2, PlayCircle, FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PillToggle, Chip } from '@/components/conta-ui';
+import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -16,6 +15,7 @@ import { ptBR } from 'date-fns/locale';
 export default function ScheduledMessagesPage() {
   const store = useStore();
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('agendada');
   const scheduledMessages = store.scheduledMessages;
 
   const fetchScheduled = async () => {
@@ -94,27 +94,37 @@ export default function ScheduledMessagesPage() {
     }
   };
 
+  const getStatusTone = (status: string): import('@/components/conta-ui').ChipTone => {
+    switch (status) {
+      case 'agendada': return 'blue';
+      case 'enviada': return 'green';
+      case 'erro': return 'red';
+      case 'cancelada': return 'grey';
+      default: return 'soft';
+    }
+  };
+
   const renderStatusIcon = (status: string) => {
     switch (status) {
-      case 'agendada': return <Clock className="w-4 h-4 text-blue-500" />;
-      case 'enviada': return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'erro': return <AlertCircle className="w-4 h-4 text-red-500" />;
-      case 'cancelada': return <XCircle className="w-4 h-4 text-muted-foreground" />;
+      case 'agendada': return <Clock className="w-4 h-4" />;
+      case 'enviada': return <CheckCircle className="w-4 h-4" />;
+      case 'erro': return <AlertCircle className="w-4 h-4" />;
+      case 'cancelada': return <XCircle className="w-4 h-4" />;
       default: return null;
     }
   };
 
   const MessageCard = ({ msg }: { msg: ScheduledMessage }) => (
-    <Card className="mb-3 hover:shadow-md transition-shadow group">
+    <Card className="rounded-xl bg-card border-0 shadow-none hover:bg-muted/50 transition-colors group mb-3">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              <Badge variant="outline" className="text-[10px] flex items-center gap-1">
+              <Chip tone={getStatusTone(msg.status)} className="uppercase">
                 {renderStatusIcon(msg.status)}
-                {msg.status.toUpperCase()}
-              </Badge>
-              <span className="text-[10px] text-muted-foreground">
+                {msg.status}
+              </Chip>
+              <span className="text-[11px] text-muted-foreground font-semibold">
                 Para: {msg.receiverNumber} • Agendado por: {msg.senderName || 'Sistema'}
               </span>
             </div>
@@ -176,46 +186,45 @@ export default function ScheduledMessagesPage() {
   );
 
   return (
-    <div className="container mx-auto p-6 max-w-5xl animate-fade-in">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Mensagens Agendadas</h1>
-          <p className="text-muted-foreground">Gerencie seus disparos automáticos e campanhas.</p>
+    <div className="flex flex-col gap-5 px-8 pb-8">
+      <div className="flex justify-between items-center pt-5">
+        <div className="flex flex-wrap gap-2">
+          {['agendada', 'enviada', 'cancelada', 'erro'].map((status) => (
+            <PillToggle 
+              key={status} 
+              active={activeTab === status} 
+              onClick={() => setActiveTab(status)}
+              count={scheduledMessages.filter(m => m.status === status).length}
+            >
+              {status === 'agendada' ? 'Agendadas' : 
+               status === 'enviada' ? 'Enviadas' : 
+               status === 'cancelada' ? 'Canceladas' : 'Erros'}
+            </PillToggle>
+          ))}
         </div>
         <Button onClick={fetchScheduled} variant="outline" size="sm">
-          <RefreshCcw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCcw className={`w-3.5 h-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
           Atualizar
         </Button>
       </div>
 
-      <Tabs defaultValue="agendada" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-8">
-          <TabsTrigger value="agendada">Agendadas</TabsTrigger>
-          <TabsTrigger value="enviada">Enviadas</TabsTrigger>
-          <TabsTrigger value="cancelada">Canceladas</TabsTrigger>
-          <TabsTrigger value="erro">Erros</TabsTrigger>
-        </TabsList>
-        
-        {['agendada', 'enviada', 'cancelada', 'erro'].map((status) => (
-          <TabsContent key={status} value={status} className="mt-0">
-            {loading ? (
-              <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-            ) : scheduledMessages.filter(m => m.status === status).length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {scheduledMessages
-                  .filter(m => m.status === status)
-                  .map(msg => <MessageCard key={msg.id} msg={msg} />)
-                }
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border border-dashed rounded-xl">
-                <Calendar className="w-12 h-12 opacity-10 mb-4" />
-                <p className="text-sm">Nenhuma mensagem nesta categoria.</p>
-              </div>
-            )}
-          </TabsContent>
-        ))}
-      </Tabs>
+      <div className="mt-2">
+        {loading ? (
+          <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+        ) : scheduledMessages.filter(m => m.status === activeTab).length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {scheduledMessages
+              .filter(m => m.status === activeTab)
+              .map(msg => <MessageCard key={msg.id} msg={msg} />)
+            }
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground bg-muted/20 rounded-xl border-0">
+            <Calendar className="w-12 h-12 opacity-10 mb-4" />
+            <p className="text-[13px] font-semibold">Nenhuma mensagem nesta categoria.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

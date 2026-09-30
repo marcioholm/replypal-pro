@@ -78,7 +78,7 @@ export function NotificationProvider({ children, currentUser, userRole }: { chil
       new Notification(title, { body, icon: "/favicon.ico" });
     }
 
-    toast.custom((t) => (
+    toast.custom((t: any) => (
       <div 
         className={cn(
           "flex items-center gap-3 p-4 bg-white dark:bg-[#021B1A] border-2 border-primary/20 rounded-2xl shadow-2xl animate-in slide-in-from-right-5 duration-300",

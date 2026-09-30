@@ -74,10 +74,10 @@ function numberToExtenso(value: number): string {
   } else {
     const milhao = Math.floor(mil / 1000);
     const restMil = mil % 1000;
-    if (milhão === 1) {
+    if (milhao === 1) {
       result = "um milhão";
     } else {
-      result = `${milhar(milhão, false)} milhões`;
+      result = `${milhar(milhao, false)} milhões`;
     }
     if (restMil > 0) result += ` ${milhar(restMil, false)}`;
   }

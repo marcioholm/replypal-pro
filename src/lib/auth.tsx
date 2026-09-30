@@ -128,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             localStorage.removeItem("replypal_user");
             setIsLoading(false);
           }
-        }).catch(() => {
+        }, () => {
           localStorage.removeItem("replypal_user");
           setIsLoading(false);
         });
