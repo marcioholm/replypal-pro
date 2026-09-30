@@ -1,4 +1,3 @@
-import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ContaMaisLogoProps {
@@ -7,18 +6,39 @@ interface ContaMaisLogoProps {
   className?: string;
 }
 
-/** Marca Conta+: símbolo azul com "+" e wordmark com o "+" em verde. */
+/** Nova Marca Conta+: texto "Conta" azul, com ícone "+" estilizado (pílula horizontal verde e vertical azul com checkmark) */
 export function ContaMaisLogo({ compact, className }: ContaMaisLogoProps) {
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[hsl(215_84%_34%)]">
-        <Plus className="h-4 w-4 text-white" strokeWidth={3} />
-      </span>
+    <div className={cn("inline-flex items-center gap-1.5", className)}>
       {!compact && (
-        <span className="text-[19px] font-extrabold leading-none tracking-tight text-[hsl(215_76%_20%)]">
-          Conta<span className="text-[hsl(152_73%_37%)]">+</span>
+        <span className="text-3xl font-extrabold tracking-tight text-[#1b56b8]" style={{ fontFamily: "Inter, sans-serif", letterSpacing: "-0.04em" }}>
+          Conta
         </span>
       )}
-    </span>
+      <svg 
+        viewBox="0 0 36 36" 
+        className={cn("shrink-0", compact ? "w-8 h-8" : "w-[30px] h-[30px]")}
+        fill="none" 
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Pílula Vertical Inferior (Azul escuro) */}
+        <rect x="12" y="12" width="12" height="24" rx="6" fill="#0f3670" />
+        
+        {/* Pílula Horizontal (Verde) */}
+        <rect x="0" y="12" width="36" height="12" rx="6" fill="#1fa163" />
+
+        {/* Pílula Vertical Superior (Azul) */}
+        <rect x="12" y="0" width="12" height="18" rx="6" fill="#1b56b8" />
+        
+        {/* Checkmark Branco */}
+        <path 
+          d="M15 8L17 10L21 6" 
+          stroke="white" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round" 
+        />
+      </svg>
+    </div>
   );
 }
