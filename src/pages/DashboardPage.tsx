@@ -10,7 +10,7 @@ import {
   TrendingUp, Cake, CalendarDays, ArrowUpRight, 
   Activity, BarChart3, Loader2
 } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { Chip } from "@/components/conta-ui";
@@ -25,11 +25,15 @@ export default function DashboardPage() {
       if (!user?.tenantId) return;
       try {
         setLoading(true);
-        // 1. Fetch Users
-        const { data: usersData } = await supabase
-          .from("usuarios")
-          .select("*")
-          .eq("tenant_id", user.tenantId);
+        const [
+          { data: usersData },
+          { data: customersData },
+          { data: convsData }
+        ] = await Promise.all([
+          supabase.from("usuarios").select("*").eq("tenant_id", user.tenantId),
+          supabase.from("clientes").select("*").eq("tenant_id", user.tenantId),
+          supabase.from("conversas").select("*").eq("tenant_id", user.tenantId)
+        ]);
 
         if (usersData) {
           store.setUsers(usersData.map(d => ({
@@ -42,12 +46,6 @@ export default function DashboardPage() {
             whatsapp: d.whatsapp
           })));
         }
-
-        // 2. Fetch Customers
-        const { data: customersData } = await supabase
-          .from("clientes")
-          .select("*")
-          .eq("tenant_id", user.tenantId);
 
         if (customersData) {
           store.setCustomers(customersData.map(c => ({
@@ -83,12 +81,6 @@ export default function DashboardPage() {
             createdAt: new Date(c.created_at || Date.now())
           })));
         }
-
-        // 3. Fetch Conversations
-        const { data: convsData } = await supabase
-          .from("conversas")
-          .select("*")
-          .eq("tenant_id", user.tenantId);
 
         if (convsData) {
           store.setConversations(convsData.map(c => ({
