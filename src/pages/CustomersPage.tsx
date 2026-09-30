@@ -1,27 +1,40 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useStore, RegimeTributario, StatusCliente, Prioridade } from "@/lib/store";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useState, useEffect, useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useStore, type Customer } from "@/lib/store";
+import { CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CustomerForm } from "@/components/CustomerForm";
 import { ContactImportDialog } from "@/components/clientes/ContactImportDialog";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { useEffect, useCallback } from "react";
-import { 
-  Users, UserPlus, Search, Filter, 
-  Building, BookOpen, Clock, AlertCircle,
-  TrendingUp, ArrowRight, MoreHorizontal,
-  ChevronRight, Calendar, Briefcase, FilterX,
-  MapPin, Loader2
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Plus, Search, FilterX, Loader2, Users, CornerDownRight } from "lucide-react";
+import { Chip, FilterGroup, FilterOption, HighlightBanner, InitialsAvatar, PillToggle, type ChipTone } from "@/components/conta-ui";
+
+const REGIMES: { key: string; label: string; match: string }[] = [
+  { key: "all", label: "Todos", match: "" },
+  { key: "MEI", label: "MEI", match: "MEI" },
+  { key: "Simples Nacional", label: "Simples", match: "Simples Nacional" },
+  { key: "Lucro Presumido", label: "Presumido", match: "Lucro Presumido" },
+  { key: "Lucro Real", label: "Real", match: "Lucro Real" },
+];
+const REGIME_SHORT: Record<string, string> = {
+  MEI: "MEI",
+  "Simples Nacional": "Simples",
+  "Lucro Presumido": "Presumido",
+  "Lucro Real": "Real",
+};
+const STATUS_TONE: Record<string, ChipTone> = { Ativo: "green", Onboarding: "amber", Inativo: "grey", Encerrado: "red" };
+const FIN_CLASS: Record<string, string> = {
+  Adimplente: "text-success",
+  "Atenção": "text-amber-700 dark:text-amber-300",
+  Inadimplente: "text-destructive",
+};
+const PAGE = 60;
+
+function semWhatsapp(c: Customer) {
+  return !c.whatsapp?.trim() || c.whatsapp_status === "não possui WhatsApp" || c.whatsapp_status === "erro na verificação";
+}
 
 export default function CustomersPage() {
   const store = useStore();
@@ -31,10 +44,11 @@ export default function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [regimeFilter, setRegimeFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
-  const [originFilter, setOriginFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all"); // "all", "company", "individual"
+  const [finFilter, setFinFilter] = useState<Record<string, boolean>>({});
   const [isNewDialogOpen, setIsNewDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [limit, setLimit] = useState(PAGE);
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -82,6 +96,7 @@ export default function CustomersPage() {
               drivePayrollUrl: c.drive_payroll_url || "",
               driveBillingUrl: c.drive_billing_url || "",
               observations: c.observations || "",
+              whatsapp_status: c.whatsapp_status || undefined,
               createdAt: new Date(c.created_at)
             });
           });
@@ -96,268 +111,243 @@ export default function CustomersPage() {
     fetchCustomers();
   }, [user?.tenantId]);
 
-  // Extract unique origins for the filter
-  const origins = Array.from(new Set(store.customers.map(c => c.origin))).filter(Boolean);
+  const customers = store.customers;
 
-  const filteredCustomers = store.customers.filter((c) => {
-    const matchesSearch = 
-      c.name.toLowerCase().includes(search.toLowerCase()) || 
-      c.razaoSocial.toLowerCase().includes(search.toLowerCase()) || 
-      c.cnpj.includes(search);
-    
-    const matchesStatus = statusFilter === "all" || c.status === statusFilter;
-    const matchesRegime = regimeFilter === "all" || c.regime === regimeFilter;
-    const matchesPriority = priorityFilter === "all" || c.priority === priorityFilter;
-    const matchesOrigin = originFilter === "all" || c.origin === originFilter;
-    const matchesType = typeFilter === "all" || 
-      (typeFilter === "company" && c.cnpj && c.cnpj.trim().length > 0) ||
-      (typeFilter === "individual" && (!c.cnpj || c.cnpj.trim().length === 0));
+  const filteredCustomers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const digits = q.replace(/\D/g, "");
+    const anyFin = Object.values(finFilter).some(Boolean);
+    return customers
+      .filter(c => {
+        const matchesSearch =
+          !q ||
+          c.name.toLowerCase().includes(q) ||
+          c.razaoSocial.toLowerCase().includes(q) ||
+          (c.responsibleName || "").toLowerCase().includes(q) ||
+          (!!digits && c.cnpj.replace(/\D/g, "").includes(digits));
+        const matchesStatus = statusFilter === "all" || c.status === statusFilter;
+        const matchesRegime = regimeFilter === "all" || c.regime === regimeFilter;
+        const matchesPriority = priorityFilter === "all" || c.priority === priorityFilter;
+        const matchesFin = !anyFin || !!finFilter[c.financialStatus || ""];
+        const isCompany = !!c.cnpj && c.cnpj.trim().length > 0;
+        const matchesType = typeFilter === "all" || (typeFilter === "company" ? isCompany : !isCompany);
+        return matchesSearch && matchesStatus && matchesRegime && matchesPriority && matchesFin && matchesType;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }, [customers, search, statusFilter, regimeFilter, priorityFilter, finFilter, typeFilter]);
 
-    return matchesSearch && matchesStatus && matchesRegime && matchesPriority && matchesOrigin && matchesType;
-  });
+  const count = (fn: (c: Customer) => boolean) => customers.filter(fn).length;
+  const activeCount = count(c => c.status === "Ativo");
+  const onboardingCount = count(c => c.status === "Onboarding");
+  const noWhatsapp = count(semWhatsapp);
+  const hasFilters =
+    statusFilter !== "all" || regimeFilter !== "all" || priorityFilter !== "all" || typeFilter !== "all" || !!search || Object.values(finFilter).some(Boolean);
 
-  const companies = filteredCustomers.filter(c => c.cnpj && c.cnpj.trim().length > 0);
-  const companiesCount = store.customers.filter(c => c.cnpj && c.cnpj.trim().length > 0).length;
-  const individualCount = store.customers.filter(c => !c.cnpj || c.cnpj.trim().length === 0).length;
-
-  const statusColors = {
-    "Ativo": "bg-success/20 text-success border-success/30",
-    "Onboarding": "bg-info/20 text-info border-info/30",
-    "Inativo": "bg-warning/20 text-warning border-warning/30",
-    "Encerrado": "bg-destructive/20 text-destructive border-destructive/30",
-  };
-
-  const priorityColors = {
-    "Alta": "text-destructive font-bold",
-    "Média": "text-warning font-semibold",
-    "Baixa": "text-info font-medium",
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setRegimeFilter("all");
+    setPriorityFilter("all");
+    setTypeFilter("all");
+    setFinFilter({});
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto animate-in fade-in duration-700">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
-            <Building className="w-7 h-7 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">CRM de Atendimento</h1>
-            <p className="text-sm text-muted-foreground flex items-center gap-2">
-              <Briefcase className="w-3.5 h-3.5" />
-              Gestão de empresas e contatos individuais
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <ContactImportDialog onSuccess={() => window.location.reload()} />
-          <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-95 px-6 gap-2">
-                <UserPlus className="h-4 w-4" />
-                Novo Cliente
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="text-xl font-semibold">Novo Cadastro de Cliente</DialogTitle>
-                <CardDescription>Preencha os dados contábeis e de atendimento.</CardDescription>
-              </DialogHeader>
-              <div className="pt-4">
-                <CustomerForm onSuccess={(c) => {
-                  setIsNewDialogOpen(false);
-                  navigate(`/customers/${c.id}`);
-                }} />
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+    <div className="flex flex-col gap-5 px-8 pb-8">
+      {noWhatsapp > 0 && (
+        <HighlightBanner
+          icon={<Users className="h-20 w-20" strokeWidth={1.3} />}
+          big={noWhatsapp}
+          bigLabel={noWhatsapp === 1 ? "cliente sem WhatsApp válido" : "clientes sem WhatsApp válido"}
+          text="Sem um número verificado, o cliente fica fora dos avisos e envios em lote."
+          action={
+            <Link to="/contacts/hygiene" className="self-start rounded-full bg-card px-5 py-2 text-[13px] font-extrabold text-primary hover:opacity-90">
+              Revisar contatos
+            </Link>
+          }
+          aside={
+            <>
+              <span className="text-[13px] font-semibold leading-snug text-primary">Higienização: duplicados e dados incompletos</span>
+              <Link
+                to="/contacts/hygiene"
+                aria-label="Abrir higienização de contatos"
+                className="flex h-9 w-9 items-center justify-center self-end rounded-full bg-primary text-primary-foreground"
+              >
+                <CornerDownRight className="h-4 w-4" />
+              </Link>
+            </>
+          }
+        />
+      )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="relative overflow-hidden border-none shadow-xl shadow-primary/5 group">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <CardContent className="pt-6 relative">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors">
-                <Users className="w-5 h-5 text-primary" />
-              </div>
-              <TrendingUp className="w-4 h-4 text-success" />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[236px_minmax(0,1fr)]">
+        <aside aria-label="Filtros" className="flex flex-col gap-6">
+          <label className="flex h-10 items-center gap-2 rounded-full bg-card px-3.5 focus-within:ring-2 focus-within:ring-ring">
+            <input
+              type="search"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Nome, CNPJ ou responsável"
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
+            />
+            <Search className="h-4 w-4 text-primary" />
+          </label>
+
+          <FilterGroup title="Regime">
+            <div className="flex flex-wrap gap-1.5">
+              {REGIMES.map(r => (
+                <PillToggle key={r.key} active={regimeFilter === r.key} onClick={() => setRegimeFilter(r.key)}>
+                  {r.label}
+                </PillToggle>
+              ))}
             </div>
-            <p className="text-3xl font-bold tracking-tight">{store.customers.filter(c => c.cnpj && c.cnpj.trim().length > 0).length}</p>
-            <p className="text-xs text-muted-foreground mt-1 font-medium">Empresas cadastradas</p>
-          </CardContent>
-        </Card>
+          </FilterGroup>
 
-        <Card className="relative overflow-hidden border-none shadow-xl shadow-success/5 group">
-          <div className="absolute inset-0 bg-gradient-to-br from-success/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <CardContent className="pt-6 relative">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-success/10 rounded-xl group-hover:bg-success/20 transition-colors">
-                <AlertCircle className="w-5 h-5 text-success" />
-              </div>
-              <span className="text-xs font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">98%</span>
-            </div>
-            <p className="text-3xl font-bold text-success">
-              {store.customers.filter(c => c.status === 'Ativo' && c.cnpj && c.cnpj.trim().length > 0).length}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1 font-medium">Empresas ativas</p>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden border-none shadow-xl shadow-info/5 group">
-          <div className="absolute inset-0 bg-gradient-to-br from-info/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <CardContent className="pt-6 relative">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-info/10 rounded-xl group-hover:bg-info/20 transition-colors">
-                <Clock className="w-5 h-5 text-info" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-info">
-              {store.customers.filter(c => c.status === 'Onboarding' && c.cnpj && c.cnpj.trim().length > 0).length}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1 font-medium">Em onboarding (Empresas)</p>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden border-none shadow-xl shadow-warning/5 group">
-          <div className="absolute inset-0 bg-gradient-to-br from-warning/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <CardContent className="pt-6 relative">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-warning/10 rounded-xl group-hover:bg-warning/20 transition-colors">
-                <BookOpen className="w-5 h-5 text-warning" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-warning">
-              {store.customers.filter(c => c.serviceLevel === 'Estratégico' && c.cnpj && c.cnpj.trim().length > 0).length}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1 font-medium">Contas estratégicas (Empresas)</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="border-none shadow-xl shadow-primary/5 overflow-hidden">
-        <CardHeader className="bg-muted/20 pb-4 border-b">
-          <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar por nome, telefone ou CNPJ..." 
-                className="pl-9 bg-background border-muted-foreground/20 focus-visible:ring-primary h-11"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+          <FilterGroup title="Status">
+            {["all", "Ativo", "Onboarding", "Inativo", "Encerrado"].map(st => (
+              <FilterOption
+                key={st}
+                type="radio"
+                name="cliente-status"
+                label={st === "all" ? "Todos" : st}
+                count={st === "all" ? customers.length : count(c => c.status === st)}
+                checked={statusFilter === st}
+                onChange={() => setStatusFilter(st)}
               />
+            ))}
+          </FilterGroup>
+
+          <FilterGroup title="Financeiro">
+            {["Adimplente", "Atenção", "Inadimplente"].map(f => (
+              <FilterOption
+                key={f}
+                type="checkbox"
+                label={f}
+                count={count(c => c.financialStatus === f)}
+                checked={!!finFilter[f]}
+                onChange={() => setFinFilter(prev => ({ ...prev, [f]: !prev[f] }))}
+              />
+            ))}
+          </FilterGroup>
+
+          <FilterGroup title="Prioridade">
+            <div className="flex flex-wrap gap-1.5">
+              {["all", "Alta", "Média", "Baixa"].map(p => (
+                <PillToggle key={p} active={priorityFilter === p} onClick={() => setPriorityFilter(p)}>
+                  {p === "all" ? "Todas" : p}
+                </PillToggle>
+              ))}
             </div>
-            
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Filter className="w-3.5 h-3.5" />
-                <span className="font-medium">Filtros:</span>
-              </div>
-              
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-9 w-[140px] bg-background text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {["Ativo", "Onboarding", "Inativo", "Encerrado"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              
-              <Select value={regimeFilter} onValueChange={setRegimeFilter}>
-                <SelectTrigger className="h-9 w-[160px] bg-background text-xs"><SelectValue placeholder="Regime" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {["MEI", "Simples Nacional", "Lucro Presumido", "Lucro Real"].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          </FilterGroup>
 
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="h-9 w-[130px] bg-background text-xs"><SelectValue placeholder="Prioridade" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {["Baixa", "Média", "Alta"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          <FilterGroup title="Tipo">
+            <div className="flex flex-wrap gap-1.5">
+              {([
+                ["all", "Todos"],
+                ["company", "Empresas"],
+                ["individual", "Pessoas"],
+              ] as const).map(([k, l]) => (
+                <PillToggle key={k} active={typeFilter === k} onClick={() => setTypeFilter(k)}>
+                  {l}
+                </PillToggle>
+              ))}
+            </div>
+          </FilterGroup>
+        </aside>
 
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="h-9 w-[130px] bg-background text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos Tipos</SelectItem>
-                  <SelectItem value="company">Empresas ({companiesCount})</SelectItem>
-                  <SelectItem value="individual">Individuais ({individualCount})</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {(statusFilter !== "all" || regimeFilter !== "all" || priorityFilter !== "all" || originFilter !== "all" || typeFilter !== "all" || search) && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-9 text-xs text-muted-foreground hover:text-destructive gap-1"
-                  onClick={() => { setSearch(""); setStatusFilter("all"); setRegimeFilter("all"); setPriorityFilter("all"); setOriginFilter("all"); setTypeFilter("all"); }}
-                >
-                  <FilterX className="w-3.5 h-3.5" />
+        <section className="flex min-w-0 flex-col gap-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-baseline gap-2.5">
+              <h2 className="text-base font-extrabold">
+                {filteredCustomers.length} {filteredCustomers.length === 1 ? "cliente" : "clientes"}
+              </h2>
+              <span className="text-xs text-muted-foreground">
+                {activeCount} ativos · {onboardingCount} em onboarding
+              </span>
+              {hasFilters && (
+                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+                  <FilterX className="h-3.5 w-3.5" />
                   Limpar filtros
-                </Button>
+                </button>
               )}
             </div>
+            <div className="flex items-center gap-2">
+              <ContactImportDialog onSuccess={() => window.location.reload()} />
+              <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="h-9 gap-1.5 px-4">
+                    <Plus className="h-4 w-4" strokeWidth={2.5} />
+                    Novo cliente
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-semibold">Novo cadastro de cliente</DialogTitle>
+                    <CardDescription>Preencha os dados contábeis e de atendimento.</CardDescription>
+                  </DialogHeader>
+                  <div className="pt-4">
+                    <CustomerForm
+                      onSuccess={c => {
+                        setIsNewDialogOpen(false);
+                        navigate(`/customers/${c.id}`);
+                      }}
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                  <TableRow className="hover:bg-transparent bg-muted/20 border-b-2 border-border/50">
-                    <TableHead className="w-[280px] font-semibold py-4 pl-6 text-xs uppercase tracking-wider text-muted-foreground">Empresa</TableHead>
-                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">CNPJ / Localização</TableHead>
-                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Atendente</TableHead>
-                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-center">Status</TableHead>
-                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-right pr-6">Ações</TableHead>
-                  </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow><TableCell colSpan={5} className="h-64 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
-                ) : companies.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="h-64 text-center text-muted-foreground">Nenhuma empresa encontrada.</TableCell></TableRow>
-                ) : (
-                  companies.map((c) => (
-                    <TableRow key={c.id} className="group hover:bg-muted/30 transition-all cursor-pointer border-b border-border/30" onClick={() => navigate(`/customers/${c.id}`)}>
-                      <TableCell className="pl-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-white font-bold text-xs shadow-md">
-                            {c.name.substring(0, 2).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-sm tracking-tight truncate">{c.name}</p>
-                            <p className="text-[10px] text-muted-foreground uppercase font-medium truncate">{c.razaoSocial}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <p className="text-xs font-mono text-foreground font-medium">{c.cnpj}</p>
-                          <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1"><MapPin className="w-3 h-3" /> {c.city} - {c.state}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <p className="text-xs font-medium">{store.users.find(u => u.id === c.attendantId)?.name || '—'}</p>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-md border shadow-sm ${statusColors[c.status as keyof typeof statusColors] || 'bg-muted'}`}>
-                          {c.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right pr-6">
-                         <ChevronRight className="w-4 h-4 text-primary ml-auto" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+
+          {loading && customers.length === 0 ? (
+            <div className="flex justify-center rounded-xl bg-card py-24">
+              <Loader2 className="h-7 w-7 animate-spin text-primary" />
+            </div>
+          ) : filteredCustomers.length === 0 ? (
+            <div className="rounded-xl bg-card py-24 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</div>
+          ) : (
+            <>
+              <ul className="grid grid-cols-1 gap-3.5 xl:grid-cols-2 min-[1800px]:grid-cols-3">
+                {filteredCustomers.slice(0, limit).map(c => (
+                  <li key={c.id}>
+                    <Link
+                      to={`/customers/${c.id}`}
+                      className="flex h-full items-center gap-4 rounded-xl bg-card p-4 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <InitialsAvatar name={c.name} shape="tile" size={88} />
+                      <span className="flex min-w-0 flex-col gap-1.5">
+                        <span className="flex flex-wrap gap-1.5">
+                          {c.regime && <Chip tone="navy">{REGIME_SHORT[c.regime] ?? c.regime}</Chip>}
+                          {c.status && <Chip tone={STATUS_TONE[c.status] ?? "grey"}>{c.status}</Chip>}
+                          {c.priority === "Alta" && <Chip tone="red">Prioridade alta</Chip>}
+                        </span>
+                        <span className="truncate text-[15px] font-extrabold leading-snug">{c.name}</span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {c.cnpj ? `CNPJ ${c.cnpj}` : "Pessoa física"}
+                          {c.responsibleName ? ` · ${c.responsibleName}` : ""}
+                        </span>
+                        <span className="mt-0.5 flex gap-2.5 text-xs">
+                          {c.financialStatus && <span className={`font-bold ${FIN_CLASS[c.financialStatus] ?? ""}`}>{c.financialStatus}</span>}
+                          {c.city && (
+                            <span className="truncate text-muted-foreground">
+                              {c.city}
+                              {c.state ? `/${c.state}` : ""}
+                            </span>
+                          )}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              {filteredCustomers.length > limit && (
+                <Button variant="outline" className="self-center" onClick={() => setLimit(l => l + PAGE)}>
+                  Mostrar mais ({filteredCustomers.length - limit} restantes)
+                </Button>
+              )}
+            </>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

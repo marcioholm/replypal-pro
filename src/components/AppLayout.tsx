@@ -84,7 +84,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <AppSidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
       <div
         className="transition-[padding] duration-300 ease-out"
-        style={{ paddingLeft: sidebarCollapsed ? 80 : 248 }}
+        style={{ paddingLeft: sidebarCollapsed ? 80 : 256 }}
       >
         <div className="flex min-h-screen flex-row">
           <div className="flex min-w-0 flex-1 flex-col">

@@ -25,6 +25,7 @@ export interface User {
   isGroup?: boolean;
   isTyping?: boolean;
   resolvedAt?: string;
+  whatsapp?: string;
 }
 
 export interface Tenant {
@@ -92,6 +93,7 @@ export interface Customer {
   driveBillingUrl?: string;
   openingDate?: Date;
   startDate?: Date;
+  financialStatus?: StatusFinanceiro;
   whatsapp_status?: WhatsappStatus;
   whatsapp_checked_at?: Date;
   whatsapp_check_provider?: string;

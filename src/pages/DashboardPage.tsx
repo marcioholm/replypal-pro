@@ -225,9 +225,9 @@ export default function DashboardPage() {
   ];
 
   const statusDistribution = [
-    { label: "Novos", count: convs.filter((c) => c.status === "novo").length, color: "hsl(28 40% 35%)" },
+    { label: "Novos", count: convs.filter((c) => c.status === "novo").length, color: "hsl(219 81% 43%)" },
     { label: "Aguardando aceite", count: convs.filter((c) => c.status === "aguardando_aceite").length, color: "hsl(38 65% 45%)" },
-    { label: "Em atendimento", count: convs.filter((c) => c.status === "em_atendimento").length, color: "hsl(28 40% 25%)" },
+    { label: "Em atendimento", count: convs.filter((c) => c.status === "em_atendimento").length, color: "hsl(215 84% 26%)" },
     { label: "Aguardando cliente", count: convs.filter((c) => c.status === "aguardando_cliente").length, color: "hsl(30 10% 50%)" },
     { label: "Resolvidos", count: convs.filter((c) => c.status === "resolvido").length, color: "hsl(142 45% 40%)" },
   ];
@@ -259,7 +259,7 @@ export default function DashboardPage() {
            <h1 className="text-3xl font-bold tracking-tight text-foreground">Relatórios Operacionais</h1>
            <p className="text-muted-foreground">Monitoramento em tempo real do atendimento contábil.</p>
         </div>
-        <div className="flex items-center gap-2 p-1.5 bg-[#284030]/5 rounded-lg border border-border">
+        <div className="flex items-center gap-2 p-1.5 bg-muted rounded-lg border border-border">
            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-background rounded-md shadow-sm border border-border">
               <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sistema Live</span>
@@ -296,8 +296,8 @@ export default function DashboardPage() {
               <AreaChart data={activityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorConversations" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(28 40% 30%)" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="hsl(28 40% 30%)" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="hsl(219 81% 43%)" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="hsl(219 81% 43%)" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(142 45% 40%)" stopOpacity={0.2}/>
@@ -307,7 +307,7 @@ export default function DashboardPage() {
                 <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(30 10% 44%)' }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(30 10% 44%)' }} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Area type="monotone" dataKey="conversations" stroke="hsl(28 40% 30%)" fill="url(#colorConversations)" strokeWidth={2} dot={false} />
+                <Area type="monotone" dataKey="conversations" stroke="hsl(219 81% 43%)" fill="url(#colorConversations)" strokeWidth={2} dot={false} />
                 <Area type="monotone" dataKey="resolved" stroke="hsl(142 45% 40%)" fill="url(#colorResolved)" strokeWidth={2} dot={false} />
               </AreaChart>
             </ChartContainer>
@@ -399,7 +399,7 @@ export default function DashboardPage() {
                 </thead>
                 <tbody>
                   {perUser.map((u, i) => (
-                    <tr key={u.id} className="border-b last:border-0 hover:bg-[#284030]/5 dark:hover:bg-primary/5 transition-all">
+                    <tr key={u.id} className="border-b last:border-0 hover:bg-muted dark:hover:bg-primary/5 transition-all">
                       <td className="py-3 px-4">
                         <span className={cn(
                           "inline-flex items-center justify-center w-6 h-6 rounded-md text-[10px] font-bold border",
@@ -411,7 +411,7 @@ export default function DashboardPage() {
                       <td className="py-3 px-4 font-medium">{u.name}</td>
                       <td className="text-center py-3 px-4"><span className="font-bold">{u.active}</span></td>
                       <td className="text-center py-3 px-4">
-                        <span className="inline-flex items-center justify-center bg-[#284030]/10 text-primary px-2 py-1 rounded-md font-bold text-[10px] border border-primary/20">
+                        <span className="inline-flex items-center justify-center bg-accent text-primary px-2 py-1 rounded-md font-bold text-[10px] border border-primary/20">
                           {u.resolvedCount}
                         </span>
                       </td>

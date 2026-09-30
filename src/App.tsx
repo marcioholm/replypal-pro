@@ -37,6 +37,7 @@ function lazyWithRetry<T extends ComponentType<any>>(factory: () => Promise<{ de
   });
 }
 
+const HomePage = lazyWithRetry(() => import("@/pages/HomePage"));
 const ChatPage = lazyWithRetry(() => import("@/pages/ChatPage"));
 const PipelinePage = lazyWithRetry(() => import("@/pages/PipelinePage"));
 const DashboardPage = lazyWithRetry(() => import("@/pages/DashboardPage"));
@@ -158,11 +159,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
   const currentRole = (user?.role || "atendente") as UserRole;
 
-  if (!hasPermission(location.pathname, currentRole)) {
+  // Só checa permissão depois que o usuário carregou — antes, um admin que
+  // recarregava /settings era mandado para a caixa de entrada.
+  if (!isLoading && user && !hasPermission(location.pathname, currentRole)) {
     return <Navigate to="/" replace />;
   }
 
@@ -187,6 +190,7 @@ function AppRoutes() {
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
                     <Route path="/" element={<InboxPage />} />
+                    <Route path="/inicio" element={<HomePage />} />
                     <Route path="/chat/:id" element={<ChatPage />} />
                     <Route path="/pipeline" element={<PipelinePage />} />
                     <Route path="/dashboard" element={<DashboardPage />} />

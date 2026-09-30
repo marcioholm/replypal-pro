@@ -130,7 +130,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     <aside
       className={cn(
         "fixed left-0 top-0 bottom-0 z-50 flex flex-col bg-sidebar-gradient text-sidebar-foreground transition-[width] duration-300 ease-out",
-        collapsed ? "w-20" : "w-[248px]"
+        collapsed ? "w-20" : "w-[256px]"
       )}
     >
       <TooltipProvider delayDuration={0}>
