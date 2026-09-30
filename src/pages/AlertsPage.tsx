@@ -9,8 +9,10 @@ import {
   Save,
   Loader2,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,7 +26,8 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { PillToggle, Chip } from "@/components/conta-ui";
+import { PillToggle, InitialsAvatar } from "@/components/conta-ui";
+import { useStore, formatRelativeTime, type Conversation } from "@/lib/store";
 
 interface AlertaConfig {
   id?: string;
@@ -40,6 +43,29 @@ interface AlertaConfig {
   mensagem_template: string;
 }
 
+// Map database row to Conversation
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapConv(c: any): Conversation {
+  return {
+    id: c.id,
+    clientName: c.client_name || "Cliente",
+    clientPhone: c.client_phone || "",
+    customerId: c.customer_id,
+    lastMessage: c.last_message || "",
+    lastMessageTime: new Date(c.last_message_time || Date.now()),
+    status: c.status || "novo",
+    assignedTo: c.assigned_to,
+    startedAt: c.started_at ? new Date(c.started_at) : undefined,
+    slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
+    tenantId: c.tenant_id,
+    tags: c.tags || [],
+    clientAvatar: c.client_avatar,
+    isGroup: c.is_group,
+    protocolo: c.protocolo,
+    resolvedAt: c.resolved_at,
+  };
+}
+
 const DIAS_SEMANA = [
   { id: "1", label: "Segunda" },
   { id: "2", label: "Terça" },
@@ -52,8 +78,10 @@ const DIAS_SEMANA = [
 
 export default function AlertsPage() {
   const { user } = useAuth();
+  const store = useStore();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [activeAlerts, setActiveAlerts] = useState<Conversation[]>([]);
   const [alerta, setAlerta] = useState<AlertaConfig>({
     tenant_id: "",
     nome: "Cliente sem resposta",
@@ -91,6 +119,23 @@ export default function AlertsPage() {
           dias_semana: Array.isArray(data.dias_semana) ? data.dias_semana : JSON.parse(data.dias_semana || "[]")
         });
       }
+
+      // Buscar conversas abertas para os Alertas Ativos
+      const { data: convsData } = await supabase
+        .from("conversas")
+        .select("id, client_name, client_phone, customer_id, last_message, last_message_time, status, assigned_to, started_at, sla_deadline, tenant_id, tags, client_avatar, is_group, protocolo, resolved_at")
+        .eq("tenant_id", user?.tenantId)
+        .neq("status", "resolvido");
+
+      if (convsData) {
+         const convs = convsData.map(mapConv).filter(c => !c.isGroup);
+         // Filtrar estourados
+         const estourados = convs.filter(c => store.getSLAStatus(c) === "estourado");
+         // Ordenar do mais antigo para o mais recente (os que estão estourados há mais tempo)
+         estourados.sort((a, b) => a.lastMessageTime.getTime() - b.lastMessageTime.getTime());
+         setActiveAlerts(estourados);
+      }
+
     } catch (err) {
       console.error("Erro ao carregar alerta:", err);
       toast.error("Erro ao carregar configurações de alerta");
@@ -165,6 +210,47 @@ export default function AlertsPage() {
   return (
     <div className="flex flex-col gap-5 px-8 pb-8 pt-5">
       <div className="grid gap-6">
+        {/* Painel de Alertas Ativos */}
+        <Card className="rounded-xl bg-card border-0 shadow-none overflow-hidden">
+          <CardHeader className="pb-4 border-b border-border">
+            <CardTitle className="text-xl flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Alertas Ativos
+            </CardTitle>
+            <CardDescription>
+              Conversas que já estouraram o prazo de resposta ({activeAlerts.length}).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+             {activeAlerts.length === 0 ? (
+               <div className="text-[13px] text-muted-foreground p-8 text-center">
+                 Tudo em dia! Nenhum cliente esperando fora do prazo no momento.
+               </div>
+             ) : (
+               <div className="divide-y divide-border">
+                 {activeAlerts.map(c => (
+                   <Link key={c.id} to={`/chat/${c.id}`} className="flex items-center gap-4 px-6 py-4 hover:bg-muted/30 transition-colors">
+                      <InitialsAvatar name={c.clientName} src={c.clientAvatar} />
+                      <div className="flex-1 min-w-0 flex flex-col">
+                         <span className="font-bold text-sm truncate">{c.clientName}</span>
+                         <span className="text-[13px] text-muted-foreground truncate">{c.lastMessage || "Sem mensagens"}</span>
+                      </div>
+                      <div className="flex flex-col items-end shrink-0">
+                         <span className="text-xs font-semibold text-destructive uppercase tracking-wider mb-1">
+                           SLA Estourado
+                         </span>
+                         <span className="text-xs text-muted-foreground">
+                           Ultima msg: {formatRelativeTime(c.lastMessageTime)}
+                         </span>
+                      </div>
+                   </Link>
+                 ))}
+               </div>
+             )}
+          </CardContent>
+        </Card>
+
+        {/* Configurações de Automação de Alerta */}
         <Card className="rounded-xl bg-card border-0 shadow-none overflow-hidden">
           <CardHeader className="pb-6">
             <div className="flex items-center justify-between">
