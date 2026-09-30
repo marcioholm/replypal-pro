@@ -13,6 +13,7 @@ import {
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { Chip } from "@/components/conta-ui";
 
 export default function DashboardPage() {
   const store = useStore();
@@ -253,23 +254,11 @@ export default function DashboardPage() {
   const total = convs.length || 1;
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto animate-in fade-in duration-700">
-      <div className="flex items-center justify-between">
-        <div>
-           <h1 className="text-3xl font-bold tracking-tight text-foreground">Relatórios Operacionais</h1>
-           <p className="text-muted-foreground">Monitoramento em tempo real do atendimento contábil.</p>
-        </div>
-        <div className="flex items-center gap-2 p-1.5 bg-muted rounded-lg border border-border">
-           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-background rounded-md shadow-sm border border-border">
-              <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sistema Live</span>
-           </div>
-        </div>
-      </div>
+    <div className="flex flex-col gap-5 px-8 pb-8">
 
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {stats.map((s) => (
-          <Card key={s.label} className="hover:shadow-md transition-all border border-border shadow-sm group bg-white dark:bg-card">
+          <Card key={s.label} className="rounded-xl bg-card border-0 shadow-none transition-all group">
             <CardContent className="pt-6 pb-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="p-2 rounded-md bg-secondary text-primary">
@@ -277,16 +266,16 @@ export default function DashboardPage() {
                 </div>
                 <span className="text-2xl font-bold tracking-tight">{s.value}</span>
               </div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase opacity-70 tracking-wider font-mono">{s.label}</p>
+              <p className="text-[11px] font-semibold text-muted-foreground">{s.label}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="border border-border shadow-sm bg-white dark:bg-card overflow-hidden">
-          <CardHeader className="pb-3 bg-muted/20 border-b">
-            <CardTitle className="text-xs font-bold uppercase tracking-[0.2em] flex items-center gap-2 text-muted-foreground">
+        <Card className="rounded-xl bg-card border-0 shadow-none overflow-hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[11px] font-semibold flex items-center gap-2 text-muted-foreground">
               <Activity className="w-4 h-4" />
               Volume de Atendimentos
             </CardTitle>
@@ -314,9 +303,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border border-border shadow-sm bg-white dark:bg-card overflow-hidden">
-          <CardHeader className="pb-3 bg-muted/20 border-b">
-            <CardTitle className="text-xs font-bold uppercase tracking-[0.2em] flex items-center gap-2 text-muted-foreground">
+        <Card className="rounded-xl bg-card border-0 shadow-none overflow-hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[11px] font-semibold flex items-center gap-2 text-muted-foreground">
               <BarChart3 className="w-4 h-4" />
               Distribuição por Status
             </CardTitle>
@@ -327,8 +316,8 @@ export default function DashboardPage() {
                 {statusDistribution.map((s) => (
                   <div key={s.label} className="group cursor-default">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-medium text-muted-foreground">{s.label}</span>
-                      <span className="text-[10px] font-bold">{s.count}</span>
+                      <span className="text-[11px] font-medium text-muted-foreground">{s.label}</span>
+                      <span className="text-[11px] font-bold">{s.count}</span>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
                       <div 
@@ -364,7 +353,7 @@ export default function DashboardPage() {
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
                     <span className="text-xl font-bold">{total}</span>
-                    <p className="text-[8px] text-muted-foreground uppercase">Total</p>
+                    <p className="text-[11px] text-muted-foreground">Total</p>
                   </div>
                 </div>
               </div>
@@ -375,9 +364,9 @@ export default function DashboardPage() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Ranking de atendentes */}
-        <Card className="animate-fade-in lg:col-span-2 border border-border shadow-sm bg-white dark:bg-card overflow-hidden">
-          <CardHeader className="pb-3 bg-muted/20 border-b">
-            <CardTitle className="text-xs font-bold uppercase tracking-[0.2em] flex items-center justify-between text-muted-foreground">
+        <Card className="lg:col-span-2 rounded-xl bg-card border-0 shadow-none overflow-hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[11px] font-semibold flex items-center justify-between text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Trophy className="w-4 h-4 text-primary" />
                 Performance da Equipe
@@ -389,35 +378,32 @@ export default function DashboardPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b bg-muted/10">
-                    <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-widest text-[9px]">Rank</th>
-                    <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-widest text-[9px]">Atendente</th>
-                    <th className="text-center py-3 px-4 font-bold text-muted-foreground uppercase tracking-widest text-[9px]">Fila</th>
-                    <th className="text-center py-3 px-4 font-bold text-muted-foreground uppercase tracking-widest text-[9px]">Resolvidos</th>
-                    <th className="text-center py-3 px-4 font-bold text-muted-foreground uppercase tracking-widest text-[9px]">Eficiência</th>
+                  <tr className="border-b border-border/50">
+                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-[11px]">Rank</th>
+                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-[11px]">Atendente</th>
+                    <th className="text-center py-3 px-4 font-semibold text-muted-foreground text-[11px]">Fila</th>
+                    <th className="text-center py-3 px-4 font-semibold text-muted-foreground text-[11px]">Resolvidos</th>
+                    <th className="text-center py-3 px-4 font-semibold text-muted-foreground text-[11px]">Eficiência</th>
                   </tr>
                 </thead>
                 <tbody>
                   {perUser.map((u, i) => (
                     <tr key={u.id} className="border-b last:border-0 hover:bg-muted dark:hover:bg-primary/5 transition-all">
                       <td className="py-3 px-4">
-                        <span className={cn(
-                          "inline-flex items-center justify-center w-6 h-6 rounded-md text-[10px] font-bold border",
-                          i === 0 ? "bg-primary/10 text-primary border-primary/20" : "bg-muted text-muted-foreground border-border"
-                        )}>
+                        <Chip tone={i === 0 ? "blue" : "grey"} className="w-6 h-6 justify-center p-0 rounded-md">
                           {i + 1}
-                        </span>
+                        </Chip>
                       </td>
                       <td className="py-3 px-4 font-medium">{u.name}</td>
                       <td className="text-center py-3 px-4"><span className="font-bold">{u.active}</span></td>
-                      <td className="text-center py-3 px-4">
-                        <span className="inline-flex items-center justify-center bg-accent text-primary px-2 py-1 rounded-md font-bold text-[10px] border border-primary/20">
+                      <td className="text-center py-3 px-4 flex justify-center">
+                        <Chip tone="green" className="justify-center">
                           {u.resolvedCount}
-                        </span>
+                        </Chip>
                       </td>
                       <td className="text-center py-3 px-4">
-                        <div className="flex flex-col items-center">
-                          <span className="font-mono text-[10px]">{u.avgTime > 0 ? `${u.avgTime}min` : "—"}</span>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="font-mono text-[11px]">{u.avgTime > 0 ? `${u.avgTime}min` : "—"}</span>
                           <div className="w-full max-w-[60px] h-1 bg-muted rounded-full mt-1 overflow-hidden">
                              <div className="h-full bg-primary" style={{ width: `${Math.min(100, (u.resolvedCount / 10) * 100)}%` }} />
                           </div>
@@ -433,32 +419,32 @@ export default function DashboardPage() {
 
         {/* Anniversaries Column */}
         <div className="space-y-6">
-          <Card className="border border-border shadow-sm bg-white dark:bg-card animate-in slide-in-from-bottom-4 duration-500">
+          <Card className="rounded-xl bg-card border-0 shadow-none">
             <CardHeader className="pb-3 border-b border-border/50">
-              <CardTitle className="text-xs font-bold uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
+              <CardTitle className="text-[11px] font-semibold flex items-center gap-2 text-primary">
                 <Cake className="w-4 h-4" />
                 Eventos do Mês
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 px-4 pb-4 space-y-4">
               <div className="space-y-3">
-                <h3 className="text-[10px] font-bold text-muted-foreground uppercase opacity-70 tracking-[0.2em]">Pilar Fundação (Empresa)</h3>
+                <h3 className="text-[11px] font-semibold text-muted-foreground">Pilar Fundação (Empresa)</h3>
                 {foundationAnniversaries.length === 0 ? (
-                  <p className="text-[10px] italic text-muted-foreground opacity-50 py-2">Nenhum aniversário este mês.</p>
+                  <p className="text-[11px] italic text-muted-foreground opacity-50 py-2">Nenhum aniversário este mês.</p>
                 ) : (
                   foundationAnniversaries.map((anniv) => (
                     <div key={anniv.id} className="flex items-center justify-between p-3 rounded-xl bg-background border border-border/40 hover:border-primary/30 transition-all group">
                        <div className="flex gap-3 items-center">
                           <div className="w-10 h-10 rounded-lg bg-primary/5 flex flex-col items-center justify-center border border-primary/10 group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0">
-                             <span className="text-[8px] font-bold uppercase leading-none">{new Date().toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}</span>
-                             <span className="text-sm font-black italic">{anniv.day}</span>
+                             <span className="text-[11px] font-semibold leading-none capitalize">{new Date().toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}</span>
+                             <span className="text-sm font-bold">{anniv.day}</span>
                           </div>
                           <div className="min-w-0">
-                             <p className="text-xs font-bold truncate">{anniv.name}</p>
-                             <p className="text-[10px] text-muted-foreground">{anniv.years} anos de história</p>
+                             <p className="text-xs font-semibold truncate">{anniv.name}</p>
+                             <p className="text-[11px] text-muted-foreground">{anniv.years} anos de história</p>
                           </div>
                        </div>
-                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary">
+                       <Button variant="ghost" size="icon" aria-label="Abrir" className="h-8 w-8 hover:bg-primary/10 hover:text-primary">
                           <ArrowUpRight className="w-3.5 h-3.5" />
                        </Button>
                     </div>
@@ -467,23 +453,23 @@ export default function DashboardPage() {
               </div>
 
               <div className="space-y-3 pt-2">
-                <h3 className="text-[10px] font-bold text-muted-foreground uppercase opacity-70 tracking-[0.2em]">Pilar Parceria (Serviço)</h3>
+                <h3 className="text-[11px] font-semibold text-muted-foreground">Pilar Parceria (Serviço)</h3>
                 {serviceAnniversaries.length === 0 ? (
-                  <p className="text-[10px] italic text-muted-foreground opacity-50 py-2">Nenhum aniversário este mês.</p>
+                  <p className="text-[11px] italic text-muted-foreground opacity-50 py-2">Nenhum aniversário este mês.</p>
                 ) : (
                   serviceAnniversaries.map((anniv) => (
                     <div key={anniv.id} className="flex items-center justify-between p-3 rounded-xl bg-background border border-border/40 hover:border-success/30 transition-all group">
                        <div className="flex gap-3 items-center">
                           <div className="w-10 h-10 rounded-lg bg-success/5 flex flex-col items-center justify-center border border-success/10 group-hover:bg-success group-hover:text-success-foreground transition-colors shrink-0">
-                             <span className="text-[8px] font-bold uppercase leading-none">{new Date().toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}</span>
-                             <span className="text-sm font-black italic">{anniv.day}</span>
+                             <span className="text-[11px] font-semibold leading-none capitalize">{new Date().toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}</span>
+                             <span className="text-sm font-bold">{anniv.day}</span>
                           </div>
                           <div className="min-w-0">
-                             <p className="text-xs font-bold truncate">{anniv.name}</p>
-                             <p className="text-[10px] text-muted-foreground">{anniv.years} anos de confiança</p>
+                             <p className="text-xs font-semibold truncate">{anniv.name}</p>
+                             <p className="text-[11px] text-muted-foreground">{anniv.years} anos de confiança</p>
                           </div>
                        </div>
-                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-success/10 hover:text-success">
+                       <Button variant="ghost" size="icon" aria-label="Abrir" className="h-8 w-8 hover:bg-success/10 hover:text-success">
                           <ArrowUpRight className="w-3.5 h-3.5" />
                        </Button>
                     </div>
