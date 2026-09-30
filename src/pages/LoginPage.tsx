@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, EyeOff, Loader2, Shield, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LoginFormData {
@@ -184,40 +184,28 @@ export default function LoginPage() {
 
         {/* Right Side - Brand / Illustration */}
         <div className="hidden md:flex w-1/2 bg-[#1b56b8] p-12 flex-col relative overflow-hidden">
-          {/* Abstract SVG Background to emulate the illustration vibe */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center">
-             <svg width="150%" height="150%" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg" className="opacity-80">
-                <g fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="2">
-                   <circle cx="400" cy="400" r="200" />
-                   <circle cx="400" cy="400" r="300" />
-                   <circle cx="400" cy="400" r="400" />
-                   <path d="M 0 400 L 800 400" />
-                   <path d="M 400 0 L 400 800" />
-                </g>
-                <circle cx="400" cy="200" r="6" fill="white" className="animate-pulse" />
-                <circle cx="600" cy="400" r="4" fill="white" className="animate-pulse" />
-                <circle cx="200" cy="600" r="8" fill="white" className="animate-pulse" />
-             </svg>
+          
+          {/* Imagem de Fundo (Contabilidade) com Overlay para não perder a cor da marca */}
+          <div className="absolute inset-0">
+            <img 
+              src="/accounting_bg.png" 
+              alt="Contabilidade" 
+              className="w-full h-full object-cover opacity-30 mix-blend-overlay"
+            />
+            {/* Gradiente extra para garantir legibilidade do texto no rodapé */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1b56b8] via-transparent to-transparent opacity-80" />
           </div>
-
-          {/* Decorative Blur */}
-          <div className="absolute -top-20 -right-20 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative z-10 flex flex-col h-full">
             <div className="mt-8 space-y-4">
-              <h2 className="text-[40px] font-bold text-white leading-[1.1] tracking-tight">
+              <h2 className="text-[40px] font-bold text-white leading-[1.1] tracking-tight drop-shadow-md">
                 Bem-vindo ao<br/>portal do escritório
               </h2>
-              <p className="text-white/80 text-[15px] max-w-[300px] leading-relaxed font-medium">
+              <p className="text-white/90 text-[15px] max-w-[300px] leading-relaxed font-medium drop-shadow">
                 O atendimento do seu escritório, organizado do WhatsApp à carteira de clientes.
               </p>
             </div>
-
-            <div className="flex-1 flex items-center justify-center mt-12">
-               <div className="w-56 h-56 bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl flex items-center justify-center rotate-3 hover:rotate-0 transition-transform duration-500">
-                 <Shield className="w-20 h-20 text-white" strokeWidth={1.5} />
-               </div>
-            </div>
+            <div className="flex-1" />
           </div>
         </div>
 
