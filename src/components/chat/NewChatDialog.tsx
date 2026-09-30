@@ -16,9 +16,11 @@ import { cn, getBrazilianPhoneVariations } from "@/lib/utils";
 
 interface NewChatDialogProps {
   collapsed?: boolean;
+  /** Botão-pílula compacto para a barra superior */
+  compact?: boolean;
 }
 
-export function NewChatDialog({ collapsed }: NewChatDialogProps) {
+export function NewChatDialog({ collapsed, compact }: NewChatDialogProps) {
   const [open, setOpen] = useState(false);
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
@@ -223,7 +225,12 @@ export function NewChatDialog({ collapsed }: NewChatDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {collapsed ? (
+        {compact ? (
+          <Button className="h-10 gap-2 px-4">
+            <Plus className="h-4 w-4" strokeWidth={2.5} />
+            <span className="hidden lg:inline">Nova conversa</span>
+          </Button>
+        ) : collapsed ? (
           <Button variant="primary" size="icon" className="w-12 h-12 rounded-2xl shadow-lg shadow-primary/20">
             <Plus className="w-6 h-6" />
           </Button>

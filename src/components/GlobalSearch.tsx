@@ -56,14 +56,21 @@ export function GlobalSearch() {
   return (
     <>
       <button
+        type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground bg-white/20 dark:bg-black/20 hover:bg-white/40 dark:hover:bg-black/40 rounded-xl border border-white/20 dark:border-white/10 transition-all shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.04)]"
+        className="hidden h-10 w-[280px] items-center gap-2 rounded-full bg-card px-3.5 text-left text-[13px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring xl:flex"
       >
-        <Search className="w-4 h-4 text-primary" />
-        <span className="hidden sm:inline font-medium">Pesquisar sistema...</span>
-        <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded-md border bg-muted/50 px-1.5 font-mono text-[10px] font-bold text-muted-foreground ml-4 shadow-sm">
-          <span className="text-[10px]">⌘</span>K
-        </kbd>
+        <Search className="h-4 w-4 shrink-0" />
+        <span className="flex-1 truncate">Buscar cliente, CNPJ ou conversa</span>
+        <kbd className="rounded-md border border-border px-1.5 text-[11px] font-bold text-muted-foreground">Ctrl K</kbd>
+      </button>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Buscar"
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-card text-muted-foreground xl:hidden"
+      >
+        <Search className="h-4 w-4" />
       </button>
       <CommandDialog open={open} onOpenChange={setOpen}>
         <CommandInput placeholder="Buscar conversas, clientes, páginas..." className="h-12" />
