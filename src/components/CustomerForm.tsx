@@ -113,7 +113,11 @@ const customerFormSchema = z.object({
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
 interface CustomerFormProps {
-  initialData?: Customer;
+  initialData?: Partial<Customer> & {
+    nome_fantasia?: string;
+    razao_social?: string;
+    responsavel?: string;
+  };
   onSuccess?: (customer: Customer) => void;
 }
 
@@ -177,11 +181,33 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
-    defaultValues: initialData ? {
-      ...initialData,
-      serviceLevel: (initialData.serviceLevel as any) || "Padrão",
-      preferredChannel: (initialData.preferredChannel as any) || "WhatsApp",
-      contacts: (initialData.contacts || []).map(c => ({
+    defaultValues: {
+      razaoSocial: initialData?.razaoSocial || initialData?.razao_social || initialData?.name || initialData?.nome_fantasia || "",
+      name: initialData?.name || initialData?.nome_fantasia || initialData?.razaoSocial || "",
+      cnpj: initialData?.cnpj || "",
+      responsibleName: initialData?.responsibleName || initialData?.responsavel || "",
+      whatsapp: initialData?.whatsapp || "",
+      phone: initialData?.phone || "",
+      email: initialData?.email || "",
+      city: initialData?.city || "",
+      state: initialData?.state || "",
+      regime: (initialData?.regime as any) || "Simples Nacional",
+      naturezaJuridica: initialData?.naturezaJuridica || "",
+      cnae: initialData?.cnae || "",
+      openingDate: initialData?.openingDate || undefined,
+      hasEmployees: initialData?.hasEmployees || false,
+      employeeCount: initialData?.employeeCount || 0,
+      status: (initialData?.status as any) || "Ativo",
+      priority: (initialData?.priority as any) || "Média",
+      serviceLevel: (initialData?.serviceLevel as any) || "Padrão",
+      preferredChannel: (initialData?.preferredChannel as any) || "WhatsApp",
+      preferredTime: (initialData as any)?.preferredTime || "",
+      plan: initialData?.plan || "Mensal",
+      monthlyValue: initialData?.monthlyValue || 0,
+      startDate: initialData?.startDate || undefined,
+      financialStatus: (initialData?.financialStatus as any) || "Adimplente",
+      origin: initialData?.origin || "whatsapp",
+      contacts: (initialData?.contacts || []).map(c => ({
         id: c.id,
         name: c.name || c.nome || "",
         role: c.role || "",
@@ -192,38 +218,11 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
         pode_receber_documentos: !!(c.pode_receber_documentos ?? c.podeReceberDocumentos),
         pode_receber_certificado: !!(c.pode_receber_certificado ?? c.podeReceberCertificado),
       })),
-      tags: initialData.tags || [],
-    } : {
-      razaoSocial: "",
-      name: "",
-      cnpj: "",
-      responsibleName: "",
-      whatsapp: "",
-      phone: "",
-      email: "",
-      city: "",
-      state: "",
-      regime: "Simples Nacional",
-      naturezaJuridica: "",
-      cnae: "",
-      openingDate: undefined,
-      hasEmployees: false,
-      employeeCount: 0,
-      status: "Ativo",
-      priority: "Média",
-      serviceLevel: "Padrão",
-      preferredChannel: "WhatsApp",
-      plan: "",
-      monthlyValue: 0,
-      startDate: undefined,
-      financialStatus: "Adimplente",
-      origin: "",
-      contacts: [],
-      observations: "",
-      tags: [],
-      driveFolderUrl: "",
-      drivePayrollUrl: "",
-      driveBillingUrl: "",
+      observations: initialData?.observations || "",
+      tags: initialData?.tags || [],
+      driveFolderUrl: initialData?.driveFolderUrl || "",
+      drivePayrollUrl: initialData?.drivePayrollUrl || "",
+      driveBillingUrl: initialData?.driveBillingUrl || "",
     },
   });
 
@@ -321,7 +320,7 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
         
         store.updateCustomer(initialData.id, values);
         toast.success("Cliente atualizado com sucesso!");
-        if (onSuccess) onSuccess({ ...initialData, ...values });
+        if (onSuccess) onSuccess({ ...initialData, ...values } as Customer);
       } else {
         // Novo Cadastro
         const existing = store.getCustomerByCnpj(values.cnpj);
