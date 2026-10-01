@@ -932,6 +932,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error("[Webhook] Erro crítico no salvamento:", err);
       }
 
+      // DISPARO N8N DOCUMENTOS (sem esperar) para mensagens de texto recebidas do cliente
+      if (!isFromMe && type === 'text' && content && conv?.id) {
+        const n8nDocWebhook = process.env.N8N_DOCUMENTOS_WEBHOOK || process.env.VITE_N8N_WEBHOOK_DOCUMENTOS;
+        if (n8nDocWebhook) {
+          fetch(n8nDocWebhook, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tenant_id: tenantId,
+              conversa_id: conv.id,
+              telefone: phone,
+              texto: content,
+            }),
+          }).catch(err => {
+            console.error('[Webhook] Erro ao chamar N8N_DOCUMENTOS_WEBHOOK:', err.message);
+          });
+        }
+      }
+
       const lastMsg = content || (
         type === 'image' ? '[Imagem]' :
         type === 'video' ? '[Vídeo]' :

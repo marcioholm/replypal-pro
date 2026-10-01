@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AlertsPage from "./AlertsPage";
 import DailyReportPage from "./DailyReportPage";
+import DocumentosAutomaticosSettings from "@/components/settings/DocumentosAutomaticosSettings";
 
 type WhatsAppStatus = "idle" | "loading" | "qrcode" | "connected";
 
@@ -528,7 +529,20 @@ export default function SettingsPage() {
             <FileText className="w-3.5 h-3.5" />
             Relatórios
           </TabsTrigger>
+          {user?.role === "admin" && (
+            <TabsTrigger value="documentos-auto" className="flex items-center gap-2 text-xs py-2 px-4">
+              <FileText className="w-3.5 h-3.5 text-primary" />
+              Documentos automáticos
+            </TabsTrigger>
+          )}
         </TabsList>
+
+        {/* Documentos automáticos */}
+        {user?.role === "admin" && (
+          <TabsContent value="documentos-auto">
+            <DocumentosAutomaticosSettings />
+          </TabsContent>
+        )}
 
         {/* Alertas Inteligentes */}
         <TabsContent value="alertas">

@@ -9,10 +9,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { 
   FileText, Upload, CheckCircle2, AlertCircle, Loader2, 
   ExternalLink, Calendar, Paperclip, Building2, UserCircle, Calculator, FileCheck,
-  History, X
+  History, X, ShieldCheck
 } from "lucide-react";
 import DocumentosHistorico from "./DocumentosHistorico";
 import DadosFinanceiros from "./DadosFinanceiros";
+import { supabase } from "@/lib/supabase";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
@@ -135,6 +146,32 @@ export default function ClienteDocumentos({ clienteId, clienteNome }: ClienteDoc
             description="Contratos e certificados permanentes"
           >
             <div className="grid gap-3">
+              <DocumentItem 
+                tipo="cartao_cnpj" 
+                label="Cartão CNPJ" 
+                category="Fixo"
+                month={0}
+                year={0}
+                status={getDocStatus("cartao_cnpj", "Fixo")}
+                clienteId={clienteId}
+                clienteNome={clienteNome}
+                onUploadSuccess={fetchDocuments}
+                webhookUrl={webhookUrl}
+                currentUser={user?.name || "Usuário"}
+              />
+              <DocumentItem 
+                tipo="alvara" 
+                label="Alvará de Funcionamento" 
+                category="Fixo"
+                month={0}
+                year={0}
+                status={getDocStatus("alvara", "Fixo")}
+                clienteId={clienteId}
+                clienteNome={clienteNome}
+                onUploadSuccess={fetchDocuments}
+                webhookUrl={webhookUrl}
+                currentUser={user?.name || "Usuário"}
+              />
               <DocumentItem 
                 tipo="contrato_social" 
                 label="Contrato Social" 
@@ -329,11 +366,22 @@ function DocumentItem({ tipo, label, category, month, year, status, clienteId, c
     });
   };
 
-  const handleUpload = async () => {
+  const [substituirDialogOpen, setSubstituirDialogOpen] = useState(false);
+
+  const executeUpload = async (substituirVigente: boolean = true) => {
     if (!selectedFile) return;
 
     setUploading(true);
     try {
+      // Se for contrato social e tiver escolhido substituir, marcar anteriores como vigente = false
+      if (tipo === "contrato_social" && substituirVigente) {
+        await supabase
+          .from("documentos")
+          .update({ vigente: false })
+          .eq("cliente_id", clienteId)
+          .eq("tipo", "contrato_social");
+      }
+
       const base64 = await fileToBase64(selectedFile);
       const payload = {
         cliente_id: clienteId,
@@ -345,7 +393,8 @@ function DocumentItem({ tipo, label, category, month, year, status, clienteId, c
         arquivo_base64: base64,
         arquivo_nome: selectedFile.name,
         arquivo_tipo: selectedFile.type,
-        uploaded_by: currentUser
+        uploaded_by: currentUser,
+        vigente: true,
       };
 
       if (!webhookUrl) {
@@ -382,6 +431,17 @@ function DocumentItem({ tipo, label, category, month, year, status, clienteId, c
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+
+    if (tipo === "contrato_social" && status) {
+      setSubstituirDialogOpen(true);
+      return;
+    }
+
+    await executeUpload(true);
   };
 
   return (
@@ -465,6 +525,27 @@ function DocumentItem({ tipo, label, category, month, year, status, clienteId, c
           </div>
         )}
       </div>
+
+      {substituirDialogOpen && (
+        <AlertDialog open={substituirDialogOpen} onOpenChange={setSubstituirDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Substituir a versão vigente?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Já existe um Contrato Social cadastrado para este cliente. Deseja marcar este novo arquivo como a versão vigente e desativar a versão anterior para pedidos automáticos?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => executeUpload(false)}>
+                Manter Ambos (Não substituir)
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={() => executeUpload(true)}>
+                Substituir Vigente
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }

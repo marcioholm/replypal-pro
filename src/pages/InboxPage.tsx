@@ -62,6 +62,7 @@ export default function InboxPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
   const [slaFilter, setSlaFilter] = useState<{ em_risco: boolean; estourado: boolean }>({ em_risco: false, estourado: false });
   const [sortMode, setSortMode] = useState<SortMode>("urgencia");
+  const [pedidosPendentesConvs, setPedidosPendentesConvs] = useState<Set<string>>(new Set());
   const conversationsRef = useRef<{ id: string }[]>([]);
 
   // 1. Helpers e FetchData
@@ -109,6 +110,24 @@ export default function InboxPage() {
             });
             setUnreadCounts(counts);
           }
+        }
+
+        // Buscar pedidos de documento pendentes para exibir o chip "Pediu documento"
+        try {
+          const { data: pedidosData } = await supabase
+            .from("vw_pedidos_documento_pendentes")
+            .select("conversa_id")
+            .eq("tenant_id", tenantId);
+
+          if (pedidosData) {
+            const setIds = new Set<string>();
+            pedidosData.forEach(p => {
+              if (p.conversa_id) setIds.add(p.conversa_id);
+            });
+            setPedidosPendentesConvs(setIds);
+          }
+        } catch (pedErr) {
+          console.error("Erro ao carregar pedidos pendentes para a inbox:", pedErr);
         }
 
         const formattedConvs = dbConvs.map(c => ({
@@ -578,6 +597,11 @@ export default function InboxPage() {
                         )}
                       </span>
                       <span className="flex items-center gap-1.5">
+                        {pedidosPendentesConvs.has(conv.id) && (
+                          <Chip tone="amber" className="font-extrabold shadow-sm">
+                            Pediu documento
+                          </Chip>
+                        )}
                         {owner && <span className="max-w-[110px] truncate text-xs text-muted-foreground">{owner.id === user.id ? "Você" : owner.name}</span>}
                         {sla !== "ok" ? (
                           <Chip tone={sla === "estourado" ? "red" : "amber"}>
