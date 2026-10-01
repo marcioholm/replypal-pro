@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 
 const PAGE_TITLES: [prefix: string, title: string][] = [
   ["/inicio", "Início"],
+  ["/triagem", "Triagem de Conversas"],
+  ["/pre-venda", "Pré-venda (Oportunidades)"],
   ["/chat/", "Conversa"],
   ["/pipeline", "Pipeline"],
   ["/scheduled", "Agendamentos"],

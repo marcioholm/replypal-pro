@@ -146,7 +146,9 @@ export default function InboxPage() {
           isGroup: c.is_group,
           clientAvatar: c.client_avatar,
           protocolo: c.protocolo,
-          resolvedAt: c.resolved_at
+          resolvedAt: c.resolved_at,
+          funil: c.funil,
+          arquivoMotivo: c.arquivo_motivo
         }));
         storeRef.current.addDbConversations(formattedConvs);
       }
@@ -310,8 +312,11 @@ export default function InboxPage() {
     }
   };
 
-  // 4. Memoized Data
-  const allConversations = useMemo(() => store.conversations || [], [store.conversations]);
+  // 4. Memoized Data (Caixa de Entrada mostra só funil = 'atendimento')
+  const allConversations = useMemo(
+    () => (store.conversations || []).filter(c => (c.funil || "atendimento") === "atendimento"),
+    [store.conversations]
+  );
 
   const matchesView = useCallback((c: (typeof allConversations)[number], view: Filter) => {
     const open = c.status?.toLowerCase() !== "resolvido";

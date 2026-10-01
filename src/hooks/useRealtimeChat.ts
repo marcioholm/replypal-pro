@@ -61,6 +61,8 @@ export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: Us
               isTyping: newRecord.is_typing,
               protocolo: newRecord.protocolo,
               resolvedAt: newRecord.resolved_at,
+              funil: newRecord.funil,
+              arquivoMotivo: newRecord.arquivo_motivo,
             });
           } else if (eventType === "UPDATE" && newRecord) {
             // Se mudou para mim, notificar
@@ -83,6 +85,8 @@ export function useRealtimeChat({ tenantId, userId, enabled = true, notify }: Us
               isTyping: newRecord.is_typing,
               protocolo: newRecord.protocolo,
               resolvedAt: newRecord.resolved_at,
+              funil: newRecord.funil,
+              arquivoMotivo: newRecord.arquivo_motivo,
             });
           } else if (eventType === "DELETE" && oldRecord) {
             // Remover conversa

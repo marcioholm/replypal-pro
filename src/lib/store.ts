@@ -110,6 +110,9 @@ export interface Customer {
   createdAt: Date;
 }
 
+export type FunilConversa = "triagem" | "pre_venda" | "atendimento" | "arquivado";
+export type ArquivoMotivo = "funcionario_de_cliente" | "fornecedor" | "parceiro" | "pessoal" | "spam" | "antigo" | "lead_perdido" | "outro";
+
 export interface Conversation {
   id: string;
   clientName: string;
@@ -128,6 +131,8 @@ export interface Conversation {
   isTyping?: boolean;
   protocolo?: number;
   resolvedAt?: string;
+  funil?: FunilConversa;
+  arquivoMotivo?: ArquivoMotivo;
 }
 
 export interface Message {
@@ -259,7 +264,7 @@ export const STATUS_CONFIG: Record<ConversationStatus, { label: string; color: s
   pendente: { label: "Pendente", color: "kanban-waiting" },
   respondido: { label: "Respondido", color: "kanban-active" },
   resolvido: { label: "Resolvido", color: "kanban-resolved" },
-  aguardando_aceite: { label: "Aguardando Aceite", color: "bg-yellow-500" },
+  aguardando_aceite: { label: "Aguardando atendimento", color: "bg-yellow-500" },
   em_atendimento: { label: "Em Atendimento", color: "bg-primary" },
   aguardando_cliente: { label: "Aguardando Cliente", color: "bg-purple-500" },
 };

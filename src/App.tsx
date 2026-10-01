@@ -55,6 +55,8 @@ const TechnicalContactsPage = lazyWithRetry(() => import("@/pages/TechnicalConta
 const NotFound = lazyWithRetry(() => import("@/pages/NotFound"));
 const LandingPage = lazyWithRetry(() => import("@/pages/LandingPage"));
 const PrivacyPolicyPage = lazyWithRetry(() => import("@/pages/PrivacyPolicyPage"));
+const TriagemPage = lazyWithRetry(() => import("@/pages/TriagemPage"));
+const PreVendaPage = lazyWithRetry(() => import("@/pages/PreVendaPage"));
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -131,6 +133,7 @@ const rolePermissions: Record<string, UserRole[]> = {
   "/customers": ["admin", "supervisor", "atendente", "recepcionista"],
   "/contacts": ["admin", "supervisor", "atendente", "recepcionista"],
   "/training": ["admin", "supervisor"],
+  "/pre-venda": ["admin", "supervisor"],
 };
 
 function hasPermission(path: string, userRole: UserRole): boolean {
@@ -194,6 +197,8 @@ function AppRoutes() {
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
                     <Route path="/" element={<InboxPage />} />
+                    <Route path="/triagem" element={<TriagemPage />} />
+                    <Route path="/pre-venda" element={<PreVendaPage />} />
                     <Route path="/inicio" element={<HomePage />} />
                     <Route path="/chat/:id" element={<ChatPage />} />
                     <Route path="/pipeline" element={<PipelinePage />} />

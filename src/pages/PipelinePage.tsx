@@ -35,6 +35,7 @@ export default function PipelinePage() {
     const tenantId = user?.tenantId;
     return (store.conversations || [])
       .filter((c) => !tenantId || !c.tenantId || c.tenantId === tenantId)
+      .filter((c) => (c.funil || "atendimento") === "atendimento")
       .filter((c) => c.status === status)
       .sort((a, b) => {
         const timeA = ensureDate(a.lastMessageTime)?.getTime() || 0;
@@ -72,7 +73,9 @@ export default function PipelinePage() {
             startedAt: c.started_at ? new Date(c.started_at) : undefined,
             slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
             tenantId: c.tenant_id,
-            tags: c.tags || []
+            tags: c.tags || [],
+            funil: c.funil,
+            arquivoMotivo: c.arquivo_motivo
           });
         });
       }

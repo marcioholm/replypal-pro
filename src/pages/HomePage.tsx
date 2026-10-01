@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AlertTriangle, CalendarDays, Clock, CornerDownRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
@@ -54,14 +54,20 @@ function mapConv(c: Row): Conversation {
     isGroup: c.is_group,
     protocolo: c.protocolo,
     resolvedAt: c.resolved_at,
+    funil: c.funil,
+    arquivoMotivo: c.arquivo_motivo,
   };
 }
 
 export default function HomePage() {
   const { user } = useAuth();
   const store = useStore();
+  const navigate = useNavigate();
   const [convs, setConvs] = useState<Conversation[]>([]);
   const [clientes, setClientes] = useState<ClienteResumo[]>([]);
+  const [triagemCount, setTriagemCount] = useState(0);
+  const [leadsAbertosCount, setLeadsAbertosCount] = useState(0);
+  const [proximosContatosHoje, setProximosContatosHoje] = useState<any[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -71,20 +77,35 @@ export default function HomePage() {
     since.setDate(since.getDate() - 7);
     let cancelled = false;
 
+    const isAdminOrSupervisor = ["admin", "supervisor"].includes(user?.role || "");
+    const todayStr = new Date().toISOString().slice(0, 10);
+
     Promise.all([
       supabase
         .from("conversas")
-        .select("id, client_name, client_phone, customer_id, last_message, last_message_time, status, assigned_to, started_at, sla_deadline, tenant_id, tags, client_avatar, is_group, protocolo, resolved_at")
+        .select("id, client_name, client_phone, customer_id, last_message, last_message_time, status, assigned_to, started_at, sla_deadline, tenant_id, tags, client_avatar, is_group, protocolo, resolved_at, funil, arquivo_motivo")
         .eq("tenant_id", tenantId)
         .or(`status.neq.resolvido,resolved_at.gte.${since.toISOString()}`),
       supabase.from("clientes").select("regime_tributario, financial_status, status").eq("tenant_id", tenantId),
+      supabase.from("conversas").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("funil", "triagem"),
+      isAdminOrSupervisor
+        ? supabase.from("oportunidades").select("id, nome_contato, empresa_nome, telefone, proximo_passo, proximo_contato_em, valor_mensal_estimado, etapa, conversa_id").eq("tenant_id", tenantId).not("etapa", "in", '("ganho","perdido")')
+        : Promise.resolve({ data: null, count: 0 }),
       store.users.length === 0
         ? supabase.from("usuarios").select("id, nome, email, role, tenant_id, avatar").eq("tenant_id", tenantId)
         : Promise.resolve({ data: null }),
-    ]).then(([c, k, u]) => {
+    ]).then(([c, k, triagemRes, opsRes, u]) => {
       if (cancelled) return;
       setConvs((c.data || []).map(mapConv).filter(x => !x.isGroup));
       setClientes((k.data as ClienteResumo[]) || []);
+      setTriagemCount(triagemRes.count || 0);
+
+      if (opsRes?.data) {
+        setLeadsAbertosCount(opsRes.data.length);
+        const contatosHoje = opsRes.data.filter((op: any) => op.proximo_contato_em === todayStr || (op.proximo_contato_em && op.proximo_contato_em < todayStr));
+        setProximosContatosHoje(contatosHoje.slice(0, 3));
+      }
+
       if (u.data) {
         store.setUsers(
           (u.data as Row[]).map(d => ({
@@ -101,7 +122,7 @@ export default function HomePage() {
   }, [user?.tenantId]);
 
   const today = new Date();
-  const open = useMemo(() => convs.filter(c => c.status !== "resolvido"), [convs]);
+  const open = useMemo(() => convs.filter(c => (c.funil || "atendimento") === "atendimento" && c.status !== "resolvido"), [convs]);
   const sla = (c: Conversation) => store.getSLAStatus(c);
 
   const fila = open.filter(c => !c.assignedTo);
@@ -109,7 +130,7 @@ export default function HomePage() {
   const comigo = emAtendimento.filter(c => c.assignedTo === user?.id);
   const emRisco = open.filter(c => sla(c) !== "ok");
   const estourados = open.filter(c => sla(c) === "estourado");
-  const resolvidas = convs.filter(c => c.status === "resolvido" && c.resolvedAt);
+  const resolvidas = convs.filter(c => (c.funil || "atendimento") === "atendimento" && c.status === "resolvido" && c.resolvedAt);
   const resolvidasHoje = resolvidas.filter(c => sameDay(new Date(c.resolvedAt!), today));
 
   const minhaFila = [...comigo, ...fila]
@@ -266,11 +287,59 @@ export default function HomePage() {
 
         <div className="flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-3">
+            <Link to="/triagem" className="block hover:opacity-90 transition-opacity">
+              <Kpi label="Na triagem" value={triagemCount} note="aguardando vínculo" tone="text-blue-600 dark:text-blue-400" />
+            </Link>
             <Kpi label="Na fila" value={fila.length} note="sem atendente" tone="text-primary" />
             <Kpi label="Em atendimento" value={emAtendimento.length} note={`${comigo.length} com você`} tone="text-primary" />
             <Kpi label="SLA em risco" value={emRisco.length} note={`${estourados.length} já estourado${estourados.length === 1 ? "" : "s"}`} tone="text-amber-700 dark:text-amber-300" />
-            <Kpi label="Resolvidas hoje" value={resolvidasHoje.length} note={`${resolvidas.length} nos últimos 7 dias`} tone="text-success" />
+            <div className="col-span-2">
+              <Kpi label="Resolvidas hoje" value={resolvidasHoje.length} note={`${resolvidas.length} nos últimos 7 dias`} tone="text-success" />
+            </div>
           </div>
+
+          {["admin", "supervisor"].includes(user?.role || "") && (
+            <section className="flex flex-col gap-3 rounded-xl bg-card p-5 border border-border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Comercial</p>
+                  <h2 className="text-[15px] font-extrabold flex items-center gap-1.5">
+                    <span className="text-amber-500">✦</span> Pré-venda
+                  </h2>
+                </div>
+                <Link to="/pre-venda" className="text-xs font-bold text-primary hover:underline">
+                  Ver funil ({leadsAbertosCount})
+                </Link>
+              </div>
+
+              {proximosContatosHoje.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">
+                  {leadsAbertosCount > 0
+                    ? `${leadsAbertosCount} leads ativos. Nenhum contato agendado para hoje.`
+                    : "Nenhum lead em negociação no momento."}
+                </p>
+              ) : (
+                <div className="space-y-2 pt-1">
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase">Contatos do dia / Atrasados</p>
+                  {proximosContatosHoje.map((op: any) => (
+                    <div
+                      key={op.id}
+                      onClick={() => navigate(op.conversa_id ? `/chat/${op.conversa_id}` : "/pre-venda")}
+                      className="p-2.5 rounded-lg bg-muted/40 hover:bg-muted/80 cursor-pointer transition-colors text-xs flex items-center justify-between"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-foreground truncate">{op.empresa_nome || op.nome_contato}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{op.proximo_passo || "Próximo contato agendado"}</p>
+                      </div>
+                      <span className="text-[11px] font-bold text-amber-600 shrink-0 ml-2">
+                        {op.etapa.replace("_", " ")}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           {continuar.length > 0 && (
             <section className="flex flex-col gap-3.5 rounded-xl bg-card p-5">

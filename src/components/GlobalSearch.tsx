@@ -25,14 +25,16 @@ export function GlobalSearch() {
     navigate(url);
   };
 
-  const conversations = store.conversations.map(c => ({
-    id: c.id,
-    type: "conversation" as const,
-    title: c.clientName,
-    subtitle: (c.lastMessage || "").slice(0, 50),
-    icon: MessageSquare,
-    url: `/chat/${c.id}`
-  }));
+  const conversations = store.conversations
+    .filter(c => c.funil !== "arquivado")
+    .map(c => ({
+      id: c.id,
+      type: "conversation" as const,
+      title: c.clientName,
+      subtitle: (c.lastMessage || "").slice(0, 50),
+      icon: MessageSquare,
+      url: `/chat/${c.id}`
+    }));
 
   const customers = store.customers.map(c => ({
     id: c.id,
@@ -44,6 +46,8 @@ export function GlobalSearch() {
   }));
 
   const allItems = [
+    { id: "triagem", type: "nav" as const, title: "Triagem", icon: MessageSquare, url: "/triagem" },
+    { id: "prevenda", type: "nav" as const, title: "Pré-venda", icon: Columns3, url: "/pre-venda" },
     { id: "dashboard", type: "nav" as const, title: "Dashboard", icon: LayoutDashboard, url: "/dashboard" },
     { id: "pipeline", type: "nav" as const, title: "Pipeline", icon: Columns3, url: "/pipeline" },
     { id: "customers", type: "nav" as const, title: "Clientes", icon: User, url: "/customers" },

@@ -41,16 +41,26 @@ export function NotificationManager() {
           }
           lastToastRef.current[newMsg.conversation_id] = now;
 
-          playNewMessage();
-
-          // Buscar nome da conversa para o toast
+          // Buscar nome e funil da conversa para o toast
           const { data: conv } = await supabase
             .from("conversas")
-            .select("client_name")
+            .select("client_name, funil")
             .eq("id", newMsg.conversation_id)
             .single();
 
-          toast(conv?.client_name || "Nova Mensagem", {
+          if (!conv) return;
+
+          const funil = conv.funil || "atendimento";
+          // Notificações conforme o funil:
+          // - arquivado: ninguém
+          // - pre_venda: só admin e supervisor
+          // - triagem / atendimento: todos
+          if (funil === "arquivado") return;
+          if (funil === "pre_venda" && !["admin", "supervisor"].includes(user.role || "")) return;
+
+          playNewMessage();
+
+          toast(conv.client_name || "Nova Mensagem", {
             description: newMsg.content.substring(0, 60) + (newMsg.content.length > 60 ? "..." : ""),
             icon: <Bell className="w-5 h-5 text-primary" />,
             action: {

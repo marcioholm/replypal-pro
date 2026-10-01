@@ -13,6 +13,8 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+  Filter,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -24,7 +26,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ContaMaisLogo } from "@/components/brand/ContaMaisLogo";
 import { cn } from "@/lib/utils";
 
-type BadgeKey = "inbox" | "alerts";
+type BadgeKey = "inbox" | "alerts" | "triagem";
 
 interface NavItem {
   title: string;
@@ -40,7 +42,9 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     label: "Atendimento",
     items: [
       { title: "Início", url: "/inicio", icon: Home },
+      { title: "Triagem", url: "/triagem", icon: Filter, badge: "triagem" },
       { title: "Caixa de Entrada", url: "/", icon: MessageSquare, badge: "inbox" },
+      { title: "Pré-venda", url: "/pre-venda", icon: Sparkles, roles: ["admin", "supervisor"] },
       { title: "Pipeline", url: "/pipeline", icon: Columns3 },
       { title: "Agendamentos", url: "/scheduled", icon: Send },
     ],
@@ -75,13 +79,14 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const openCount = store.conversations.filter(c => c.status?.toLowerCase() !== "resolvido").length;
+  const openCount = store.conversations.filter(c => (c.funil || "atendimento") === "atendimento" && c.status?.toLowerCase() !== "resolvido").length;
+  const triagemCount = store.conversations.filter(c => c.funil === "triagem").length;
   const atRiskCount = store.conversations.filter(c => {
-    if (c.status?.toLowerCase() === "resolvido") return false;
+    if ((c.funil || "atendimento") !== "atendimento" || c.status?.toLowerCase() === "resolvido") return false;
     const sla = store.getSLAStatus(c);
     return sla === "estourado" || sla === "em_risco";
   }).length;
-  const badges: Record<BadgeKey, number> = { inbox: openCount, alerts: atRiskCount };
+  const badges: Record<BadgeKey, number> = { inbox: openCount, alerts: atRiskCount, triagem: triagemCount };
 
   // Hidrata a store uma única vez se ela estiver vazia. Depois disso as
   // contagens vêm da store, que o realtime mantém atualizada (antes: select * a cada 10s).
@@ -93,7 +98,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     let cancelled = false;
     supabase
       .from("conversas")
-      .select("id, client_name, client_phone, last_message, last_message_time, status, tenant_id, sla_deadline, tags, assigned_to")
+      .select("id, client_name, client_phone, last_message, last_message_time, status, tenant_id, sla_deadline, tags, assigned_to, funil, arquivo_motivo, is_group, protocolo, customer_id")
       .eq("tenant_id", tenantId)
       .neq("status", "resolvido")
       .then(({ data, error }) => {
@@ -102,13 +107,18 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           id: c.id,
           clientName: c.client_name || "Cliente",
           clientPhone: c.client_phone || "",
+          customerId: c.customer_id,
           lastMessage: c.last_message || "",
           lastMessageTime: new Date(c.last_message_time || Date.now()),
           status: c.status,
           tenantId: c.tenant_id,
           assignedTo: c.assigned_to,
           slaDeadline: c.sla_deadline ? new Date(c.sla_deadline) : undefined,
-          tags: c.tags || []
+          tags: c.tags || [],
+          isGroup: c.is_group,
+          protocolo: c.protocolo,
+          funil: c.funil,
+          arquivoMotivo: c.arquivo_motivo,
         })));
       });
     return () => { cancelled = true; };
