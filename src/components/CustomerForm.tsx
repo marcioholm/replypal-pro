@@ -57,10 +57,12 @@ const contactSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, "Nome obrigatório"),
   role: z.string().min(2, "Cargo obrigatório"),
-  phone: z.string(),
-  whatsapp: z.string(),
-  email: z.string().email("E-mail inválido"),
-  type: z.enum(["Financeiro", "RH", "Fiscal", "Societário", "Outro"]),
+  phone: z.string().optional().default(""),
+  whatsapp: z.string().optional().default(""),
+  email: z.string().email("E-mail inválido").or(z.literal("")).optional().default(""),
+  type: z.enum(["Financeiro", "RH", "Fiscal", "Societário", "Outro"]).optional().default("Outro"),
+  pode_receber_documentos: z.boolean().default(false),
+  pode_receber_certificado: z.boolean().default(false),
 });
 
 const customerFormSchema = z.object({
@@ -145,13 +147,51 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
     fetchUsers();
   }, [user?.tenantId]);
 
+  useEffect(() => {
+    if (!initialData?.id || !user?.tenantId) return;
+
+    const fetchContacts = async () => {
+      const { data, error } = await supabase
+        .from("contatos")
+        .select("*")
+        .eq("customer_id", initialData.id)
+        .order("created_at", { ascending: true });
+
+      if (data && !error && data.length > 0) {
+        form.setValue("contacts", data.map(c => ({
+          id: c.id,
+          name: c.nome,
+          role: c.role || "",
+          phone: c.telefone || "",
+          whatsapp: c.whatsapp || "",
+          email: c.email || "",
+          type: (c.tipo as any) || "Outro",
+          pode_receber_documentos: !!c.pode_receber_documentos,
+          pode_receber_certificado: !!c.pode_receber_certificado,
+        })));
+      }
+    };
+
+    fetchContacts();
+  }, [initialData?.id, user?.tenantId]);
+
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
     defaultValues: initialData ? {
       ...initialData,
       serviceLevel: (initialData.serviceLevel as any) || "Padrão",
       preferredChannel: (initialData.preferredChannel as any) || "WhatsApp",
-      contacts: initialData.contacts || [],
+      contacts: (initialData.contacts || []).map(c => ({
+        id: c.id,
+        name: c.name || c.nome || "",
+        role: c.role || "",
+        phone: c.phone || c.telefone || "",
+        whatsapp: c.whatsapp || "",
+        email: c.email || "",
+        type: c.type || c.tipo || "Outro",
+        pode_receber_documentos: !!(c.pode_receber_documentos ?? c.podeReceberDocumentos),
+        pode_receber_certificado: !!(c.pode_receber_certificado ?? c.podeReceberCertificado),
+      })),
       tags: initialData.tags || [],
     } : {
       razaoSocial: "",
@@ -192,6 +232,52 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
     name: "contacts",
   });
 
+  const saveContactsToDb = async (customerId: string, contacts: CustomerFormValues["contacts"]) => {
+    const tenantId = user?.tenantId;
+    if (!tenantId || !customerId) return;
+
+    // Buscar contatos atuais no banco para este cliente
+    const { data: currentDbContacts } = await supabase
+      .from("contatos")
+      .select("id, pode_receber_certificado")
+      .eq("customer_id", customerId);
+
+    const currentMap = new Map((currentDbContacts || []).map(c => [c.id, c]));
+    const submittedIds = new Set(contacts.filter(c => c.id && currentMap.has(c.id)).map(c => c.id as string));
+
+    // Deletar contatos que foram removidos
+    const toDelete = (currentDbContacts || []).filter(c => !submittedIds.has(c.id)).map(c => c.id);
+    if (toDelete.length > 0) {
+      await supabase.from("contatos").delete().in("id", toDelete);
+    }
+
+    // Salvar ou atualizar contatos
+    for (const c of contacts) {
+      // Regra de segurança: só admin pode marcar ou alterar pode_receber_certificado
+      const existingCert = currentMap.get(c.id || "")?.pode_receber_certificado || false;
+      const podeCertificado = user?.role === "admin" ? !!c.pode_receber_certificado : existingCert;
+
+      const payload = {
+        tenant_id: tenantId,
+        customer_id: customerId,
+        nome: c.name,
+        role: c.role,
+        telefone: c.phone || null,
+        whatsapp: c.whatsapp || null,
+        email: c.email || null,
+        tipo: c.type || "Outro",
+        pode_receber_documentos: !!c.pode_receber_documentos,
+        pode_receber_certificado: podeCertificado,
+      };
+
+      if (c.id && currentMap.has(c.id)) {
+        await supabase.from("contatos").update(payload).eq("id", c.id);
+      } else {
+        await supabase.from("contatos").insert([payload]);
+      }
+    }
+  };
+
   const onSubmit = async (values: CustomerFormValues) => {
     try {
       if (initialData) {
@@ -230,6 +316,8 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
           .eq("id", initialData.id);
 
         if (error) throw error;
+
+        await saveContactsToDb(initialData.id, values.contacts);
         
         store.updateCustomer(initialData.id, values);
         toast.success("Cliente atualizado com sucesso!");
@@ -310,6 +398,8 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
           employeeCount: data.employee_count || 0,
           createdAt: new Date(data.created_at)
         };
+
+        await saveContactsToDb(data.id, values.contacts);
 
         store.addCustomer(newCustomer);
         webhooks.triggerCustomerCreated(newCustomer, user!);
@@ -636,6 +726,32 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
                     <FormField control={form.control} name={`contacts.${index}.email`} render={({ field }) => (
                       <FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
                     )} />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-6 mt-3 pt-3 border-t border-border/40">
+                    <FormField control={form.control} name={`contacts.${index}.pode_receber_documentos`} render={({ field }) => (
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                        <FormLabel className="text-xs font-semibold cursor-pointer">
+                          Pode receber documentos (WhatsApp)
+                        </FormLabel>
+                      </FormItem>
+                    )} />
+
+                    {user?.role === "admin" && (
+                      <FormField control={form.control} name={`contacts.${index}.pode_receber_certificado`} render={({ field }) => (
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                          <FormControl>
+                            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                          <FormLabel className="text-xs font-semibold text-amber-600 dark:text-amber-400 cursor-pointer">
+                            Pode receber certificado digital (Admin)
+                          </FormLabel>
+                        </FormItem>
+                      )} />
+                    )}
                   </div>
                 </div>
               ))}

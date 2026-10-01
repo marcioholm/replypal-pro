@@ -27,23 +27,47 @@ export default function CustomerDetailsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [customerData, setCustomerData] = useState<any>(null);
+  const [contactsList, setContactsList] = useState<any[]>([]);
 
   const fetchCustomer = useCallback(async () => {
     if (!id || !user?.tenantId) return;
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("clientes")
-        .select("*")
-        .eq("id", id)
-        .eq("tenant_id", user.tenantId)
-        .single();
+      const [clientRes, contactsRes] = await Promise.all([
+        supabase
+          .from("clientes")
+          .select("*")
+          .eq("id", id)
+          .eq("tenant_id", user.tenantId)
+          .single(),
+        supabase
+          .from("contatos")
+          .select("*")
+          .eq("customer_id", id)
+          .order("created_at", { ascending: true })
+      ]);
 
-      if (data && !error) {
-        setCustomerData(data);
+      if (clientRes.data && !clientRes.error) {
+        setCustomerData(clientRes.data);
       } else {
-        console.error("Error fetching customer:", error);
+        console.error("Error fetching customer:", clientRes.error);
+      }
+
+      if (contactsRes.data && !contactsRes.error) {
+        setContactsList(contactsRes.data.map(c => ({
+          id: c.id,
+          name: c.nome,
+          role: c.role || "",
+          phone: c.telefone || "",
+          whatsapp: c.whatsapp || "",
+          email: c.email || "",
+          type: c.tipo || "Outro",
+          podeReceberDocumentos: !!c.pode_receber_documentos,
+          podeReceberCertificado: !!c.pode_receber_certificado,
+        })));
+      } else {
+        setContactsList([]);
       }
     } catch (err) {
       console.error("Error:", err);
@@ -107,7 +131,7 @@ export default function CustomerDetailsPage() {
     driveFolderUrl: customerData.drive_folder_url,
     drivePayrollUrl: customerData.drive_payroll_url,
     driveBillingUrl: customerData.drive_billing_url,
-    contacts: [],
+    contacts: contactsList,
     tags: [],
     documents: [],
     createdAt: customerData.created_at ? new Date(customerData.created_at) : new Date(),
@@ -336,6 +360,23 @@ export default function CustomerDetailsPage() {
                           <div className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 opacity-50" /> {c.email || "—"}</div>
                           <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 opacity-50" /> {c.phone || "—"}</div>
                           <div className="flex items-center gap-2"><MessageSquare className="w-3.5 h-3.5 opacity-50" /> {c.whatsapp || "—"}</div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1.5 mt-3 pt-2.5 border-t border-border/40">
+                          {c.podeReceberDocumentos ? (
+                            <Chip tone="green" className="text-[10px]">
+                              <FileText className="w-3 h-3 mr-1" /> Recebe documentos
+                            </Chip>
+                          ) : (
+                            <Chip tone="grey" className="text-[10px]">
+                              Sem envio doc
+                            </Chip>
+                          )}
+                          {c.podeReceberCertificado && (
+                            <Chip tone="amber" className="text-[10px]">
+                              <ShieldCheck className="w-3 h-3 mr-1" /> Certificado liberado
+                            </Chip>
+                          )}
                         </div>
                       </div>
                     ))}
