@@ -10,7 +10,11 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  AlertTriangle
+  AlertTriangle,
+  Lock,
+  FileText,
+  Check,
+  X
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -23,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
+import { CertificadoAprovacaoModal } from "@/components/arquivos/CertificadoAprovacaoModal";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -95,9 +100,46 @@ export default function AlertsPage() {
     mensagem_template: "⚠️ ALERTA DE ATENDIMENTO\n\nO cliente {cliente_nome} está há {horas_sem_resposta} horas sem resposta do colaborador.\n\nResponsável: {responsavel_nome}\nStatus: {status}\nAberto em: {created_at}\n\nRecomendação: verificar o atendimento e priorizar retorno."
   });
 
+  const [solicitacoesAcesso, setSolicitacoesAcesso] = useState<any[]>([]);
+  const [pedidosCertificado, setPedidosCertificado] = useState<any[]>([]);
+  const [aprovandoPedidoCertificado, setAprovandoPedidoCertificado] = useState<any | null>(null);
+
+  const fetchPendenciasAprovacao = async () => {
+    if (!user?.tenantId) return;
+    try {
+      // 1. Solicitações de acesso pendentes (para admin e supervisor)
+      if (["admin", "supervisor"].includes(user.role || "")) {
+        const { data: solData } = await supabase
+          .from("solicitacoes_acesso")
+          .select("*, usuarios!solicitante_id(nome), clientes!cliente_id(nome_fantasia)")
+          .eq("tenant_id", user.tenantId)
+          .eq("status", "pendente")
+          .order("created_at", { ascending: false });
+
+        setSolicitacoesAcesso(solData || []);
+      }
+
+      // 2. Pedidos de certificado digital aguardando admin (apenas admin)
+      if (user.role === "admin") {
+        const { data: certData } = await supabase
+          .from("vw_pedidos_documento_pendentes")
+          .select("*")
+          .eq("tenant_id", user.tenantId)
+          .eq("status", "aguardando_admin")
+          .eq("tipo", "certificado_digital")
+          .order("created_at", { ascending: false });
+
+        setPedidosCertificado(certData || []);
+      }
+    } catch (e) {
+      console.error("Erro ao buscar pendencias de aprovação:", e);
+    }
+  };
+
   useEffect(() => {
     if (user?.tenantId) {
       fetchAlerta();
+      fetchPendenciasAprovacao();
     }
   }, [user?.tenantId]);
 
@@ -210,6 +252,145 @@ export default function AlertsPage() {
   return (
     <div className="flex flex-col gap-5 px-8 pb-8 pt-5">
       <div className="grid gap-6">
+        {/* 1. Pedidos de Certificado Digital Aguardando Aprovação (só admin) */}
+        {user?.role === "admin" && pedidosCertificado.length > 0 && (
+          <Card className="rounded-xl border-2 border-destructive/40 bg-destructive/5 overflow-hidden">
+            <CardHeader className="pb-3 border-b border-destructive/20 bg-destructive/10">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-bold flex items-center gap-2 text-destructive">
+                  <ShieldCheck className="w-5 h-5" />
+                  Aprovação de Certificado Digital ({pedidosCertificado.length})
+                </CardTitle>
+                <Badge variant="destructive" className="font-mono text-xs">Ação Crítica</Badge>
+              </div>
+              <CardDescription className="text-xs text-destructive/80">
+                O envio do certificado digital exige digitação do nome da empresa pelo administrador. Nunca envie a senha.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0 divide-y divide-destructive/15">
+              {pedidosCertificado.map((ped) => (
+                <div key={ped.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <p className="font-bold text-sm text-foreground">{ped.empresa}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Solicitante: <span className="font-semibold text-foreground">{ped.contato_nome || "Contato"}</span> {ped.contato_papel ? `(${ped.contato_papel})` : ""} • WhatsApp: {ped.telefone}
+                    </p>
+                    {ped.mensagem_cliente && (
+                      <p className="text-xs italic text-muted-foreground bg-background/80 p-2 rounded border">
+                        "{ped.mensagem_cliente}"
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold"
+                      onClick={() => setAprovandoPedidoCertificado(ped)}
+                    >
+                      Analisar e Decidir
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 2. Solicitações de Acesso a RH e Financeiro (admin e supervisor) */}
+        {["admin", "supervisor"].includes(user?.role || "") && solicitacoesAcesso.length > 0 && (
+          <Card className="rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 overflow-hidden">
+            <CardHeader className="pb-3 border-b border-amber-200 dark:border-amber-900/50 bg-amber-100/50 dark:bg-amber-900/20">
+              <CardTitle className="text-base font-bold flex items-center gap-2 text-amber-900 dark:text-amber-300">
+                <Lock className="w-5 h-5 text-amber-600" />
+                Solicitações de Acesso Temporário ({solicitacoesAcesso.length})
+              </CardTitle>
+              <CardDescription className="text-xs text-amber-800/80 dark:text-amber-400/80">
+                Colaboradores pedindo acesso temporário às áreas restritas (RH, Financeiro).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0 divide-y divide-amber-200/50 dark:divide-amber-900/30">
+              {solicitacoesAcesso.map((sol) => (
+                <div key={sol.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-foreground">{sol.usuarios?.nome || "Colaborador"}</span>
+                      <span className="text-xs text-muted-foreground">pediu acesso a</span>
+                      <Badge variant="outline" className="uppercase font-bold text-[10px] tracking-wide border-amber-400 text-amber-800 dark:text-amber-300">
+                        {sol.area}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">em</span>
+                      <span className="font-semibold text-xs text-foreground">{sol.clientes?.nome_fantasia || "Cliente"}</span>
+                    </div>
+                    <p className="text-xs italic text-muted-foreground bg-background/80 p-2 rounded border">
+                      "{sol.motivo}"
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Pedido há {formatRelativeTime(new Date(sol.created_at))}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                      onClick={async () => {
+                        const resposta = window.prompt("Motivo da recusa (opcional):");
+                        try {
+                          await supabase.rpc("decidir_solicitacao", {
+                            p_solicitacao: sol.id,
+                            p_decisor: user?.id,
+                            p_aprovar: false,
+                            p_resposta: resposta || "Negado pelo gestor",
+                          });
+                          toast.info("Solicitação de acesso negada.");
+                          fetchPendenciasAprovacao();
+                        } catch (e: any) {
+                          toast.error(e.message || "Erro ao negar solicitação");
+                        }
+                      }}
+                    >
+                      Negar
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white font-semibold"
+                      onClick={async () => {
+                        try {
+                          await supabase.rpc("decidir_solicitacao", {
+                            p_solicitacao: sol.id,
+                            p_decisor: user?.id,
+                            p_aprovar: true,
+                          });
+                          toast.success("Acesso temporário liberado com sucesso!");
+                          fetchPendenciasAprovacao();
+                        } catch (e: any) {
+                          toast.error(e.message || "Erro ao aprovar solicitação");
+                        }
+                      }}
+                    >
+                      Aprovar Acesso
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Modal de Confirmação do Certificado */}
+        {aprovandoPedidoCertificado && user?.id && (
+          <CertificadoAprovacaoModal
+            open={!!aprovandoPedidoCertificado}
+            onOpenChange={(op) => !op && setAprovandoPedidoCertificado(null)}
+            pedido={aprovandoPedidoCertificado}
+            adminId={user.id}
+            onSuccess={() => {
+              setAprovandoPedidoCertificado(null);
+              fetchPendenciasAprovacao();
+            }}
+          />
+        )}
+
         {/* Painel de Alertas Ativos */}
         <Card className="rounded-xl bg-card border-0 shadow-none overflow-hidden">
           <CardHeader className="pb-4 border-b border-border">

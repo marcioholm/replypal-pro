@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Bell, ChevronDown, LogOut, Moon, Settings, Sparkles, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
 import { useStore } from "@/lib/store";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 const PAGE_TITLES: [prefix: string, title: string][] = [
@@ -70,7 +71,44 @@ export function AppLayout({ children }: AppLayoutProps) {
   const { user, logout } = useAuth();
   const store = useStore();
 
-  const hasAlerts = store.conversations.some(c => {
+  const [hasPendingApprovals, setHasPendingApprovals] = useState(false);
+
+  useEffect(() => {
+    if (!user?.tenantId) return;
+
+    const checkPending = async () => {
+      try {
+        let hasPending = false;
+        if (["admin", "supervisor"].includes(user.role || "")) {
+          const { count } = await supabase
+            .from("solicitacoes_acesso")
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", user.tenantId)
+            .eq("status", "pendente");
+          if (count && count > 0) hasPending = true;
+        }
+
+        if (user.role === "admin" && !hasPending) {
+          const { count } = await supabase
+            .from("pedidos_documento")
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", user.tenantId)
+            .eq("status", "aguardando_admin");
+          if (count && count > 0) hasPending = true;
+        }
+
+        setHasPendingApprovals(hasPending);
+      } catch (e) {
+        console.error("Erro ao verificar pendencias no sino:", e);
+      }
+    };
+
+    checkPending();
+    const interval = setInterval(checkPending, 30000);
+    return () => clearInterval(interval);
+  }, [user?.tenantId, user?.role]);
+
+  const hasAlerts = hasPendingApprovals || store.conversations.some(c => {
     if (c.status?.toLowerCase() === "resolvido") return false;
     return store.getSLAStatus(c) === "estourado";
   });

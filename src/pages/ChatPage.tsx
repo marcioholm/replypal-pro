@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Search, Paperclip, Clock, Zap, Mic, Send, RefreshCw, Loader2, User, StickyNote, Tag, History, Activity, MessageSquare, UserPlus, X, Users, StopCircle, CheckCircle, Share2, Smile, Reply, Trash2, ArrowRight, PlayCircle, FileText, Play, Pause } from "lucide-react";
+import { ArrowLeft, Search, Paperclip, Clock, Zap, Mic, Send, RefreshCw, Loader2, User, StickyNote, Tag, History, Activity, MessageSquare, UserPlus, X, Users, StopCircle, CheckCircle, Share2, Smile, Reply, Trash2, ArrowRight, PlayCircle, FileText, Play, Pause, FolderOpen, AlertCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { insertHistorico } from "@/lib/historico";
 import { useAuth } from "@/lib/auth";
@@ -28,6 +28,8 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CustomerForm } from "@/components/CustomerForm";
 import { SimpleContactDialog } from "@/components/clientes/SimpleContactDialog";
+import { AbaArquivos } from "@/components/arquivos/AbaArquivos";
+import { PedirAcessoDialog } from "@/components/arquivos/PedirAcessoDialog";
 import { Customer } from "@/lib/store";
 import { cn, getBrazilianPhoneVariations } from "@/lib/utils";
 
@@ -51,7 +53,7 @@ export default function ChatPage() {
   const [messageInput, setMessageInput] = useState("");
   const [noteInput, setNoteInput] = useState("");
   const [avatarSyncing, setAvatarSyncing] = useState(false);
-  const [showPanel, setShowPanel] = useState<"customer" | "members" | "notes" | "tags" | "history" | null>("customer");
+  const [showPanel, setShowPanel] = useState<"customer" | "arquivos" | "members" | "notes" | "tags" | "history" | null>("customer");
   const [groupInfo, setGroupInfo] = useState<any>(null);
   const [loadingGroupInfo, setLoadingGroupInfo] = useState(false);
   const [memberSearch, setMemberSearch] = useState("");
@@ -132,6 +134,54 @@ export default function ChatPage() {
       loadGroupInfo();
     }
   }, [showPanel, conv?.isGroup, conv?.clientPhone]);
+
+  const [pedidoPendente, setPedidoPendente] = useState<any | null>(null);
+  const [pedirAcessoParaPedido, setPedirAcessoParaPedido] = useState<any | null>(null);
+  const [enviandoPedido, setEnviandoPedido] = useState(false);
+
+  const fetchPedidoPendente = useCallback(async () => {
+    if (!conv?.id || !user?.tenantId) return;
+
+    try {
+      const { data } = await supabase
+        .from("vw_pedidos_documento_pendentes")
+        .select("*")
+        .eq("conversa_id", conv.id)
+        .eq("status", "aguardando_envio")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      setPedidoPendente(data || null);
+    } catch (err) {
+      console.error("Erro ao buscar pedido pendente:", err);
+    }
+  }, [conv?.id, user?.tenantId]);
+
+  useEffect(() => {
+    fetchPedidoPendente();
+
+    if (!conv?.id) return;
+    const channel = supabase
+      .channel(`pedidos-doc-${conv.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "pedidos_documento",
+          filter: `conversa_id=eq.${conv.id}`,
+        },
+        () => {
+          fetchPedidoPendente();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conv?.id, fetchPedidoPendente]);
 
   useEffect(() => {
     if (conv?.isGroup) {
@@ -1737,6 +1787,130 @@ export default function ChatPage() {
           </div>
         </div>
 
+        {/* Faixa de pedido "um clique" no topo da conversa */}
+        {pedidoPendente && (
+          <div className="shrink-0 flex items-center justify-between gap-3 px-5 py-3 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900/50 animate-in slide-in-from-top-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                <FileText className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-amber-950 dark:text-amber-200 truncate">
+                  {pedidoPendente.contato_nome || "Contato"} {pedidoPendente.contato_papel ? `(${pedidoPendente.contato_papel})` : ""} pediu:{" "}
+                  <span className="font-extrabold text-foreground">{pedidoPendente.rotulo || pedidoPendente.tipo}</span>
+                  {pedidoPendente.nome_arquivo ? ` · ${pedidoPendente.nome_arquivo}` : ""}
+                </p>
+                <p className="text-[10px] text-amber-800/80 dark:text-amber-300/80">
+                  Documento pronto para envio em um clique
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs border-amber-300 text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-300"
+                disabled={enviandoPedido}
+                onClick={async () => {
+                  try {
+                    await supabase
+                      .from("pedidos_documento")
+                      .update({ status: "recusado", motivo: "Recusado pela atendente" })
+                      .eq("id", pedidoPendente.id);
+                    toast.info("Pedido de documento recusado.");
+                    fetchPedidoPendente();
+                  } catch (e: any) {
+                    toast.error(e.message || "Erro ao recusar pedido");
+                  }
+                }}
+              >
+                Recusar
+              </Button>
+
+              <Button
+                size="sm"
+                className="h-7 text-xs gap-1 bg-amber-600 hover:bg-amber-700 text-white"
+                disabled={enviandoPedido}
+                onClick={async () => {
+                  setEnviandoPedido(true);
+                  try {
+                    // Checar se o usuário tem permissão para a área
+                    const docArea = pedidoPendente.tipo === "folha_pagamento" ? "rh"
+                      : ["faturamento", "compras", "vendas", "boletos_honorarios"].includes(pedidoPendente.tipo) ? "financeiro"
+                      : "geral";
+
+                    const { data: temAcesso } = await supabase.rpc("usuario_tem_acesso", {
+                      p_usuario: user.id,
+                      p_cliente: pedidoPendente.cliente_id,
+                      p_area: docArea,
+                    });
+
+                    if (!temAcesso && ["rh", "financeiro", "certificado"].includes(docArea)) {
+                      setPedirAcessoParaPedido({ area: docArea, ...pedidoPendente });
+                      setEnviandoPedido(false);
+                      return;
+                    }
+
+                    if (!conv.clientPhone || !pedidoPendente.documento_url) {
+                      throw new Error("Telefone ou arquivo do documento não disponível");
+                    }
+
+                    const caption = `Segue seu documento: ${pedidoPendente.rotulo || pedidoPendente.nome_arquivo}`;
+                    const sent = await sendMediaMessage(
+                      conv.clientPhone,
+                      pedidoPendente.documento_url,
+                      "document",
+                      pedidoPendente.nome_arquivo || "documento.pdf",
+                      caption
+                    );
+
+                    if (sent) {
+                      await supabase.rpc("marcar_pedido_enviado", {
+                        p_pedido: pedidoPendente.id,
+                        p_usuario: user.id,
+                      });
+                      toast.success("Documento enviado com sucesso ao cliente!");
+                      fetchPedidoPendente();
+                    } else {
+                      throw new Error("Falha no envio pelo WhatsApp");
+                    }
+                  } catch (err: any) {
+                    console.error("Erro ao enviar pedido um-clique:", err);
+                    toast.error(err.message || "Erro ao enviar documento");
+                  } finally {
+                    setEnviandoPedido(false);
+                  }
+                }}
+              >
+                {enviandoPedido ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Send className="w-3 h-3" />
+                )}
+                Enviar
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Diálogo de Pedir Acesso acionado pelo banner */}
+        {pedirAcessoParaPedido && user?.id && (
+          <PedirAcessoDialog
+            open={!!pedirAcessoParaPedido}
+            onOpenChange={(open) => !open && setPedirAcessoParaPedido(null)}
+            userId={user.id}
+            clienteId={pedirAcessoParaPedido.cliente_id}
+            clienteNome={pedirAcessoParaPedido.empresa || "Cliente"}
+            area={pedirAcessoParaPedido.area}
+            conversaId={conv.id}
+            onSuccess={() => {
+              setPedirAcessoParaPedido(null);
+              fetchPedidoPendente();
+            }}
+          />
+        )}
+
         {/* Messages List */}
         <div className="flex-1 space-y-1 overflow-y-auto bg-muted/30 px-5 py-5">
           {(() => {
@@ -2005,6 +2179,7 @@ export default function ChatPage() {
         <div className="flex border-b border-border">
           {[
             { key: "customer" as const, icon: User, label: "Cliente" },
+            { key: "arquivos" as const, icon: FolderOpen, label: "Arquivos" },
             ...(conv?.isGroup ? [{ key: "members" as const, icon: Users, label: "Membros" }] : []),
             { key: "notes" as const, icon: StickyNote, label: "Notas" },
             { key: "tags" as const, icon: Tag, label: "Tags" },
@@ -2129,6 +2304,17 @@ export default function ChatPage() {
                 </div>
               )}
             </div>
+          )}
+
+          {showPanel === "arquivos" && (
+            <AbaArquivos
+              conversaId={conv.id}
+              clienteId={customer?.id}
+              clienteNome={customer?.name || conv.clientName}
+              clienteCnpj={customer?.cnpj}
+              clienteTelefone={conv.clientPhone}
+              onVincularCliente={() => setLinkCnpjOpen(true)}
+            />
           )}
 
           {showPanel === "members" && (
