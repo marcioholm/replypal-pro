@@ -68,7 +68,10 @@ export function CertificadoAprovacaoModal({
       const textoEnvio = `Segue o link para baixar o certificado digital da ${pedido.empresa}: ${baseUrl}/api/baixar/${token}\nEle vale por 24 horas e para um único download. A senha será informada por telefone.`;
 
       // 3. Enviar na conversa pelo WhatsApp
-      await sendWhatsAppMessage(pedido.telefone, textoEnvio);
+      const envio = await sendWhatsAppMessage(pedido.telefone, textoEnvio);
+      if (!envio?.success) {
+        throw new Error("Aprovado, mas o WhatsApp não enviou o link. Tente reenviar pelo chat antes de 24 h.");
+      }
 
       // 4. Marcar como enviado
       await supabase.rpc("marcar_pedido_enviado", {

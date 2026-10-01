@@ -1,12 +1,7 @@
-import { User, Conversation, Customer } from "./store";
+import type { User, Customer } from "./store";
+import { N8N } from "./n8n";
 
-const N8N_URLS = {
-  documentos: "https://northway.vps8204.panel.icontainer.cloud/webhook/documentos/upload",
-  // Endpoint para eventos operacionais do sistema
-  eventos: import.meta.env.VITE_N8N_IA_WEBHOOK || "", 
-};
-
-async function sendWebhook(url: string, payload: any) {
+async function sendWebhook(url: string, payload: Record<string, unknown>) {
   if (!url) {
     console.warn("Webhook URL not configured for this event.");
     return;
@@ -22,7 +17,7 @@ async function sendWebhook(url: string, payload: any) {
       body: JSON.stringify({
         targetUrl: url,
         ...payload,
-        source: "replypal-pro",
+        source: "conta-mais",
         timestamp: new Date().toISOString(),
       }),
     });
@@ -38,33 +33,16 @@ async function sendWebhook(url: string, payload: any) {
   }
 }
 
+// Eventos enviados ao fluxo 07 do n8n. Os demais eventos antigos (novo atendimento,
+// mensagem enviada, mudança de etapa...) nunca eram disparados e foram removidos.
 export const webhooks = {
-  // 1. Novo Atendimento
-  triggerNewService: (conversation: Conversation) => 
-    sendWebhook(N8N_URLS.eventos, { event: "novo_atendimento", conversation }),
-
-  // 2. Mensagem Recebida (Geralmente o n8n ou Evolution já pega isso, mas aqui para redundância se necessário)
-  triggerMessageReceived: (message: any) => 
-    sendWebhook(N8N_URLS.eventos, { event: "mensagem_recebida", message }),
-
-  // 3. Mensagem Enviada
-  triggerMessageSent: (message: any, conversation: Conversation, agent?: User) => 
-    sendWebhook(N8N_URLS.eventos, { event: "mensagem_enviada", message, conversation, agent }),
-
-  // 4. Mudança de Etapa (Kanban/Status)
-  triggerStageChange: (conversation: Conversation, oldStatus: string, newStatus: string, agent: User) => 
-    sendWebhook(N8N_URLS.eventos, { event: "mudanca_etapa", conversation, oldStatus, newStatus, agent }),
-
-  // 5. Cliente Criado
-  triggerCustomerCreated: (customer: Customer, creator?: User) => 
-    sendWebhook(N8N_URLS.eventos, { event: "cliente_criado", customer, creator }),
-
-  // 6. Atendimento Finalizado
-  triggerServiceFinished: (conversation: Conversation, agent: User, reason?: string) => 
-    sendWebhook(N8N_URLS.eventos, { event: "atendimento_finalizado", conversation, agent, reason }),
-
-  // 7. Transferência de Responsável
-  triggerTransferOwner: (conversation: Conversation, fromAgent: User, toAgentName: string, reason?: string) => 
-    sendWebhook(N8N_URLS.eventos, { event: "transferencia_responsavel", conversation, fromAgent, toAgentName, reason }),
-
+  triggerCustomerCreated: (customer: Customer, creator?: User) =>
+    sendWebhook(N8N.eventos, {
+      event: "cliente_criado",
+      tenant_id: customer.tenantId,
+      cliente_id: customer.id,
+      cliente_nome: customer.name,
+      cnpj: customer.cnpj,
+      criado_por: creator?.name,
+    }),
 };

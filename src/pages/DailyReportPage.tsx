@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { N8N } from "@/lib/n8n";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +45,7 @@ interface ReportLog {
   response_json?: any;
 }
 
-const N8N_RELATORIO_TESTE_WEBHOOK_URL = "https://northway.vps8204.panel.icontainer.cloud/webhook/replypal/relatorio-atendimento/teste";
+const N8N_RELATORIO_TESTE_WEBHOOK_URL = N8N.relatorioTeste;
 
 export default function DailyReportPage() {
   const { user } = useAuth();

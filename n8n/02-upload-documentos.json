@@ -1,0 +1,480 @@
+{
+  "name": "Conta+ 02 · Upload de documentos",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 02 · Upload de documentos\nChamado pela aba Documentos do cliente (POST /webhook/documentos/upload, via /api/proxy-webhook).\n\nGuarda o arquivo no bucket **privado** `documentos` do Supabase e cria a linha em `documentos`. O app abre e envia sempre por link assinado (/api/documento-url).\n\nLimite: 15 MB por arquivo.",
+        "height": 260,
+        "width": 460
+      },
+      "id": "458aedfc-b5c2-52ab-a602-66de7ba8a805",
+      "name": "Nota 0",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "documentos/upload",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "2c12d322-9905-579f-b7f0-b064b252cb18",
+      "name": "Webhook upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "9dd8e685-bc01-5abd-a81a-27955e0ed87d"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ⚙️ CONFIGURAÇÃO — preencha uma vez\nreturn [{ json: {\n  ...$json,\n  config: {\n    SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',   // sem barra no final\n    EVOLUTION_V1: false,                                // true se a sua Evolution for v1.x\n    MODELO_IA: 'gpt-4.1-mini',\n  }\n}}];"
+      },
+      "id": "ce7b6223-3581-52f8-8ec0-4dfa386dba38",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = { ...($json.body || {}) };\n// aceita base64 puro ou data URL (\"data:application/pdf;base64,....\")\nb.arquivo_base64 = String(b.arquivo_base64 || '').replace(/^data:[^,]*,/, '');\nconst uuidOk = s => /^[0-9a-f-]{36}$/i.test(s || '');\nconst erros = [];\nif (!uuidOk(b.cliente_id)) erros.push('cliente_id');\nif (!b.arquivo_base64) erros.push('arquivo');\nif (!b.tipo) erros.push('tipo');\nconst bytes = Math.floor(String(b.arquivo_base64 || '').length * 3 / 4);\nif (bytes > 15 * 1024 * 1024) erros.push('arquivo maior que 15 MB');  // pelo app o limite real é 3 MB (proxy da Vercel)\nconst limpo = String(b.arquivo_nome || 'arquivo').normalize('NFD').replace(/[̀-ͯ]/g, '')\n  .replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-80);\nreturn [{ json: { config: $json.config, b, bytes, nome_limpo: limpo, erro: erros.join(', ') } }];"
+      },
+      "id": "e5c5e88a-86f8-5950-b71d-b7c74bdb7177",
+      "name": "Validar arquivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c42b85f6-0bc7-5b05-8013-4f241a151737",
+              "leftValue": "={{ !$json.erro }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c42b85f6-0bc7-5b05-8013-4f241a151737",
+      "name": "Arquivo válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ success: false, error: 'Dados inválidos: ' + $json.erro }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "3aa83a3c-1919-5b0e-900f-4e26636eb359",
+      "name": "Responder: inválido",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, tenant_id FROM public.clientes WHERE id = $1::uuid",
+        "options": {
+          "queryReplacement": "={{ [ $json.b.cliente_id ] }}"
+        }
+      },
+      "id": "d4cb9cce-ed5b-542d-8d1f-b5dff8ffc02b",
+      "name": "Buscar cliente",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "f14637a3-aefd-5458-bd20-8c96be0d9766",
+              "leftValue": "={{ !!$json.tenant_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f14637a3-aefd-5458-bd20-8c96be0d9766",
+      "name": "Cliente existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ success: false, error: 'Cliente não encontrado' }) }}",
+        "options": {
+          "responseCode": 404
+        }
+      },
+      "id": "257873ab-19e4-5668-98d2-c2adf5825d53",
+      "name": "Responder: sem cliente",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const v = $('Validar arquivo').item.json;\nconst b = v.b;\nconst agora = new Date();\nconst comp = b.ano && b.mes ? `${b.ano}-${String(b.mes).padStart(2, '0')}` : agora.toISOString().slice(0, 7);\nconst categoria = String(b.categoria || 'Geral').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-');\nconst path = `${$json.tenant_id}/${b.cliente_id}/${categoria}/${comp}/${agora.getTime()}-${v.nome_limpo}`;\nconst bin = await this.helpers.prepareBinaryData(Buffer.from(b.arquivo_base64, 'base64'), v.nome_limpo, b.arquivo_tipo || 'application/octet-stream');\nreturn [{\n  json: {\n    config: v.config, tenant_id: $json.tenant_id, b, path, bytes: v.bytes,\n    upload_url: `${v.config.SUPABASE_URL}/storage/v1/object/documentos/${path.split('/').map(encodeURIComponent).join('/')}`,\n  },\n  binary: { arquivo: bin },\n}];"
+      },
+      "id": "903a8925-84ab-52bc-b388-c5252f0d075c",
+      "name": "Preparar arquivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.upload_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-upsert",
+              "value": "true"
+            },
+            {
+              "name": "Content-Type",
+              "value": "={{ $json.b.arquivo_tipo || 'application/octet-stream' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "arquivo",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "b30d1232-fba0-582f-b6eb-e63291c3d35f",
+      "name": "Enviar ao Storage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        0
+      ],
+      "credentials": {
+        "httpCustomAuth": {
+          "id": "contaSupaService",
+          "name": "Conta+ · Supabase service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "fbd991f0-1c38-5898-9d6a-dec1879b1934",
+              "leftValue": "={{ $json.statusCode < 300 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fbd991f0-1c38-5898-9d6a-dec1879b1934",
+      "name": "Subiu?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ success: false, error: 'Falha ao gravar o arquivo (' + $json.statusCode + ')' }) }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "2987adb5-4188-5f85-9fb7-f3f7b12e3680",
+      "name": "Responder: falha no Storage",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.documentos\n  (cliente_id, tenant_id, categoria, tipo, mes, ano, url, storage_path, nome_arquivo,\n   mime_type, tamanho_bytes, uploaded_by, vigente, uploaded_at)\nVALUES ($1::uuid, $2::uuid, $3, $4, NULLIF($5, '')::int, NULLIF($6, '')::int, $7, $8, $9,\n        $10, $11::bigint, $12, true, now())\nRETURNING id, url",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Preparar arquivo').item.json.b.cliente_id,\n  $('Preparar arquivo').item.json.tenant_id,\n  $('Preparar arquivo').item.json.b.categoria || 'Geral',\n  $('Preparar arquivo').item.json.b.tipo,\n  String($('Preparar arquivo').item.json.b.mes || ''),\n  String($('Preparar arquivo').item.json.b.ano || ''),\n  $('Preparar arquivo').item.json.config.SUPABASE_URL + '/storage/v1/object/documentos/' + $('Preparar arquivo').item.json.path,\n  $('Preparar arquivo').item.json.path,\n  $('Preparar arquivo').item.json.b.arquivo_nome || 'arquivo',\n  $('Preparar arquivo').item.json.b.arquivo_tipo || null,\n  String($('Preparar arquivo').item.json.bytes),\n  $('Preparar arquivo').item.json.b.uploaded_by || 'Conta+'\n] }}"
+        }
+      },
+      "id": "61918093-40d8-5bfe-beb8-72f00ef5119e",
+      "name": "Registrar documento",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1980,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ success: true, id: $json.id, url: $json.url }) }}",
+        "options": {}
+      },
+      "id": "1e6e0c66-e2b4-5323-8fc7-eb6b4eb5760f",
+      "name": "Responder: ok",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2200,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook upload": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Validar arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar arquivo": {
+      "main": [
+        [
+          {
+            "node": "Arquivo válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Arquivo válido?": {
+      "main": [
+        [
+          {
+            "node": "Buscar cliente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder: inválido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar cliente": {
+      "main": [
+        [
+          {
+            "node": "Cliente existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cliente existe?": {
+      "main": [
+        [
+          {
+            "node": "Preparar arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder: sem cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar arquivo": {
+      "main": [
+        [
+          {
+            "node": "Enviar ao Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar ao Storage": {
+      "main": [
+        [
+          {
+            "node": "Subiu?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subiu?": {
+      "main": [
+        [
+          {
+            "node": "Registrar documento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder: falha no Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar documento": {
+      "main": [
+        [
+          {
+            "node": "Responder: ok",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [],
+  "pinData": {}
+}

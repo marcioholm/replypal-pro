@@ -1,0 +1,174 @@
+{
+  "name": "Conta+ 08 · Lembretes da pré-venda",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 08 · Lembretes da pré-venda (opcional)\nDias úteis às 8h, envia a admin e supervisores (campo WhatsApp do usuário) as oportunidades com próximo contato hoje ou atrasado (`lembretes_pre_venda()`).",
+        "height": 200,
+        "width": 440
+      },
+      "id": "97e565c2-5682-5575-b7b8-78d9e7d2a0b6",
+      "name": "Nota 0",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "c4114331-4556-5e93-aa9b-5fb049b10803",
+      "name": "Dias úteis 8h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ⚙️ CONFIGURAÇÃO — preencha uma vez\nreturn [{ json: {\n  ...$json,\n  config: {\n    SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',   // sem barra no final\n    EVOLUTION_V1: false,                                // true se a sua Evolution for v1.x\n    MODELO_IA: 'gpt-4.1-mini',\n  }\n}}];"
+      },
+      "id": "650497ff-c0eb-5a9d-8812-d81f0d9a69f1",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM public.lembretes_pre_venda()",
+        "options": {}
+      },
+      "id": "aae3ca98-09fe-5a74-9a45-1cf4e8df237b",
+      "name": "Lembretes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function corpoTexto(numero, texto, v1) {\n  return v1 ? { number: numero, textMessage: { text: texto } } : { number: numero, text: texto };\n}\nfunction corpoMidia(numero, url, tipo, nome, legenda, v1) {\n  const m = { mediatype: tipo || 'document', media: url, fileName: nome || 'arquivo', caption: legenda || '' };\n  return v1 ? { number: numero, mediaMessage: m } : { number: numero, ...m };\n}\nfunction endpoint(evo, caminho) {\n  return `${String(evo.url || '').replace(/\\/$/, '')}/message/${caminho}/${encodeURIComponent(evo.instance || '')}`;\n}\n\nconst v1 = $('Config').first().json.config.EVOLUTION_V1;\nconst saida = [];\nfor (const { json: l } of $input.all()) {\n  for (const numero of (l.destinos || [])) {\n    saida.push({ json: { req: { url: endpoint(l.evolution, 'sendText'), headers: { apikey: l.evolution.apikey },\n                                body: corpoTexto(numero, l.texto, v1) } } });\n  }\n}\nreturn saida;"
+      },
+      "id": "abbb2e61-edf1-53fe-b2f3-68baf842293e",
+      "name": "Montar envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.req.url }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.req.headers || {}) }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.req.body) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "1f4d2d09-3204-583a-8a95-013ee6dcfac9",
+      "name": "Enviar lembrete",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Dias úteis 8h": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Lembretes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lembretes": {
+      "main": [
+        [
+          {
+            "node": "Montar envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar envio": {
+      "main": [
+        [
+          {
+            "node": "Enviar lembrete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [],
+  "pinData": {}
+}

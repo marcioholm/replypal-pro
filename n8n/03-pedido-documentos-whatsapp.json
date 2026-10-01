@@ -1,0 +1,1030 @@
+{
+  "name": "Conta+ 03 · Pedido de documentos pelo WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 03 · Pedido de documentos pelo WhatsApp\nChamado pelo `api/evolution-webhook.ts` a cada mensagem de texto de cliente (variável N8N_DOCUMENTOS_WEBHOOK = https://SEU-N8N/webhook/conta/documentos).\n\nSó age se **bot_documentos_ativo** estiver ligado em Configurações. Regras de quem recebe o quê estão no banco (migration 013): o fluxo só conversa e envia.",
+        "height": 280,
+        "width": 520
+      },
+      "id": "f635c7c9-420d-5ef8-97ba-87852c4da5c9",
+      "name": "Nota 0",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "conta/documentos",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "0af6308e-1051-568d-9032-22c6b376cb1f",
+      "name": "Webhook mensagem",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "27bafb98-2268-5c8d-bd5b-3f5f2ab1d36e"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ⚙️ CONFIGURAÇÃO — preencha uma vez\nreturn [{ json: {\n  ...$json,\n  config: {\n    SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',   // sem barra no final\n    EVOLUTION_V1: false,                                // true se a sua Evolution for v1.x\n    MODELO_IA: 'gpt-4.1-mini',\n  }\n}}];"
+      },
+      "id": "51886bb1-daae-54ad-a17b-99a35055aeeb",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  coalesce(cs.bot_documentos_ativo, false) AS ativo,\n  public.evolution_config($1::uuid) AS evolution,\n  public.telefone_whatsapp($2) AS numero,\n  (SELECT row_to_json(p) FROM public.pedidos_documento p\n    WHERE p.tenant_id = $1::uuid AND public.mesmo_telefone(p.telefone, $2)\n      AND p.status IN ('aguardando_cliente', 'escolher_empresa')\n      AND p.created_at > now() - interval '15 minutes'\n    ORDER BY p.created_at DESC LIMIT 1) AS pedido\nFROM public.company_settings cs WHERE cs.tenant_id = $1::uuid",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.tenant_id, $json.body.telefone ] }}"
+        }
+      },
+      "id": "7cdbe043-807a-5e76-b3d6-57c1692d1fd5",
+      "name": "Carregar contexto",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const ent = $('Config').item.json;\nconst b = ent.body || {};\nconst texto = String(b.texto || '').trim();\nconst t = texto.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');\nconst p = $json.pedido;\nlet caminho = 'ignorar';\nlet escolha = null;\nif ($json.ativo) {\n  if (p && p.status === 'escolher_empresa' && /^\\d{1,2}$/.test(t)) { caminho = 'escolher'; escolha = parseInt(t, 10); }\n  else if (p && p.status === 'aguardando_cliente' && /^(1|sim|s|isso|pode|quero|ok|claro)\\b/.test(t)) caminho = 'confirmar';\n  else if (p && /^(2|nao|n|cancela|deixa)\\b/.test(t)) caminho = 'cancelar';\n  else if (/(contrato|social|cartao|cnpj|certificado|guia|\\bdas\\b|boleto|honorario|folha|holerite|alvara|faturamento|compras|vendas)/.test(t)) caminho = 'classificar';\n}\nreturn [{ json: {\n  config: ent.config, caminho, escolha, texto,\n  tenant_id: b.tenant_id, conversa_id: b.conversa_id, telefone: b.telefone,\n  numero: $json.numero, evolution: $json.evolution, pedido: p,\n}}];"
+      },
+      "id": "c4364404-4da2-5a62-99c6-cb525d36572e",
+      "name": "Decidir caminho",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.caminho }}",
+                    "rightValue": "confirmar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "confirmar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.caminho }}",
+                    "rightValue": "cancelar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cancelar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.caminho }}",
+                    "rightValue": "escolher",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "escolher"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.caminho }}",
+                    "rightValue": "classificar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "classificar"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "071b8183-aeab-5b01-a671-53e4551bf052",
+      "name": "Caminho",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT public.confirmar_pedido_documento($1::uuid) AS r,\n       p.id AS pedido_id, p.tipo, d.nome_arquivo, d.url, d.storage_path,\n       coalesce(cfg.rotulo, p.tipo) AS rotulo\nFROM public.pedidos_documento p\nLEFT JOIN public.documentos d ON d.id = p.documento_id\nLEFT JOIN public.documento_tipos_config cfg ON cfg.tenant_id = p.tenant_id AND cfg.tipo = p.tipo\nWHERE p.id = $1::uuid",
+        "options": {
+          "queryReplacement": "={{ [ $json.pedido.id ] }}"
+        }
+      },
+      "id": "079305da-5945-5bda-ab03-5b72b9ef16af",
+      "name": "Confirmar pedido",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        -300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.r.acao }}",
+                    "rightValue": "enviar_agora",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "enviar_agora"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.r.acao }}",
+                    "rightValue": "avisar_equipe",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "avisar_equipe"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.r.acao }}",
+                    "rightValue": "aguardar_aprovacao",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "aguardar_aprovacao"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7fed0371-366a-562b-8c38-451d7a6869d9",
+      "name": "Ação",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1320,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').item.json.config.SUPABASE_URL + '/storage/v1/object/sign/documentos/' + String($json.storage_path || '').split('/').map(encodeURIComponent).join('/') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"expiresIn\": 600}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "ddab3312-3882-5935-95e0-44dfea28dc38",
+      "name": "Assinar link do arquivo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        -480
+      ],
+      "credentials": {
+        "httpCustomAuth": {
+          "id": "contaSupaService",
+          "name": "Conta+ · Supabase service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function corpoTexto(numero, texto, v1) {\n  return v1 ? { number: numero, textMessage: { text: texto } } : { number: numero, text: texto };\n}\nfunction corpoMidia(numero, url, tipo, nome, legenda, v1) {\n  const m = { mediatype: tipo || 'document', media: url, fileName: nome || 'arquivo', caption: legenda || '' };\n  return v1 ? { number: numero, mediaMessage: m } : { number: numero, ...m };\n}\nfunction endpoint(evo, caminho) {\n  return `${String(evo.url || '').replace(/\\/$/, '')}/message/${caminho}/${encodeURIComponent(evo.instance || '')}`;\n}\n\nconst base = $('Decidir caminho').item.json;\nconst c = $('Confirmar pedido').item.json;\nconst assinado = $json.signedURL ? base.config.SUPABASE_URL + '/storage/v1' + $json.signedURL : null;\nconst url = c.storage_path ? assinado : c.url;\nconst legenda = `Segue o ${c.rotulo}.`;\nreturn [{ json: {\n  ...base, pedido_id: c.pedido_id, enviar_arquivo: true, legenda, nome_arquivo: c.nome_arquivo,\n  url_arquivo: url,\n  req: url ? {\n    url: endpoint(base.evolution, 'sendMedia'),\n    headers: { apikey: base.evolution.apikey },\n    body: corpoMidia(base.numero, url, 'document', c.nome_arquivo, legenda, base.config.EVOLUTION_V1),\n  } : null,\n}}];"
+      },
+      "id": "cfc70558-e8f9-5446-8c94-bdd97eaedb0c",
+      "name": "Montar envio do arquivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.req.url }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.req.headers || {}) }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.req.body) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "0527b277-a3bc-575d-b659-ce07c0c7f04f",
+      "name": "Enviar arquivo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT public.marcar_pedido_enviado($1::uuid, NULL) AS pedido,\n       public.registrar_mensagem_automatica($2::uuid, $3, 'Conta+ (automático)', 'document', NULL, $4, NULLIF($5, ''))",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Montar envio do arquivo').item.json.pedido_id,\n  $('Montar envio do arquivo').item.json.conversa_id,\n  $('Montar envio do arquivo').item.json.legenda,\n  $('Montar envio do arquivo').item.json.nome_arquivo || 'documento',\n  ($json.body && $json.body.key && $json.body.key.id) || ''\n] }}"
+        }
+      },
+      "id": "14daefde-7e02-5a04-9520-63bf88d24c99",
+      "name": "Marcar enviado",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2420,
+        -480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "155dbb15-0f72-522d-9a15-faf006059db0",
+              "leftValue": "={{ $json.statusCode < 300 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "155dbb15-0f72-522d-9a15-faf006059db0",
+      "name": "Arquivo saiu?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $('Montar envio do arquivo').item.json;\nreturn [{ json: { ...b, resposta: 'Não consegui enviar o arquivo agora. Um atendente já vai te ajudar.' } }];"
+      },
+      "id": "02603b95-8296-5969-9e99-742d774bbdb2",
+      "name": "Texto: falha no envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$('Decidir caminho').item.json, resposta: 'Pedido recebido! A equipe envia em instantes.' } }];"
+      },
+      "id": "856452e0-38c3-5b55-b491-46287d58caaf",
+      "name": "Texto: equipe envia",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$('Decidir caminho').item.json, resposta: 'Esse documento precisa de uma aprovação interna. Avisamos por aqui assim que for liberado.' } }];"
+      },
+      "id": "dc658451-0ca0-50c3-b1ca-389f24e362c9",
+      "name": "Texto: aguarda aprovação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.pedidos_documento SET status = 'cancelado' WHERE id = $1::uuid RETURNING id",
+        "options": {
+          "queryReplacement": "={{ [ $json.pedido.id ] }}"
+        }
+      },
+      "id": "ea541d5d-97ca-5354-967f-580ad9fe555f",
+      "name": "Cancelar pedido",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        -60
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$('Decidir caminho').item.json, resposta: 'Tudo bem! Se precisar de algum documento, é só pedir.' } }];"
+      },
+      "id": "1cf82779-881e-582e-8c29-a5559db26ac4",
+      "name": "Texto: cancelado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH opcoes AS (\n  SELECT c.id, row_number() OVER (ORDER BY c.nome_fantasia) AS n\n  FROM public.contatos ct JOIN public.clientes c ON c.id = ct.customer_id\n  WHERE ct.tenant_id = $1::uuid AND public.mesmo_telefone(ct.whatsapp_digitos, $2)\n    AND ct.pode_receber_documentos\n    AND ($3 <> 'certificado_digital' OR ct.pode_receber_certificado)\n    AND coalesce(c.status, 'Ativo') NOT IN ('Inativo', 'Encerrado')\n), cancela AS (\n  UPDATE public.pedidos_documento SET status = 'cancelado' WHERE id = $5::uuid RETURNING id\n)\nSELECT public.resolver_pedido_documento($1::uuid, $2, $3, $6::uuid, $7,\n         (SELECT id FROM opcoes WHERE n = $4::int)) AS resultado\nFROM (SELECT 1) x\nWHERE EXISTS (SELECT 1 FROM opcoes WHERE n = $4::int)",
+        "options": {
+          "queryReplacement": "={{ [ $json.tenant_id, $json.telefone, $json.pedido.tipo, String($json.escolha), $json.pedido.id, $json.conversa_id, $json.texto ] }}"
+        }
+      },
+      "id": "3463c705-0175-5451-8c86-5c4922fe4b67",
+      "name": "Resolver empresa escolhida",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $('Config').item.json.config.MODELO_IA, temperature: 0.2, response_format: { type: 'json_object' }, messages: [\n  { role: 'system', content: 'Você lê mensagens de clientes de um escritório de contabilidade. Responda só JSON: {\"pedido\": true|false, \"tipo\": \"cartao_cnpj|alvara|documentos_fiscais|boletos_honorarios|contrato_social|folha_pagamento|faturamento|compras|vendas|certificado_digital\" ou null}. pedido=true só se a pessoa está PEDINDO para receber o documento agora. Perguntas sobre o documento (prazo, alteração, dúvida) são pedido=false. guia, DAS, DARF, GPS e notas = documentos_fiscais; holerite = folha_pagamento; boleto do escritório = boletos_honorarios.' },\n  { role: 'user', content: $json.texto }\n] }) }}",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "6b2d40f0-0a29-5772-9680-25abccbaa629",
+      "name": "IA: é pedido de documento?",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        380
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "contaOpenAI",
+          "name": "Conta+ · OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Decidir caminho').item.json;\nlet c = {};\ntry { c = JSON.parse($json.choices?.[0]?.message?.content || '{}'); } catch (e) {}\nconst tipos = [\"cartao_cnpj\", \"alvara\", \"documentos_fiscais\", \"boletos_honorarios\", \"contrato_social\", \"folha_pagamento\", \"faturamento\", \"compras\", \"vendas\", \"certificado_digital\"];\nreturn [{ json: { ...base, eh_pedido: c.pedido === true && tipos.includes(c.tipo), tipo: c.tipo } }];"
+      },
+      "id": "f0ad4470-511f-56a7-9518-03aec53becc9",
+      "name": "Ler classificação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "20537b80-ef2d-5958-96da-a58db3a39326",
+              "leftValue": "={{ $json.eh_pedido }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "20537b80-ef2d-5958-96da-a58db3a39326",
+      "name": "É pedido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT public.resolver_pedido_documento($1::uuid, $2, $3, $4::uuid, $5) AS resultado",
+        "options": {
+          "queryReplacement": "={{ [ $json.tenant_id, $json.telefone, $json.tipo, $json.conversa_id, $json.texto ] }}"
+        }
+      },
+      "id": "479bac9d-1e93-5097-9083-976c2d49f9e7",
+      "name": "Resolver pedido",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1760,
+        380
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Decidir caminho').item.json;\nconst r = $json.resultado;\nif (!r) return [{ json: { ...base, resposta: 'Não entendi qual empresa. Responda com o número da lista.' } }];\nlet resposta;\nswitch (r.decisao) {\n  case 'confirmar_com_cliente':\n    resposta = `Você quer receber o ${r.rotulo} da ${r.empresa}? Responda 1 para sim ou 2 para não.`; break;\n  case 'escolher_empresa':\n    resposta = 'De qual empresa?\\n' + (r.empresas || []).map((e, i) => `${i + 1}. ${e.empresa}`).join('\\n') +\n               '\\n\\nResponda com o número.'; break;\n  case 'nao_autorizado':\n    resposta = 'Não encontrei seu cadastro para receber documentos por aqui. Um atendente já vai te ajudar.'; break;\n  case 'sem_documento':\n    resposta = 'Não achei esse documento no sistema. Um atendente já vai te ajudar.'; break;\n  default:\n    resposta = 'Esse documento é tratado só com a nossa equipe. Um atendente já vai te ajudar.';\n}\nreturn [{ json: { ...base, resposta } }];"
+      },
+      "id": "a31a70b0-3a5c-5f77-9029-40dec77084cb",
+      "name": "Texto da decisão",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function corpoTexto(numero, texto, v1) {\n  return v1 ? { number: numero, textMessage: { text: texto } } : { number: numero, text: texto };\n}\nfunction corpoMidia(numero, url, tipo, nome, legenda, v1) {\n  const m = { mediatype: tipo || 'document', media: url, fileName: nome || 'arquivo', caption: legenda || '' };\n  return v1 ? { number: numero, mediaMessage: m } : { number: numero, ...m };\n}\nfunction endpoint(evo, caminho) {\n  return `${String(evo.url || '').replace(/\\/$/, '')}/message/${caminho}/${encodeURIComponent(evo.instance || '')}`;\n}\n\nreturn [{ json: { ...$json, req: {\n  url: endpoint($json.evolution, 'sendText'),\n  headers: { apikey: $json.evolution.apikey },\n  body: corpoTexto($json.numero, $json.resposta, $json.config.EVOLUTION_V1),\n}}}];"
+      },
+      "id": "5ed3d91e-d280-5176-88f9-6443e666a508",
+      "name": "Montar envio do texto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.req.url }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.req.headers || {}) }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.req.body) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "08214ef6-263d-5d5f-b08a-fda088675134",
+      "name": "Enviar texto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT public.registrar_mensagem_automatica($1::uuid, $2, 'Conta+ (automático)', 'text', NULL, NULL, NULLIF($3, ''))",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Montar envio do texto').item.json.conversa_id,\n  $('Montar envio do texto').item.json.resposta,\n  ($json.body && $json.body.key && $json.body.key.id) || ''\n] }}"
+        }
+      },
+      "id": "83e67bb4-97dd-5042-b0fa-0c94ab18653d",
+      "name": "Gravar no chat",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3080,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook mensagem": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Carregar contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carregar contexto": {
+      "main": [
+        [
+          {
+            "node": "Decidir caminho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decidir caminho": {
+      "main": [
+        [
+          {
+            "node": "Caminho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Caminho": {
+      "main": [
+        [
+          {
+            "node": "Confirmar pedido",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cancelar pedido",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resolver empresa escolhida",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IA: é pedido de documento?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar pedido": {
+      "main": [
+        [
+          {
+            "node": "Ação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ação": {
+      "main": [
+        [
+          {
+            "node": "Assinar link do arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Texto: equipe envia",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Texto: aguarda aprovação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assinar link do arquivo": {
+      "main": [
+        [
+          {
+            "node": "Montar envio do arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar envio do arquivo": {
+      "main": [
+        [
+          {
+            "node": "Enviar arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar arquivo": {
+      "main": [
+        [
+          {
+            "node": "Arquivo saiu?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Arquivo saiu?": {
+      "main": [
+        [
+          {
+            "node": "Marcar enviado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Texto: falha no envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancelar pedido": {
+      "main": [
+        [
+          {
+            "node": "Texto: cancelado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver empresa escolhida": {
+      "main": [
+        [
+          {
+            "node": "Texto da decisão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA: é pedido de documento?": {
+      "main": [
+        [
+          {
+            "node": "Ler classificação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler classificação": {
+      "main": [
+        [
+          {
+            "node": "É pedido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É pedido?": {
+      "main": [
+        [
+          {
+            "node": "Resolver pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolver pedido": {
+      "main": [
+        [
+          {
+            "node": "Texto da decisão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto: equipe envia": {
+      "main": [
+        [
+          {
+            "node": "Montar envio do texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto: aguarda aprovação": {
+      "main": [
+        [
+          {
+            "node": "Montar envio do texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto: cancelado": {
+      "main": [
+        [
+          {
+            "node": "Montar envio do texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto da decisão": {
+      "main": [
+        [
+          {
+            "node": "Montar envio do texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto: falha no envio": {
+      "main": [
+        [
+          {
+            "node": "Montar envio do texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar envio do texto": {
+      "main": [
+        [
+          {
+            "node": "Enviar texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar texto": {
+      "main": [
+        [
+          {
+            "node": "Gravar no chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [],
+  "pinData": {}
+}

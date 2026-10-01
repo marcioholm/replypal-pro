@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { N8N } from "@/lib/n8n";
 import { useLocation } from "react-router-dom";
 import { Sparkles, Send, X, Loader2, Bot, User as UserIcon, ThumbsUp, ThumbsDown, BookOpen, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,32 +28,6 @@ Tente reformular sua solicitação de forma mais específica que eu sigo a parti
 interface Message {
   role: "user" | "ia";
   content: string;
-}
-
-export function IAChatButton({ collapsed }: { collapsed: boolean }) {
-  const store = useStore();
-  return (
-    <button
-      onClick={() => store.setIAChatOpen(!store.isIAChatOpen)}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[12px] transition-all duration-300 group relative mb-1 ${
-        store.isIAChatOpen 
-          ? "bg-[rgba(34,199,169,0.2)] text-[#22C7A9]" 
-          : "hover:bg-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.65)] hover:text-white"
-      }`}
-      title="Assistente Conta+"
-    >
-      <Sparkles
-        aria-hidden="true"
-        className={`w-6 h-6 flex-shrink-0 transition-transform duration-300 ${store.isIAChatOpen ? "scale-110" : "opacity-70 group-hover:opacity-100 group-hover:scale-110"}`} 
-      />
-      <span className={`text-sm font-medium tracking-tight whitespace-nowrap transition-all duration-300 overflow-hidden ${
-        collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
-      }`}>
-        Assistente
-      </span>
-      {store.isIAChatOpen && !collapsed && <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-[#22C7A9] animate-pulse" />}
-    </button>
-  );
 }
 
 export function IAChatPanel() {
@@ -135,15 +110,15 @@ export function IAChatPanel() {
       mensagem_texto: userMessage,
       tenant_id: tenant?.id || user?.tenantId,
       cliente_id: clienteId || null,
-      origem: "replypal_interno",
+      origem: "conta_interno",
       numero_whatsapp: user?.whatsapp || "interno",
-      colaborador: user?.name || "Usuário ReplyPal",
+      colaborador: user?.name || "Usuário Conta+",
     };
 
     console.log("Payload IA enviado:", payload);
 
     try {
-      const response = await fetch("https://northway.vps8204.panel.icontainer.cloud/webhook/replypal/ia-pro", {
+      const response = await fetch(N8N.ia, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

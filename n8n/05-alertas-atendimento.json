@@ -1,0 +1,208 @@
+{
+  "name": "Conta+ 05 · Alertas de atendimento",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 05 · Alertas de atendimento\nA cada 15 minutos lê `alertas_devidos()`: conversas de cliente cuja última mensagem é do cliente e passou do limite configurado em **Alertas** (dias e horário respeitados). Cada episódio é avisado uma única vez (`alertas_envios`).",
+        "height": 220,
+        "width": 460
+      },
+      "id": "ddc6da0b-0cd7-55ff-961b-3684734185b7",
+      "name": "Nota 0",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "766fe0a3-e990-570e-9815-a7a58eacb5e0",
+      "name": "A cada 15 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ⚙️ CONFIGURAÇÃO — preencha uma vez\nreturn [{ json: {\n  ...$json,\n  config: {\n    SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',   // sem barra no final\n    EVOLUTION_V1: false,                                // true se a sua Evolution for v1.x\n    MODELO_IA: 'gpt-4.1-mini',\n  }\n}}];"
+      },
+      "id": "407f0287-d520-5175-9439-bf90a94cbcb3",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM public.alertas_devidos()",
+        "options": {}
+      },
+      "id": "508af5de-4287-5f7f-ba33-1933bf54f447",
+      "name": "Alertas devidos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function corpoTexto(numero, texto, v1) {\n  return v1 ? { number: numero, textMessage: { text: texto } } : { number: numero, text: texto };\n}\nfunction corpoMidia(numero, url, tipo, nome, legenda, v1) {\n  const m = { mediatype: tipo || 'document', media: url, fileName: nome || 'arquivo', caption: legenda || '' };\n  return v1 ? { number: numero, mediaMessage: m } : { number: numero, ...m };\n}\nfunction endpoint(evo, caminho) {\n  return `${String(evo.url || '').replace(/\\/$/, '')}/message/${caminho}/${encodeURIComponent(evo.instance || '')}`;\n}\n\nconst v1 = $('Config').first().json.config.EVOLUTION_V1;\nreturn $input.all().map(({ json: a }) => ({ json: { ...a, req: {\n  url: endpoint(a.evolution, 'sendText'),\n  headers: { apikey: a.evolution.apikey },\n  body: corpoTexto(a.numero_destino, a.mensagem, v1),\n}}}));"
+      },
+      "id": "cd826b4b-e484-5baf-881d-1b5ad05ea104",
+      "name": "Montar envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.req.url }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.req.headers || {}) }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.req.body) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "c39b9148-d29c-5dc8-ad46-b75e83cb7b23",
+      "name": "Enviar alerta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT public.registrar_alerta($1::uuid, $2::uuid, $3::timestamptz, $4::boolean, NULLIF($5, ''))",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Montar envio').item.json.alerta_id,\n  $('Montar envio').item.json.conversa_id,\n  $('Montar envio').item.json.referencia,\n  $json.statusCode < 300,\n  $json.statusCode < 300 ? '' : 'HTTP ' + $json.statusCode\n] }}"
+        }
+      },
+      "id": "282ab973-6c64-5a1c-85d4-2c8e719af489",
+      "name": "Registrar alerta",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "A cada 15 minutos": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Alertas devidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alertas devidos": {
+      "main": [
+        [
+          {
+            "node": "Montar envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar envio": {
+      "main": [
+        [
+          {
+            "node": "Enviar alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar alerta": {
+      "main": [
+        [
+          {
+            "node": "Registrar alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [],
+  "pinData": {}
+}

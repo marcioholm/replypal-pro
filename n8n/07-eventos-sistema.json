@@ -1,0 +1,223 @@
+{
+  "name": "Conta+ 07 · Eventos do sistema",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 07 · Eventos do sistema\nChamado pelo app quando um cliente é cadastrado (POST /webhook/conta/eventos, via /api/proxy-webhook).\n\nHoje: avisa admin e supervisores pelo WhatsApp (campo WhatsApp do usuário). Ponto de extensão para criar pastas no Drive, planilha de onboarding etc.",
+        "height": 220,
+        "width": 460
+      },
+      "id": "01f1cbdd-c692-51ab-829d-75d92f11f265",
+      "name": "Nota 0",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "conta/eventos",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "0a07f083-3537-57b6-8081-de74f3c0e91b",
+      "name": "Webhook eventos",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "06fdb561-3e9a-55f5-9f9d-98f5ad9ed0cc"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ⚙️ CONFIGURAÇÃO — preencha uma vez\nreturn [{ json: {\n  ...$json,\n  config: {\n    SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',   // sem barra no final\n    EVOLUTION_V1: false,                                // true se a sua Evolution for v1.x\n    MODELO_IA: 'gpt-4.1-mini',\n  }\n}}];"
+      },
+      "id": "3ece9b94-47a4-5ee0-a0e6-6ece7192cee6",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "cliente_criado",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cliente_criado"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7ecf59b4-1a02-5263-bf86-cd22605d1a01",
+      "name": "Evento",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT public.telefone_whatsapp(u.whatsapp) AS numero, public.evolution_config(u.tenant_id) AS evolution\nFROM public.usuarios u\nWHERE u.tenant_id = $1::uuid AND u.role IN ('admin', 'supervisor')\n  AND length(regexp_replace(coalesce(u.whatsapp, ''), '\\D', '', 'g')) >= 10",
+        "options": {
+          "queryReplacement": "={{ [ $json.body.tenant_id ] }}"
+        }
+      },
+      "id": "5680c110-0efb-5831-ab34-a5cb219fc772",
+      "name": "Destinatários",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        660,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function corpoTexto(numero, texto, v1) {\n  return v1 ? { number: numero, textMessage: { text: texto } } : { number: numero, text: texto };\n}\nfunction corpoMidia(numero, url, tipo, nome, legenda, v1) {\n  const m = { mediatype: tipo || 'document', media: url, fileName: nome || 'arquivo', caption: legenda || '' };\n  return v1 ? { number: numero, mediaMessage: m } : { number: numero, ...m };\n}\nfunction endpoint(evo, caminho) {\n  return `${String(evo.url || '').replace(/\\/$/, '')}/message/${caminho}/${encodeURIComponent(evo.instance || '')}`;\n}\n\nconst ev = $('Config').first().json;\nconst b = ev.body || {};\nconst v1 = ev.config.EVOLUTION_V1;\nconst texto = `Novo cliente cadastrado no Conta+: *${b.cliente_nome || 'sem nome'}*` +\n  (b.cnpj ? ` (CNPJ ${b.cnpj})` : '') + (b.criado_por ? `\\nCadastrado por: ${b.criado_por}` : '') +\n  '\\nConfira os contatos e marque quem pode receber documentos.';\nreturn $input.all().map(({ json: d }) => ({ json: { req: {\n  url: endpoint(d.evolution, 'sendText'), headers: { apikey: d.evolution.apikey },\n  body: corpoTexto(d.numero, texto, v1),\n}}}));"
+      },
+      "id": "c6b77fe6-304f-56d1-b7e8-9b18d27f49ea",
+      "name": "Montar aviso",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.req.url }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.req.headers || {}) }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.req.body) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9ea35968-5c64-519d-b417-d27f35ae4d73",
+      "name": "Enviar aviso",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook eventos": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evento": {
+      "main": [
+        [
+          {
+            "node": "Destinatários",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destinatários": {
+      "main": [
+        [
+          {
+            "node": "Montar aviso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar aviso": {
+      "main": [
+        [
+          {
+            "node": "Enviar aviso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [],
+  "pinData": {}
+}

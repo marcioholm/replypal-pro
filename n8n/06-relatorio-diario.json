@@ -1,0 +1,238 @@
+{
+  "name": "Conta+ 06 · Relatório diário de atendimento",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 06 · Relatório diário\nA cada 5 minutos verifica `relatorios_devidos()` (horário configurado em Configurações › Relatório diário, uma vez por dia).\n\nO botão **Testar** do sistema chama POST /webhook/replypal/relatorio-atendimento/teste e envia na hora, sem contar como o envio do dia.",
+        "height": 240,
+        "width": 480
+      },
+      "id": "4e859b80-bdd6-5a7f-9524-d4de65420c1c",
+      "name": "Nota 0",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -340
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "ad5b9db7-1d68-591b-894f-12a5e707b5fd",
+      "name": "A cada 5 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "replypal/relatorio-atendimento/teste",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "c07dff0a-8381-5df4-b120-e63ffe06d972",
+      "name": "Webhook teste",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        220
+      ],
+      "webhookId": "0ada3ed7-28b0-512e-9e45-814f09450f32"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ⚙️ CONFIGURAÇÃO — preencha uma vez\nreturn [{ json: {\n  ...$json,\n  config: {\n    SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',   // sem barra no final\n    EVOLUTION_V1: false,                                // true se a sua Evolution for v1.x\n    MODELO_IA: 'gpt-4.1-mini',\n  }\n}}];"
+      },
+      "id": "7d7056e9-ff99-5058-8bc9-112becf3dc05",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM public.relatorios_devidos(NULLIF($1, '')::uuid)",
+        "options": {
+          "queryReplacement": "={{ [ ($json.body && $json.body.tenant_id) || '' ] }}"
+        }
+      },
+      "id": "4848cec4-43b4-5429-90a7-0bdabd3644b3",
+      "name": "Relatórios devidos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        440,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function corpoTexto(numero, texto, v1) {\n  return v1 ? { number: numero, textMessage: { text: texto } } : { number: numero, text: texto };\n}\nfunction corpoMidia(numero, url, tipo, nome, legenda, v1) {\n  const m = { mediatype: tipo || 'document', media: url, fileName: nome || 'arquivo', caption: legenda || '' };\n  return v1 ? { number: numero, mediaMessage: m } : { number: numero, ...m };\n}\nfunction endpoint(evo, caminho) {\n  return `${String(evo.url || '').replace(/\\/$/, '')}/message/${caminho}/${encodeURIComponent(evo.instance || '')}`;\n}\n\nconst v1 = ($('Config').first().json.config || {}).EVOLUTION_V1;\nconst saida = [];\nfor (const { json: r } of $input.all()) {\n  const d = r.dados || {}, o = r.opcoes || {};\n  const linhas = [];\n  linhas.push(`*${r.mensagem_intro || r.nome || 'Relatório diário de atendimento'}*`);\n  linhas.push(`${d.dia || ''}${r.teste ? ' (teste)' : ''}`);\n  if (o.resumo_geral !== false) {\n    linhas.push('', '*Resumo*',\n      `• Novas conversas: ${d.novas ?? 0}`,\n      `• Resolvidas: ${d.resolvidas ?? 0}`,\n      `• Abertas agora: ${d.abertas_agora ?? 0} (na fila: ${d.na_fila ?? 0})`,\n      `• Na triagem: ${d.triagem ?? 0}`);\n  }\n  if (o.tempo_resposta !== false && d.tempo_medio_primeira_resposta_min != null) {\n    linhas.push(`• Tempo médio da 1ª resposta: ${d.tempo_medio_primeira_resposta_min} min`);\n  }\n  if (o.alertas !== false) linhas.push(`• Prazo de resposta estourado: ${d.sla_estourado ?? 0}`);\n  if (o.por_usuario !== false && (d.por_usuario || []).length) {\n    linhas.push('', '*Por atendente*', ...d.por_usuario.map(u => `• ${u.nome}: ${u.resolvidas} resolvidas, ${u.abertas} abertas`));\n  }\n  if (o.pendentes !== false && (d.pendentes_mais_antigas || []).length) {\n    linhas.push('', '*Esperando há mais tempo*', ...d.pendentes_mais_antigas.map(p => `• ${p.cliente} (desde ${p.desde})`));\n  }\n  const texto = linhas.join('\\n');\n  for (const dest of (r.destinos || [])) {\n    saida.push({ json: {\n      relatorio_id: r.relatorio_id, teste: r.teste, numero: dest.numero, nome: dest.nome,\n      req: { url: endpoint(r.evolution, 'sendText'), headers: { apikey: r.evolution.apikey },\n             body: corpoTexto(dest.numero, texto, v1) },\n    }});\n  }\n}\nreturn saida;"
+      },
+      "id": "f7a5407a-dc80-5bb1-87ec-7e1c68dd1095",
+      "name": "Formatar mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.req.url }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.req.headers || {}) }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.req.body) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "82ced2c1-3c66-54e7-b480-8306587a98f6",
+      "name": "Enviar relatório",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT public.registrar_envio_relatorio($1::uuid, $2, $3, $4::boolean, NULLIF($5, ''), $6::jsonb, $7::boolean)",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Formatar mensagem').item.json.relatorio_id,\n  $('Formatar mensagem').item.json.numero,\n  $('Formatar mensagem').item.json.nome || '',\n  $json.statusCode < 300,\n  $json.statusCode < 300 ? '' : 'HTTP ' + $json.statusCode,\n  JSON.stringify($json.body || {}),\n  !!$('Formatar mensagem').item.json.teste\n] }}"
+        }
+      },
+      "id": "cff91ce2-4ba3-5d0a-ba41-ab4c90d9a275",
+      "name": "Registrar envio",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "A cada 5 minutos": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook teste": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Relatórios devidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Relatórios devidos": {
+      "main": [
+        [
+          {
+            "node": "Formatar mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar mensagem": {
+      "main": [
+        [
+          {
+            "node": "Enviar relatório",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar relatório": {
+      "main": [
+        [
+          {
+            "node": "Registrar envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [],
+  "pinData": {}
+}

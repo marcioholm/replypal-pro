@@ -1,0 +1,363 @@
+{
+  "name": "Conta+ 01 · Assistente IA interno",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 01 · Assistente IA interno\nChamado pelo painel de IA do Conta+ (POST /webhook/replypal/ia-pro).\n\n1. A IA classifica a pergunta (intenção + termo).\n2. A função `ia_contexto` busca os dados **só do escritório (tenant)**.\n3. A IA responde usando apenas esse contexto.\n\nA IA nunca escreve SQL.",
+        "height": 280,
+        "width": 460
+      },
+      "id": "5c66c813-3a8f-5b68-8560-118e19e100ff",
+      "name": "Nota 0",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "replypal/ia-pro",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5f01e681-b3df-538e-adae-e9b73f132451",
+      "name": "Webhook IA",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "9b6fc66b-f14a-5700-a7e4-ba71cae2c652"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ⚙️ CONFIGURAÇÃO — preencha uma vez\nreturn [{ json: {\n  ...$json,\n  config: {\n    SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',   // sem barra no final\n    EVOLUTION_V1: false,                                // true se a sua Evolution for v1.x\n    MODELO_IA: 'gpt-4.1-mini',\n  }\n}}];"
+      },
+      "id": "07876aa0-21e7-5633-8759-476e97b5838d",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $json.body || {};\nconst pergunta = String(b.mensagem_texto || '').trim().slice(0, 2000);\nconst tenant = String(b.tenant_id || '');\nconst uuidOk = s => /^[0-9a-f-]{36}$/i.test(s || '');\nreturn [{ json: {\n  config: $json.config,\n  pergunta,\n  tenant_id: uuidOk(tenant) ? tenant : null,\n  cliente_id: uuidOk(b.cliente_id) ? b.cliente_id : null,\n  colaborador: b.colaborador || 'Equipe',\n  valido: !!pergunta && uuidOk(tenant),\n}}];"
+      },
+      "id": "5fab829d-b02a-5c82-8b68-a025f5f3ff92",
+      "name": "Validar pergunta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "fb4b45b2-f166-5b17-8ae6-e8c21cee748c",
+              "leftValue": "={{ $json.valido }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fb4b45b2-f166-5b17-8ae6-e8c21cee748c",
+      "name": "Pergunta válida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ resposta: 'Não entendi a pergunta. Tente de novo.' }) }}",
+        "options": {}
+      },
+      "id": "ebb58d88-6c3f-51b0-bb24-cbad03f77547",
+      "name": "Responder: inválido",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $('Config').item.json.config.MODELO_IA, temperature: 0.2, response_format: { type: 'json_object' }, messages: [\n  { role: 'system', content: 'Você classifica perguntas feitas pela equipe de um escritório de contabilidade sobre o próprio sistema. Responda só JSON: {\"intencao\": \"carteira|cliente|financeiro|documentos|atendimento|conhecimento|outro\", \"termo\": \"nome da empresa, CNPJ ou assunto principal, ou null\"}. carteira = visão geral de todos os clientes; cliente = dados de uma empresa; financeiro = faturamento/compras/vendas/folha de uma empresa; documentos = arquivos de uma empresa; atendimento = conversas, fila, SLA; conhecimento = dúvida de procedimento, prazo, legislação; outro = conversa geral.' },\n  { role: 'user', content: $json.pergunta }\n] }) }}",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "7e64ce88-3ac5-59ad-b7c7-089e2fdd0db2",
+      "name": "IA: classificar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "contaOpenAI",
+          "name": "Conta+ · OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Validar pergunta').item.json;\nlet c = {};\ntry { c = JSON.parse($json.choices?.[0]?.message?.content || '{}'); } catch (e) { c = {}; }\nconst intencoes = ['carteira','cliente','financeiro','documentos','atendimento','conhecimento','outro'];\nconst intencao = intencoes.includes(c.intencao) ? c.intencao : 'conhecimento';\nreturn [{ json: { ...base, intencao, termo: c.termo ? String(c.termo).slice(0, 120) : null } }];"
+      },
+      "id": "55ba74a2-3617-50a4-909a-53ff9360e173",
+      "name": "Ler classificação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT public.ia_contexto($1::uuid, $2, NULLIF($3, ''), NULLIF($4, '')::uuid) AS contexto",
+        "options": {
+          "queryReplacement": "={{ [ $json.tenant_id, $json.intencao === 'outro' ? 'conhecimento' : $json.intencao, $json.termo || '', $json.cliente_id || '' ] }}"
+        }
+      },
+      "id": "1b49103e-2e95-5e66-84cf-a72dd719e233",
+      "name": "Buscar contexto",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1320,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $('Config').item.json.config.MODELO_IA, temperature: 0.2, messages: [\n  { role: 'system', content: 'Você é o Assistente Conta+, que ajuda a equipe de um escritório de contabilidade. Responda em português do Brasil, curto e direto, usando SOMENTE os dados do CONTEXTO. Se o contexto tiver \"precisa_escolher\", liste as empresas encontradas e peça para a pessoa dizer qual. Se tiver \"nao_encontrado\", diga que não achou e sugira buscar pelo CNPJ. Nunca invente números, datas, valores ou prazos que não estejam no contexto; se faltar informação, diga o que falta. Valores em R$ no formato brasileiro.' },\n  { role: 'user', content: 'Pergunta de ' + $('Ler classificação').item.json.colaborador + ': ' + $('Ler classificação').item.json.pergunta + '\\n\\nCONTEXTO (JSON):\\n' + JSON.stringify($json.contexto || {}) }\n] }) }}",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "2c75b989-5df4-5d9d-92b9-503110049a25",
+      "name": "IA: responder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "contaOpenAI",
+          "name": "Conta+ · OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const texto = $json.choices?.[0]?.message?.content?.trim();\nreturn [{ json: { resposta: texto || 'Não consegui responder agora. Tente de novo em instantes.' } }];"
+      },
+      "id": "0b54e7db-2174-5bd8-9ce3-c5e75641286e",
+      "name": "Montar resposta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "e1c090b4-cfad-5eec-91bc-e10bc9f11629",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook IA": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Validar pergunta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar pergunta": {
+      "main": [
+        [
+          {
+            "node": "Pergunta válida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pergunta válida?": {
+      "main": [
+        [
+          {
+            "node": "IA: classificar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder: inválido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA: classificar": {
+      "main": [
+        [
+          {
+            "node": "Ler classificação",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler classificação": {
+      "main": [
+        [
+          {
+            "node": "Buscar contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar contexto": {
+      "main": [
+        [
+          {
+            "node": "IA: responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA: responder": {
+      "main": [
+        [
+          {
+            "node": "Montar resposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar resposta": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [],
+  "pinData": {}
+}

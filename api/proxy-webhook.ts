@@ -11,7 +11,7 @@ function allowedHosts(): Set<string> {
     .map(h => h.trim())
     .filter(Boolean)
     .forEach(h => hosts.add(h));
-  for (const key of ['VITE_N8N_IA_WEBHOOK', 'VITE_N8N_WEBHOOK_DOCUMENTOS']) {
+  for (const key of ['VITE_N8N_BASE_URL', 'VITE_N8N_IA_WEBHOOK', 'VITE_N8N_WEBHOOK_DOCUMENTOS']) {
     try {
       const v = process.env[key];
       if (v) hosts.add(new URL(v).host);

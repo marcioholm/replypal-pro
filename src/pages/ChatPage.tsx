@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { linkDoDocumento } from "@/lib/documentos";
 import { useParams, useNavigate } from "react-router-dom";
 import { useStore, formatTime, formatDuration, formatDateTime, UserRole, MessageType, ConversationStatus, ClosingReason, MOCK_TAGS } from "@/lib/store";
 import { sendWhatsAppMessage, checkConnection, sendMediaMessage, sendAudioMessage, sendTypingStatus, markAsRead, syncConversationHistory, checkWhatsApp, sendReaction, deleteMessage, fetchGroupInfo } from "@/lib/evolution";
@@ -1928,20 +1929,21 @@ export default function ChatPage() {
                       return;
                     }
 
-                    if (!conv.clientPhone || !pedidoPendente.documento_url) {
+                    if (!conv.clientPhone || !pedidoPendente.documento_id) {
                       throw new Error("Telefone ou arquivo do documento não disponível");
                     }
 
                     const caption = `Segue seu documento: ${pedidoPendente.rotulo || pedidoPendente.nome_arquivo}`;
+                    const arquivoUrl = await linkDoDocumento(pedidoPendente.documento_id, user.id);
                     const sent = await sendMediaMessage(
                       conv.clientPhone,
-                      pedidoPendente.documento_url,
+                      arquivoUrl,
                       "document",
                       pedidoPendente.nome_arquivo || "documento.pdf",
                       caption
                     );
 
-                    if (sent) {
+                    if (sent?.success) {
                       await supabase.rpc("marcar_pedido_enviado", {
                         p_pedido: pedidoPendente.id,
                         p_usuario: user.id,

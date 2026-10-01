@@ -661,9 +661,33 @@ export default function SettingsPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5 pt-2">
-                      <span className="text-[10px] text-muted-foreground uppercase font-semibold">WhatsApp de Contato</span>
-                      <p className="text-sm font-medium p-2 bg-muted/30 rounded border border-dashed text-muted-foreground">{user?.whatsapp || "Não cadastrado"}</p>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs flex items-center gap-2">
+                        Seu WhatsApp
+                        <Edit className="w-3 h-3 text-muted-foreground opacity-50" />
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          defaultValue={user?.whatsapp || ""}
+                          id="profile-whatsapp"
+                          placeholder="(43) 99999-0000"
+                          className="h-9 text-sm"
+                        />
+                        <Button size="sm" variant="outline" onClick={() => {
+                          const tel = (document.getElementById("profile-whatsapp") as HTMLInputElement).value.trim();
+                          if (tel && tel.replace(/\D/g, "").length < 10) return toast.error("Informe DDD + número");
+                          supabase.from("usuarios").update({ whatsapp: tel || null }).eq("id", user?.id).then(({ error }) => {
+                            if (error) toast.error("Erro ao atualizar WhatsApp");
+                            else {
+                              toast.success("WhatsApp atualizado!");
+                              refreshUser();
+                            }
+                          });
+                        }}>Salvar</Button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Usado para avisos automáticos (novo cliente, lembretes da pré-venda).
+                      </p>
                     </div>
                   </div>
                 </div>

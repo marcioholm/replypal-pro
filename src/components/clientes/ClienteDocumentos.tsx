@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { abrirDocumento } from "@/lib/documentos";
+import { N8N } from "@/lib/n8n";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
@@ -68,7 +70,7 @@ export default function ClienteDocumentos({ clienteId, clienteNome }: ClienteDoc
   const [loading, setLoading] = useState(true);
   const store = useStore();
   const { user } = useAuth();
-  const webhookUrl = "https://northway.vps8204.panel.icontainer.cloud/webhook/documentos/upload";
+  const webhookUrl = N8N.documentosUpload;
 
   const [filters, setFilters] = useState({
     rh: { month: new Date().getMonth() + 1, year: new Date().getFullYear() },
@@ -345,6 +347,7 @@ function DocumentSection({ title, icon, description, children, filters, onFilter
 }
 
 function DocumentItem({ tipo, label, category, month, year, status, clienteId, clienteNome, onUploadSuccess, webhookUrl, currentUser }: DocumentItemProps) {
+  const { user: authUser } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -382,6 +385,11 @@ function DocumentItem({ tipo, label, category, month, year, status, clienteId, c
           .eq("tipo", "contrato_social");
       }
 
+      // O envio passa por /api/proxy-webhook (Vercel aceita até ~4,5 MB por requisição;
+      // em base64 o arquivo cresce ~33%). Acima disso a Vercel recusa antes de chegar no n8n.
+      if (selectedFile.size > 3 * 1024 * 1024) {
+        throw new Error("Arquivo maior que 3 MB. Comprima o PDF ou divida em partes.");
+      }
       const base64 = await fileToBase64(selectedFile);
       const payload = {
         cliente_id: clienteId,
@@ -502,10 +510,13 @@ function DocumentItem({ tipo, label, category, month, year, status, clienteId, c
         ) : (
           <div className="flex items-center gap-2">
             {status?.url && (
-              <Button asChild size="sm" variant="outline" className="h-8 px-2.5 text-xs font-medium">
-                <a href={status.url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="w-3.5 h-3.5 mr-1" /> Visualizar
-                </a>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 px-2.5 text-xs font-medium"
+                onClick={() => abrirDocumento(status.id, authUser?.id).catch(e => toast.error((e as Error).message))}
+              >
+                <ExternalLink className="w-3.5 h-3.5 mr-1" /> Visualizar
               </Button>
             )}
             <input 

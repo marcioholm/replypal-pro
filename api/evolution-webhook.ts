@@ -477,11 +477,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         tId = await findTenantByInstance(instName, supabase);
       }
 
-      // Fallback: pegar o primeiro tenant disponível
+      // Fallback só quando existe UM escritório. Com vários, mensagem de instância
+      // desconhecida seria gravada no escritório errado: melhor descartar e logar.
       if (!tId) {
-        const { data: anyTenant } = await supabase.from('tenants').select('id').limit(1).maybeSingle();
-        if (anyTenant?.id) {
-          tId = anyTenant.id;
+        const { data: tenants } = await supabase.from('tenants').select('id').limit(2);
+        if (tenants && tenants.length === 1) {
+          tId = tenants[0].id;
+        } else if (tenants && tenants.length > 1) {
+          console.error(`[Webhook] Instância "${instName}" não pertence a nenhum escritório; mensagem descartada`);
+          return res.status(200).json({ success: true, detail: 'Unknown instance' });
         }
       }
 
@@ -517,7 +521,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { data: matchedCustomer } = await supabase
         .from('clientes')
         .select('id, nome_fantasia, responsavel')
+        .eq('tenant_id', tId)
         .or(`whatsapp.in.(${searchPhones.join(',')}),telefone.in.(${searchPhones.join(',')})`)
+        .limit(1)
         .maybeSingle();
 
       if (matchedCustomer) {
@@ -932,22 +938,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error("[Webhook] Erro crítico no salvamento:", err);
       }
 
-      // DISPARO N8N DOCUMENTOS (sem esperar) para mensagens de texto recebidas do cliente
-      if (!isFromMe && type === 'text' && content && conv?.id) {
+      // Fluxo 03 do n8n (pedido de documentos) para mensagens de texto recebidas do cliente.
+      // Na Vercel, uma promise sem await pode ser cortada quando a função responde:
+      // por isso esperamos, com limite de 2,5 s (o n8n responde na hora e segue sozinho).
+      if (!isFromMe && type === 'text' && content && conv?.id && !isGroup) {
         const n8nDocWebhook = process.env.N8N_DOCUMENTOS_WEBHOOK || process.env.VITE_N8N_WEBHOOK_DOCUMENTOS;
         if (n8nDocWebhook) {
-          fetch(n8nDocWebhook, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              tenant_id: tenantId,
-              conversa_id: conv.id,
-              telefone: phone,
-              texto: content,
-            }),
-          }).catch(err => {
-            console.error('[Webhook] Erro ao chamar N8N_DOCUMENTOS_WEBHOOK:', err.message);
-          });
+          try {
+            await fetch(n8nDocWebhook, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                tenant_id: tenantId,
+                conversa_id: conv.id,
+                telefone: phone,
+                texto: content,
+              }),
+              signal: AbortSignal.timeout(2500),
+            });
+          } catch (err) {
+            console.error('[Webhook] Erro ao chamar N8N_DOCUMENTOS_WEBHOOK:', (err as Error).message);
+          }
         }
       }
 
@@ -1003,13 +1014,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           console.error(`[Webhook] Erro ao atualizar conversa ${conv.id}:`, updateError.message);
         } else if (!isFromMe && updatePayload.protocolo) {
           // Log de reabertura com novo protocolo
-          await supabase.from('historico').insert({
+          // (o builder do Supabase não tem .catch: o erro vem no retorno)
+          const { error: histErr } = await supabase.from('historico').insert({
             conversation_id: conv.id,
             action: 'Nova demanda',
             details: `Protocolo: #${updatePayload.protocolo}`,
             user_name: pushName || phone,
+            tenant_id: conv.tenant_id || tenantId,
             timestamp: new Date().toISOString()
-          }).catch(e => console.error('[Webhook] Erro ao logar reabertura:', e));
+          });
+          if (histErr) console.error('[Webhook] Erro ao logar reabertura:', histErr.message);
         }
       } else {
         console.error(`[Webhook] conv.id é undefined — não foi possível atualizar conversa`);
@@ -1036,8 +1050,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       // Fallback: pegar o primeiro tenant disponível
       if (!tId) {
-        const { data: anyTenant } = await supabase.from('tenants').select('id').limit(1).maybeSingle();
-        if (anyTenant?.id) tId = anyTenant.id;
+        // só cai no fallback se existir um único escritório (ver mensagens acima)
+        const { data: tenants } = await supabase.from('tenants').select('id').limit(2);
+        if (tenants && tenants.length === 1) tId = tenants[0].id;
       }
       // Último fallback: tentar criar conversa sem tenant_id válido (FK pode falhar)
       if (!tId) {
@@ -1075,7 +1090,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const hygiene = analyzeAndHygienize(rawPhone);
         
         // Upsert na tabela de contatos técnicos
-        const contactData = {
+        const contactData: Record<string, unknown> = {
           tenant_id: tId,
           instance_name: instName,
           jid: remoteJid,
@@ -1117,7 +1132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Buscar conversa atual para verificar se já tem nome do CRM
         const { data: existingConv } = await supabase
           .from('conversas')
-          .select('id, client_name, customer_id')
+          .select('id, client_name, client_phone, customer_id')
           .eq('client_phone', hygiene.telefone_formatado)
           .eq('tenant_id', tId)
           .maybeSingle();
@@ -1129,6 +1144,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const { data: matchedCustomer } = await supabase
               .from('clientes')
               .select('id, nome_fantasia, responsavel')
+              .eq('tenant_id', tId)
               .or(`whatsapp.eq.${hygiene.telefone_formatado},telefone.eq.${hygiene.telefone_formatado}`)
               .maybeSingle();
 
@@ -1206,8 +1222,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let tId: string | null = null;
       if (instName) tId = await findTenantByInstance(instName, supabase);
       if (!tId) {
-        const { data: anyTenant } = await supabase.from('tenants').select('id').limit(1).maybeSingle();
-        if (anyTenant?.id) tId = anyTenant.id;
+        // só cai no fallback se existir um único escritório (ver mensagens acima)
+        const { data: tenants } = await supabase.from('tenants').select('id').limit(2);
+        if (tenants && tenants.length === 1) tId = tenants[0].id;
       }
       if (!tId) return res.status(200).json({ success: true });
 

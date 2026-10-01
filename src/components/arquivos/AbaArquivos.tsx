@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { PedirAcessoDialog } from "./PedirAcessoDialog";
 import DadosFinanceiros from "@/components/clientes/DadosFinanceiros";
 import { sendMediaMessage } from "@/lib/evolution";
+import { abrirDocumento, linkDoDocumento } from "@/lib/documentos";
 
 interface AbaArquivosProps {
   conversaId: string;
@@ -253,15 +254,16 @@ export function AbaArquivos({
     setSendingDocId(doc.id);
     try {
       const caption = `Documento: ${doc.nome_arquivo || doc.tipo}`;
+      const url = await linkDoDocumento(doc.id, user?.id);
       const sent = await sendMediaMessage(
         clienteTelefone,
-        doc.url,
+        url,
         "document",
         doc.nome_arquivo || "documento.pdf",
         caption
       );
 
-      if (sent) {
+      if (sent?.success) {
         await registrarAcesso(doc.area, "enviou_no_chat", doc.id);
         toast.success(`"${doc.nome_arquivo || doc.tipo}" enviado na conversa!`);
       } else {
@@ -507,15 +509,19 @@ export function AbaArquivos({
                     {temAcesso ? (
                       <>
                         <Button
-                          asChild
                           size="sm"
                           variant="outline"
                           className="h-7 px-2.5 text-[11px]"
-                          onClick={() => registrarAcesso(doc.area, "visualizou", doc.id)}
+                          onClick={async () => {
+                            try {
+                              await abrirDocumento(doc.id, user?.id);
+                              registrarAcesso(doc.area, "visualizou", doc.id);
+                            } catch (e) {
+                              toast.error((e as Error).message);
+                            }
+                          }}
                         >
-                          <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="w-3 h-3 mr-1" /> Abrir
-                          </a>
+                          <ExternalLink className="w-3 h-3 mr-1" /> Abrir
                         </Button>
 
                         {isCertificado ? (
