@@ -16,12 +16,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Search, Paperclip, Clock, Zap, Mic, Send, RefreshCw, Loader2, User, StickyNote, Tag, History, Activity, MessageSquare, UserPlus, X, Users, StopCircle, CheckCircle, Share2, Smile, Reply, Trash2, ArrowRight, PlayCircle, FileText, Play, Pause, FolderOpen, AlertCircle } from "lucide-react";
+import { ArrowLeft, Search, Paperclip, Clock, Zap, Mic, Send, RefreshCw, Loader2, User, StickyNote, Tag, History, Activity, MessageSquare, UserPlus, X, Users, StopCircle, CheckCircle, Share2, Smile, Reply, Trash2, ArrowRight, PlayCircle, FileText, Play, Pause, FolderOpen, AlertCircle, Sparkles, Link2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { insertHistorico } from "@/lib/historico";
 import { useAuth } from "@/lib/auth";
 import { MessageBubble } from "@/components/chat/MessageBubble";
-import { InitialsAvatar } from "@/components/conta-ui";
+import { InitialsAvatar, Chip } from "@/components/conta-ui";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { ScheduleMessageDialog } from "@/components/chat/ScheduleMessageDialog";
 import { format } from "date-fns";
@@ -30,6 +30,8 @@ import { CustomerForm } from "@/components/CustomerForm";
 import { SimpleContactDialog } from "@/components/clientes/SimpleContactDialog";
 import { AbaArquivos } from "@/components/arquivos/AbaArquivos";
 import { PedirAcessoDialog } from "@/components/arquivos/PedirAcessoDialog";
+import { FaixaTriagem } from "@/components/triagem/FaixaTriagem";
+import { VincularClienteModal } from "@/components/triagem/VincularClienteModal";
 import { Customer } from "@/lib/store";
 import { cn, getBrazilianPhoneVariations } from "@/lib/utils";
 
@@ -158,6 +160,32 @@ export default function ChatPage() {
     }
   }, [conv?.id, user?.tenantId]);
 
+  const [oportunidadeAtiva, setOportunidadeAtiva] = useState<any | null>(null);
+
+  const fetchOportunidade = useCallback(async () => {
+    if (!conv?.id || !user?.tenantId) return;
+    try {
+      const { data } = await supabase
+        .from("oportunidades")
+        .select("*")
+        .eq("conversa_id", conv.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setOportunidadeAtiva(data || null);
+    } catch (e) {
+      console.error("Erro ao buscar oportunidade da conversa:", e);
+    }
+  }, [conv?.id, user?.tenantId]);
+
+  useEffect(() => {
+    if (conv?.funil === "pre_venda") {
+      fetchOportunidade();
+    } else {
+      setOportunidadeAtiva(null);
+    }
+  }, [conv?.id, conv?.funil, fetchOportunidade]);
+
   useEffect(() => {
     fetchPedidoPendente();
 
@@ -238,7 +266,9 @@ export default function ChatPage() {
         tenantId: dbConv.tenant_id,
         isGroup: dbConv.is_group,
         protocolo: dbConv.protocolo,
-        resolvedAt: dbConv.resolved_at
+        resolvedAt: dbConv.resolved_at,
+        funil: dbConv.funil,
+        arquivoMotivo: dbConv.arquivo_motivo
       });
       navigate(`/chat/${dbConv.id}`);
       return;
@@ -485,7 +515,9 @@ export default function ChatPage() {
               tenantId: dbConv.tenant_id,
               isGroup: dbConv.is_group,
               protocolo: dbConv.protocolo,
-              resolvedAt: dbConv.resolved_at
+              resolvedAt: dbConv.resolved_at,
+              funil: dbConv.funil,
+              arquivoMotivo: dbConv.arquivo_motivo
             });
           }
         }
@@ -1227,7 +1259,9 @@ export default function ChatPage() {
         status: targetConv.status as any,
         assignedTo: targetConv.assigned_to,
         tenantId: targetConv.tenant_id,
-        isGroup: targetConv.is_group
+        isGroup: targetConv.is_group,
+        funil: targetConv.funil,
+        arquivoMotivo: targetConv.arquivo_motivo
       });
 
       if (insertedMsg) {
@@ -1630,9 +1664,28 @@ export default function ChatPage() {
   if (!conv) return <div className="flex flex-col items-center justify-center h-full bg-background gap-4"><p>Conversa não encontrada</p><Button onClick={() => navigate("/")}>Voltar</Button></div>;
 
   const isAdmin = user.role === "admin";
+  const isSupervisor = user.role === "supervisor";
   const isAssigned = conv.assignedTo === user.id;
   const canRespond = isAssigned || isAdmin;
   const slaStatus = store.getSLAStatus(conv);
+
+  // Atendente que abrir conversa de pré-venda vê "Conversa restrita à pré-venda"
+  if (conv.funil === "pre_venda" && !isAdmin && !isSupervisor) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-88px)] bg-card rounded-2xl mx-8 mb-8 border border-border p-8 text-center">
+        <div className="h-16 w-16 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mb-4">
+          <Sparkles className="h-8 w-8" />
+        </div>
+        <h2 className="text-xl font-extrabold text-foreground mb-1">Conversa restrita à pré-venda</h2>
+        <p className="text-sm text-muted-foreground max-w-md mb-6">
+          Este contato foi classificado como uma oportunidade comercial e seu atendimento é restrito aos administradores e supervisores.
+        </p>
+        <Button onClick={() => navigate("/")} className="font-bold">
+          Voltar para a Caixa de Entrada
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-88px)] gap-5 px-8 pb-8">
@@ -1705,6 +1758,17 @@ export default function ChatPage() {
                 </span>
               ) : (
                 <>
+                  {conv.funil === "pre_venda" && (
+                    <Chip tone="amber" className="gap-1 font-bold">
+                      <Sparkles className="h-3 w-3" />
+                      Pré-venda · {oportunidadeAtiva?.etapa ? oportunidadeAtiva.etapa.replace("_", " ") : "lead"}
+                    </Chip>
+                  )}
+                  {conv.funil === "triagem" && (
+                    <Chip tone="blue" className="gap-1 font-bold">
+                      Triagem
+                    </Chip>
+                  )}
                   <StatusBadge status={conv.status} />
                   <SLABadge slaStatus={slaStatus} />
                 </>
@@ -1786,6 +1850,18 @@ export default function ChatPage() {
             )}
           </div>
         </div>
+
+        {/* Faixa de triagem no topo da conversa sem cliente */}
+        {!conv.customerId && (conv.funil === "triagem" || !conv.funil) && (
+          <FaixaTriagem
+            conversaId={conv.id}
+            telefone={conv.clientPhone}
+            nomeCliente={conv.clientName}
+            onAtualizado={() => {
+              navigate("/");
+            }}
+          />
+        )}
 
         {/* Faixa de pedido "um clique" no topo da conversa */}
         {pedidoPendente && (
@@ -2199,6 +2275,58 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto p-4">
           {showPanel === "customer" && (
             <div className="space-y-4">
+              {/* Bloco de Oportunidade da Pré-venda */}
+              {conv.funil === "pre_venda" && oportunidadeAtiva && (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" /> Oportunidade de Pré-venda
+                    </span>
+                    <Chip tone="amber" className="text-[10px] capitalize">
+                      {oportunidadeAtiva.etapa?.replace("_", " ")}
+                    </Chip>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-0.5">Empresa / Lead</p>
+                    <p className="text-sm font-bold text-foreground">
+                      {oportunidadeAtiva.empresa_nome || oportunidadeAtiva.nome_contato}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Valor Estimado</p>
+                      <p className="font-extrabold text-emerald-600">
+                        {oportunidadeAtiva.valor_mensal_estimado
+                          ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+                              oportunidadeAtiva.valor_mensal_estimado
+                            )
+                          : "–"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Próximo Contato</p>
+                      <p className="font-medium text-foreground">
+                        {oportunidadeAtiva.proximo_contato_em || "–"}
+                      </p>
+                    </div>
+                  </div>
+                  {oportunidadeAtiva.proximo_passo && (
+                    <div className="pt-1 border-t border-amber-500/20">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Próximo Passo</p>
+                      <p className="text-xs text-foreground mt-0.5">{oportunidadeAtiva.proximo_passo}</p>
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs h-8 border-amber-300 dark:border-amber-800"
+                    onClick={() => navigate("/pre-venda")}
+                  >
+                    Ver no Funil de Pré-venda
+                  </Button>
+                </div>
+              )}
+
               {customer ? (
                 <>
                   <div className="p-4 bg-muted/30 rounded-xl border space-y-3">
@@ -2218,20 +2346,16 @@ export default function ChatPage() {
                   <Button variant="outline" className="w-full" onClick={() => navigate(`/customers/${customer.id}`)}>Ver Cadastro Completo</Button>
                 </>
               ) : (
-                <div className="text-center py-8 space-y-3">
-                  <p className="text-sm text-muted-foreground mb-4">Cliente não cadastrado.</p>
+                <div className="text-center py-6 space-y-3">
+                  <p className="text-sm text-muted-foreground mb-3">Cliente não vinculado.</p>
                   
-                    <SimpleContactDialog 
-                      initialPhone={conv.clientPhone} 
-                      initialName={conv.clientName === conv.clientPhone ? "" : conv.clientName}
-                      onSuccess={handleCustomerCreated}
-                      trigger={
-                        <Button className="w-full gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
-                          <UserPlus className="h-4 w-4" />
-                          Adicionar Contato (Rápido)
-                        </Button>
-                      }
-                    />
+                  <Button
+                    className="w-full gap-2 bg-primary hover:bg-primary/90 shadow-sm font-bold"
+                    onClick={() => setLinkCnpjOpen(true)}
+                  >
+                    <Link2 className="h-4 w-4" />
+                    Vincular a Cliente
+                  </Button>
 
                   <Button variant="ghost" onClick={handleAutoCreateCustomer} className="w-full text-xs">
                     Cadastro Completo (Empresa)
