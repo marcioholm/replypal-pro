@@ -249,39 +249,42 @@ export default function SettingsPage() {
         headers: { "apikey": key },
       });
       
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
-        
-        if (statusData.state === "open" || statusData.instance?.state === "open") {
-          setWaStatus("connected");
-          setWaConnection({
-            instanceName: instance,
-            phoneNumber: statusData.phoneNumber || statusData.instance?.phoneNumber || "+55...",
-            pushName: statusData.pushName || statusData.instance?.pushName,
-          });
-          localStorage.setItem("wa_connected", "true");
-          toast.success("WhatsApp conectado e configurações salvas!");
+      const statusData = await statusRes.json().catch(() => null);
+      console.log("[Settings] Resposta de conexão recebida:", { status: statusRes.status, data: statusData });
+      
+      if (statusData && (statusData.state === "open" || statusData.instance?.state === "open")) {
+        setWaStatus("connected");
+        setWaConnection({
+          instanceName: instance,
+          phoneNumber: statusData.phoneNumber || statusData.instance?.phoneNumber || "+55...",
+          pushName: statusData.pushName || statusData.instance?.pushName,
+        });
+        localStorage.setItem("wa_connected", "true");
+        toast.success("WhatsApp conectado e configurações salvas!");
 
-          // Configurar webhook na Evolution API para receber eventos
-          const webhookUrl = `${window.location.origin}/api/evolution-webhook`;
-          setWebhook(webhookUrl).then((whRes) => {
-            if (whRes.success) {
-              console.log("[Settings] Webhook configurado:", webhookUrl);
-            }
-          });
-          return;
-        }
+        // Configurar webhook na Evolution API para receber eventos
+        const webhookUrl = `${window.location.origin}/api/evolution-webhook`;
+        setWebhook(webhookUrl).then((whRes) => {
+          if (whRes.success) {
+            console.log("[Settings] Webhook configurado:", webhookUrl);
+          }
+        });
+        return;
       }
 
-      // Se a instância não está conectada ao aparelho ainda
+      // Se a instância existe mas não está conectada ao aparelho (ex: close, connecting)
       setWaStatus("idle");
       localStorage.removeItem("wa_connected");
-      toast.success("Configurações salvas! Gere o QR Code para conectar seu aparelho.");
+      if (statusData?.instance?.state || statusData?.state) {
+        toast.info(`Instância identificada (estado: ${statusData?.instance?.state || statusData?.state}). Gere o QR Code para parear.`);
+      } else {
+        toast.success("Configurações salvas! Gere o QR Code para conectar seu aparelho.");
+      }
     } catch (err: any) {
       console.warn("[Settings] Erro ao verificar instância:", err);
       setWaStatus("idle");
       localStorage.removeItem("wa_connected");
-      toast.success("Configurações salvas! Verifique a Evolution API e gere o QR Code quando estiver pronto.");
+      toast.error("Não foi possível validar o status da API: " + (err.message || String(err)));
     }
   };
 
