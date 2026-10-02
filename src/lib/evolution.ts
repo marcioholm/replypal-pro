@@ -42,9 +42,46 @@ const EVO_CONFIG = {
 };
 
 
+/**
+ * Limpa e normaliza a URL da Evolution.
+ * Remove fragmentos de texto (#:~:text=...), portas de painel VPS (:2090...) e caminhos internos.
+ */
+export function normalizeEvolutionUrl(rawUrl: string): string {
+  if (!rawUrl) return "";
+  let clean = rawUrl.trim();
+
+  // Se o usuário colou com fragmento de texto ou query do painel
+  if (clean.includes("#:~:text=")) {
+    const extracted = clean.split("#:~:text=")[1]?.split("&")[0];
+    if (extracted) clean = extracted;
+  }
+
+  // Remove qualquer fragmento hash (#...)
+  clean = clean.split("#")[0].trim();
+
+  // Se veio sem protocolo
+  if (!clean.startsWith("http://") && !clean.startsWith("https://")) {
+    clean = "https://" + clean;
+  }
+
+  try {
+    const parsed = new URL(clean);
+    // Se a porta for do painel de administração (ex: 2090) e o host contiver evolutionapi
+    // ou se tiver pathname de app-store, limpa para a raiz do host da API
+    if (parsed.pathname.includes("/app-store") || parsed.port === "2090") {
+      parsed.pathname = "";
+      parsed.search = "";
+      parsed.hash = "";
+      parsed.port = "";
+    }
+    return parsed.origin;
+  } catch {
+    return clean.replace(/\/+$/, "");
+  }
+}
+
 export function getApiUrl(path: string = "") {
-  let url = EVO_CONFIG.getUrl().trim().replace(/\/+$/, "");
-  if (!url.startsWith("http")) url = "https://" + url;
+  let url = normalizeEvolutionUrl(EVO_CONFIG.getUrl());
   return url + path;
 }
 

@@ -12,7 +12,7 @@ import ReciboGenerator from "@/components/settings/ReciboGenerator";
 import { getNotificationConfig, setNotificationConfig } from "@/hooks/useNotifications";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { fetchQRCode, logoutInstance, updateEvolutionConfig, syncEvolutionGroups, setWebhook, resetarIntegracaoEvolution, evolutionFetch } from "@/lib/evolution";
+import { fetchQRCode, logoutInstance, updateEvolutionConfig, syncEvolutionGroups, setWebhook, resetarIntegracaoEvolution, evolutionFetch, normalizeEvolutionUrl } from "@/lib/evolution";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AlertsPage from "./AlertsPage";
@@ -133,10 +133,7 @@ export default function SettingsPage() {
   }, []);
 
   const getApiUrl = (path: string) => {
-    let url = evolutionUrl.trim().replace(/\/+$/, "");
-    if (!url.startsWith("http")) {
-      url = "https://" + url;
-    }
+    const url = normalizeEvolutionUrl(evolutionUrl);
     return url + path;
   };
 
@@ -182,7 +179,7 @@ export default function SettingsPage() {
     if (pollingRef.current) clearInterval(pollingRef.current);
     pollingRef.current = setInterval(async () => {
       try {
-        const res = await fetch(getApiUrl(`/instance/connectionState/${encodeURIComponent(instanceName)}`), {
+        const res = await evolutionFetch(getApiUrl(`/instance/connectionState/${encodeURIComponent(instanceName)}`), {
           headers: { "apikey": evolutionKey },
         });
         if (res.ok) {
@@ -206,8 +203,8 @@ export default function SettingsPage() {
   };
 
   const handleConnect = async () => {
-    let apiUrl = evolutionUrl.trim();
-    if (!apiUrl.startsWith("http")) apiUrl = "https://" + apiUrl;
+    const apiUrl = normalizeEvolutionUrl(evolutionUrl);
+    setEvolutionUrl(apiUrl);
     
     const key = evolutionKey.trim();
     const instance = instanceName.trim();
