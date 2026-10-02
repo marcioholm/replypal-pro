@@ -12,7 +12,7 @@ import ReciboGenerator from "@/components/settings/ReciboGenerator";
 import { getNotificationConfig, setNotificationConfig } from "@/hooks/useNotifications";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { fetchQRCode, logoutInstance, updateEvolutionConfig, syncEvolutionGroups, setWebhook, resetarIntegracaoEvolution } from "@/lib/evolution";
+import { fetchQRCode, logoutInstance, updateEvolutionConfig, syncEvolutionGroups, setWebhook, resetarIntegracaoEvolution, evolutionFetch } from "@/lib/evolution";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AlertsPage from "./AlertsPage";
@@ -143,7 +143,7 @@ export default function SettingsPage() {
   const checkConnection = async () => {
     if (!evolutionUrl || !evolutionKey || !instanceName) return;
     try {
-      const res = await fetch(getApiUrl(`/instance/connectionState/${encodeURIComponent(instanceName)}`), {
+      const res = await evolutionFetch(getApiUrl(`/instance/connectionState/${encodeURIComponent(instanceName)}`), {
         headers: { "apikey": evolutionKey },
       });
       if (res.ok) {
@@ -248,7 +248,7 @@ export default function SettingsPage() {
     toast.info("Salvando e verificando conexão...");
 
     try {
-      const statusRes = await fetch(`${apiUrl}/instance/connectionState/${encodeURIComponent(instance)}`, {
+      const statusRes = await evolutionFetch(`${apiUrl}/instance/connectionState/${encodeURIComponent(instance)}`, {
         headers: { "apikey": key },
       });
       

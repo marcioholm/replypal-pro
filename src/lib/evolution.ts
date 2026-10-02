@@ -42,10 +42,44 @@ const EVO_CONFIG = {
 };
 
 
-function getApiUrl(path: string = "") {
+export function getApiUrl(path: string = "") {
   let url = EVO_CONFIG.getUrl().trim().replace(/\/+$/, "");
   if (!url.startsWith("http")) url = "https://" + url;
   return url + path;
+}
+
+export async function evolutionFetch(
+  targetUrl: string,
+  options: { method?: string; headers?: Record<string, string>; body?: any } = {}
+): Promise<Response> {
+  const method = options.method || "GET";
+  const headers = options.headers || {};
+
+  try {
+    const res = await fetch(targetUrl, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...headers
+      },
+      body: options.body ? (typeof options.body === "string" ? options.body : JSON.stringify(options.body)) : undefined
+    });
+    return res;
+  } catch (directErr) {
+    console.warn("[Evolution] Chamada direta falhou (tentando proxy serverless):", directErr);
+    // Fallback: usar o proxy na Vercel (servidor para servidor, sem bloqueio de navegador)
+    const proxyRes = await fetch("/api/evolution-proxy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetUrl,
+        method,
+        headers,
+        body: options.body
+      })
+    });
+    return proxyRes;
+  }
 }
 
 export async function fetchMessages(phone: string) {
@@ -186,13 +220,12 @@ export async function sendWhatsAppMessage(phone: string, message: string, agentN
       };
     }
 
-    const res = await fetch(`${apiUrl}/message/sendText/${instance}`, {
+    const res = await evolutionFetch(`${apiUrl}/message/sendText/${instance}`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         "apikey": key,
       },
-      body: JSON.stringify(payload),
+      body: payload,
     });
     
     if (res.ok) {
@@ -208,10 +241,10 @@ export async function sendWhatsAppMessage(phone: string, message: string, agentN
     if (quotedMessageId) {
       fallbackPayload.quoted = { key: { id: quotedMessageId } };
     }
-    const fallbackRes = await fetch(`${apiUrl}/message/sendText/${instance}`, {
+    const fallbackRes = await evolutionFetch(`${apiUrl}/message/sendText/${instance}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "apikey": key },
-      body: JSON.stringify(fallbackPayload),
+      headers: { "apikey": key },
+      body: fallbackPayload,
     });
 
     if (fallbackRes.ok) {
