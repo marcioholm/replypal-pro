@@ -1,6 +1,6 @@
 import { Message, formatTime } from '@/lib/store';
 import { AudioPlayer } from './AudioPlayer';
-import { Clock, FileText, Download, ExternalLink, Image as ImageIcon, PlayCircle, MapPin, User as UserIcon, Smile, Reply, Share2, Trash2 } from 'lucide-react';
+import { Clock, FileText, Download, ExternalLink, Image as ImageIcon, PlayCircle, MapPin, User as UserIcon, Smile, Reply, Share2, Trash2, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 
@@ -249,10 +249,17 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
   const getStatusIcon = () => {
     if (!isAgent) return null;
     switch (msg.status) {
-      case 'sending': return <Clock className="w-2.5 h-2.5 animate-pulse" />;
-      case 'delivered': return <span className="text-[9px] font-bold">✓✓</span>;
-      case 'read': return <span className="text-[9px] font-bold text-blue-300">✓✓</span>;
-      default: return <span className="text-[9px]">✓</span>;
+      case 'error':
+        return <AlertCircle className="w-3 h-3 text-red-300" title="Erro ao enviar mensagem" />;
+      case 'sending':
+        return <span className="text-[10px] opacity-70" title="Enviando...">✓</span>;
+      case 'sent':
+      case 'delivered':
+        return <span className="text-[10px] font-bold" title="Enviada">✓✓</span>;
+      case 'read':
+        return <span className="text-[10px] font-bold text-blue-300" title="Lida">✓✓</span>;
+      default:
+        return <span className="text-[10px] font-bold">✓✓</span>;
     }
   };
 

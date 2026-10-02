@@ -19,6 +19,8 @@ import { useAuth } from "@/lib/auth";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { useRealtimeChat } from "@/hooks/useRealtimeChat";
+import { useNotification } from "@/hooks/useNotifications";
 
 const PAGE_TITLES: [prefix: string, title: string][] = [
   ["/inicio", "Início"],
@@ -72,6 +74,14 @@ export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const store = useStore();
+
+  const { notify } = useNotification();
+  useRealtimeChat({
+    tenantId: user?.tenantId,
+    userId: user?.id,
+    enabled: !!user?.tenantId,
+    notify: notify,
+  });
 
   const [hasPendingApprovals, setHasPendingApprovals] = useState(false);
 

@@ -312,9 +312,12 @@ export default function InboxPage() {
     }
   };
 
-  // 4. Memoized Data (Caixa de Entrada mostra só funil = 'atendimento')
+  // 4. Memoized Data (Caixa de Entrada mostra funil = 'atendimento' e 'triagem')
   const allConversations = useMemo(
-    () => (store.conversations || []).filter(c => (c.funil || "atendimento") === "atendimento"),
+    () => (store.conversations || []).filter(c => {
+      const funil = c.funil || "atendimento";
+      return funil === "atendimento" || funil === "triagem";
+    }),
     [store.conversations]
   );
 
@@ -602,6 +605,11 @@ export default function InboxPage() {
                         )}
                       </span>
                       <span className="flex items-center gap-1.5">
+                        {conv.funil === "triagem" && (
+                          <Chip tone="blue" className="font-extrabold shadow-sm">
+                            Triagem
+                          </Chip>
+                        )}
                         {pedidosPendentesConvs.has(conv.id) && (
                           <Chip tone="amber" className="font-extrabold shadow-sm">
                             Pediu documento

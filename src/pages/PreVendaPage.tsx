@@ -560,7 +560,7 @@ export default function PreVendaPage() {
                               type="button"
                               variant="ghost"
                               size="sm"
-                              title="Marcar como Ganho 🎉"
+                              title="Marcar como Ganho"
                               className="h-6 w-6 p-0 text-amber-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
                               onClick={(e) => {
                                 e.stopPropagation();

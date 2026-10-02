@@ -146,7 +146,7 @@ export function FaixaPreVenda({ conversaId, onAtualizado }: FaixaPreVendaProps) 
             onClick={() => setModalGanho(true)}
           >
             <Trophy className="h-3.5 w-3.5 text-amber-200" />
-            Marcar Ganho 🎉
+            Marcar Ganho
           </Button>
         </div>
       </div>

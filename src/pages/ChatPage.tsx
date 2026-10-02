@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Search, Paperclip, Clock, Zap, Mic, Send, RefreshCw, Loader2, User, StickyNote, Tag, History, Activity, MessageSquare, UserPlus, X, Users, StopCircle, CheckCircle, Share2, Smile, Reply, Trash2, ArrowRight, PlayCircle, FileText, Play, Pause, FolderOpen, AlertCircle, Sparkles, Link2 } from "lucide-react";
+import { ArrowLeft, Search, Paperclip, Clock, Zap, Mic, Send, RefreshCw, Loader2, User, StickyNote, Tag, History, Activity, MessageSquare, UserPlus, X, Users, StopCircle, CheckCircle, Share2, Smile, Reply, Trash2, ArrowRight, PlayCircle, FileText, Play, Pause, FolderOpen, AlertCircle, Sparkles, Link2, UploadCloud } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { insertHistorico } from "@/lib/historico";
 import { useAuth } from "@/lib/auth";
@@ -357,6 +357,8 @@ export default function ChatPage() {
   // Media states
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<{ file: File; preview: string }[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
   const { isRecording, recordingTime, audioBlob, startRecording, stopRecording, cancelRecording, clearAudio } = useAudioRecorder();
   
   const [loading, setLoading] = useState(false);
@@ -773,16 +775,56 @@ export default function ChatPage() {
     return () => clearTimeout(timer);
   }, [messages.length, id, loading]);
 
+  const appendFiles = (files: File[]) => {
+    if (!files || files.length === 0) return;
+    const newFiles = files.map(file => ({
+      file,
+      preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : ""
+    }));
+    setSelectedFiles(prev => [...prev, ...newFiles]);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      const newFiles = files.map(file => ({
-        file,
-        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : ""
-      }));
-      setSelectedFiles(prev => [...prev, ...newFiles]);
-    }
+    appendFiles(files);
     if (e.target) e.target.value = "";
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current += 1;
+    if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer?.files || []);
+    if (files.length > 0) {
+      appendFiles(files);
+      toast.success(`${files.length} arquivo${files.length > 1 ? "s" : ""} anexado${files.length > 1 ? "s" : ""}!`);
+    }
   };
 
   const handleRemoveFile = (index: number) => {
@@ -936,43 +978,75 @@ export default function ChatPage() {
           tenant_id: user.tenantId
         }).eq("id", id);
       } else {
-        const res = await sendWhatsAppMessage(conv.clientPhone, messageInput, user.name, replyingTo?.external_message_id);
-        if (!res.success) throw new Error(res.error);
-        
-        const extId = res.data?.key?.id;
+        const textToSend = messageInput;
+        const currentReplying = replyingTo;
+        const tempMsgId = `temp-${Date.now()}`;
 
-        const msgData: any = {
-          status: 'sent',
-          external_message_id: extId
-        };
+        // Limpar input imediatamente para sensação instantânea estilo WhatsApp
+        setMessageInput("");
+        setReplyingTo(null);
+        toast.dismiss(toastId);
 
-        if (replyingTo) {
-          msgData.quotedMessage = {
-            id: replyingTo.id,
-            content: replyingTo.content,
-            sender: replyingTo.senderName
-          };
-        }
+        const quotedData = currentReplying ? {
+          id: currentReplying.id,
+          content: currentReplying.content,
+          sender: currentReplying.senderName
+        } : undefined;
 
-        store.sendMessage(id!, messageInput, user, msgData);
-
-        await supabase.from("mensagens").insert({
-          conversation_id: id,
-          content: messageInput,
+        // Inserir imediatamente com status 'sending' (1 check ✓)
+        store.addDbMessages([{
+          id: tempMsgId,
+          conversationId: id!,
+          content: textToSend,
           sender: "agent",
-          sender_name: user.name,
-          type: 'text',
-          external_message_id: extId,
-          status: 'sent',
-          tenant_id: user.tenantId,
-          quoted_message: msgData.quotedMessage
-        });
+          senderName: user.name,
+          timestamp: new Date(),
+          type: "text",
+          status: "sending",
+          quotedMessage: quotedData
+        }]);
 
-        await supabase.from("conversas").update({
-          last_message: messageInput,
-          last_message_time: new Date().toISOString(),
-          tenant_id: user.tenantId
-        }).eq("id", id);
+        // Atualizar última mensagem na lista
+        store.addDbConversation({
+          id: id!,
+          lastMessage: textToSend,
+          lastMessageTime: new Date()
+        } as any);
+
+        try {
+          const res = await sendWhatsAppMessage(conv.clientPhone, textToSend, user.name, currentReplying?.external_message_id);
+          if (!res.success) throw new Error(res.error || "Falha ao enviar mensagem");
+
+          const extId = res.data?.key?.id;
+
+          // Atualizar para status 'sent' (2 checks ✓✓)
+          store.updateMessage(tempMsgId, {
+            status: "sent",
+            external_message_id: extId
+          });
+
+          await supabase.from("mensagens").insert({
+            conversation_id: id,
+            content: textToSend,
+            sender: "agent",
+            sender_name: user.name,
+            type: 'text',
+            external_message_id: extId,
+            status: 'sent',
+            tenant_id: user.tenantId,
+            quoted_message: quotedData
+          });
+
+          await supabase.from("conversas").update({
+            last_message: textToSend,
+            last_message_time: new Date().toISOString(),
+            tenant_id: user.tenantId
+          }).eq("id", id);
+        } catch (sendErr: any) {
+          console.error("Erro ao enviar mensagem no WhatsApp:", sendErr);
+          store.updateMessage(tempMsgId, { status: "error" });
+          toast.error("Não foi possível enviar a mensagem. Verifique a conexão.");
+        }
       }
 
       const tEnd = performance.now();
@@ -982,10 +1056,7 @@ export default function ChatPage() {
         console.warn(`[TIMING] ALERTA: Envio lento! ${tDelta}ms`);
       }
 
-      setMessageInput("");
-      setReplyingTo(null);
       clearAudio();
-      toast.success("Enviado", { id: toastId });
     } catch (err) {
       toast.error(`Falha ao enviar: ${String(err)}`, { id: toastId });
     }
@@ -1692,7 +1763,27 @@ export default function ChatPage() {
   return (
     <div className="flex h-[calc(100vh-88px)] gap-5 px-8 pb-8">
       {/* Main Chat Area */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-card">
+      <div 
+        className={cn(
+          "relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-card transition-colors",
+          isDragging && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+        )}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        {/* Drag and Drop Overlay */}
+        {isDragging && (
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/90 backdrop-blur-sm border-2 border-dashed border-primary rounded-xl animate-in fade-in duration-200 pointer-events-none">
+            <div className="p-4 bg-primary/10 text-primary rounded-full mb-3">
+              <UploadCloud className="w-10 h-10 animate-bounce" />
+            </div>
+            <p className="text-lg font-bold text-foreground">Solte o arquivo ou imagem aqui</p>
+            <p className="text-xs text-muted-foreground mt-1">O arquivo será preparado como anexo para o envio</p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex shrink-0 flex-wrap items-center gap-x-3.5 gap-y-2.5 border-b border-border px-5 py-3.5">
           <Button variant="outline" size="icon" onClick={() => navigate("/")} className="h-9 w-9" aria-label="Voltar para a caixa de entrada">

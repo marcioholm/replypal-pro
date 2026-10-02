@@ -79,7 +79,10 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const openCount = store.conversations.filter(c => (c.funil || "atendimento") === "atendimento" && c.status?.toLowerCase() !== "resolvido").length;
+  const openCount = store.conversations.filter(c => {
+    const f = c.funil || "atendimento";
+    return (f === "atendimento" || f === "triagem") && c.status?.toLowerCase() !== "resolvido";
+  }).length;
   const triagemCount = store.conversations.filter(c => c.funil === "triagem").length;
   const atRiskCount = store.conversations.filter(c => {
     if ((c.funil || "atendimento") !== "atendimento" || c.status?.toLowerCase() === "resolvido") return false;

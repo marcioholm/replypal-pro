@@ -24,7 +24,7 @@ export function GanhoClienteModal({
         <DialogHeader className="mb-4 pb-2 border-b">
           <DialogTitle className="flex items-center gap-2 text-xl font-extrabold text-success">
             <Trophy className="h-6 w-6 text-amber-500" />
-            Parabéns! Oportunidade Ganha 🎉
+            Oportunidade Ganha
           </DialogTitle>
           <DialogDescription>
             Cadastre o cliente para finalizar a oportunidade. A conversa será vinculada automaticamente e enviada para o funil de Atendimento.
