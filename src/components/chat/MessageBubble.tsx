@@ -250,7 +250,7 @@ export function MessageBubble({ msg, clientName }: MessageBubbleProps) {
     if (!isAgent) return null;
     switch (msg.status) {
       case 'error':
-        return <AlertCircle className="w-3 h-3 text-red-300" title="Erro ao enviar mensagem" />;
+        return <span title="Erro ao enviar mensagem"><AlertCircle className="w-3 h-3 text-red-300" /></span>;
       case 'sending':
         return <span className="text-[10px] opacity-70" title="Enviando...">✓</span>;
       case 'sent':

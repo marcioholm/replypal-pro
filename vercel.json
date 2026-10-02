@@ -23,6 +23,9 @@
     },
     "api/evolution-webhook.ts": {
       "maxDuration": 30
+    },
+    "api/evolution-proxy.ts": {
+      "maxDuration": 30
     }
   }
 }
