@@ -76,12 +76,19 @@ CREATE TABLE IF NOT EXISTS public.automacoes_relatorios (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE public.automacoes_relatorios ADD COLUMN IF NOT EXISTS ultimo_envio_em TIMESTAMPTZ;
-CREATE UNIQUE INDEX IF NOT EXISTS uq_automacoes_relatorios_tipo ON public.automacoes_relatorios (tenant_id, tipo);
+-- Um relatório por tipo por escritório. Se o banco já tiver duplicados, não trava a migration:
+-- só avisa (as funções abaixo funcionam do mesmo jeito).
+DO $$
+BEGIN
+  CREATE UNIQUE INDEX IF NOT EXISTS uq_automacoes_relatorios_tipo ON public.automacoes_relatorios (tenant_id, tipo);
+EXCEPTION WHEN unique_violation THEN
+  RAISE NOTICE 'automacoes_relatorios tem linhas duplicadas por (tenant_id, tipo); índice único não criado.';
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.relatorios_envios_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-  relatorio_id UUID REFERENCES public.automacoes_relatorios(id) ON DELETE SET NULL,
+  configuracao_id UUID REFERENCES public.automacoes_relatorios(id) ON DELETE SET NULL,
   tipo TEXT NOT NULL DEFAULT 'resumo_diario_atendimento',
   numero_destino TEXT NOT NULL,
   nome_destinatario TEXT,
@@ -90,6 +97,13 @@ CREATE TABLE IF NOT EXISTS public.relatorios_envios_logs (
   response_json JSONB,
   enviado_em TIMESTAMPTZ DEFAULT now()
 );
+-- A tabela pode já existir (criada pelo app antigo): garante as colunas usadas aqui.
+-- "configuracao_id" é o nome que o banco de produção já usa para o relatório de origem.
+ALTER TABLE public.relatorios_envios_logs ADD COLUMN IF NOT EXISTS configuracao_id UUID;
+ALTER TABLE public.relatorios_envios_logs ADD COLUMN IF NOT EXISTS nome_destinatario TEXT;
+ALTER TABLE public.relatorios_envios_logs ADD COLUMN IF NOT EXISTS erro TEXT;
+ALTER TABLE public.relatorios_envios_logs ADD COLUMN IF NOT EXISTS response_json JSONB;
+ALTER TABLE public.relatorios_envios_logs ADD COLUMN IF NOT EXISTS enviado_em TIMESTAMPTZ DEFAULT now();
 CREATE INDEX IF NOT EXISTS idx_relatorios_logs_tenant ON public.relatorios_envios_logs (tenant_id, enviado_em DESC);
 
 -- Um alerta por conversa por "episódio" (muda quando o cliente manda mensagem nova)
@@ -286,9 +300,13 @@ AS $$
     WHERE a.ativo
       AND a.tipo = 'cliente_sem_resposta'
       AND coalesce(a.numero_destino, '') <> ''
-      AND a.dias_semana ? EXTRACT(DOW FROM agora.local)::int::text
-      AND agora.local::time BETWEEN coalesce(nullif(a.horario_inicio, ''), '00:00')::time
-                                AND coalesce(nullif(a.horario_fim, ''), '23:59')::time
+      -- dias_semana pode ser text[] (produção) ou jsonb; horário pode ser time ou texto.
+      -- to_jsonb e ::text deixam a função igual para os dois formatos.
+      AND (a.dias_semana IS NULL OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(to_jsonb(a.dias_semana)) AS d(dia)
+            WHERE d.dia = EXTRACT(DOW FROM agora.local)::int::text))
+      AND agora.local::time BETWEEN coalesce(nullif(a.horario_inicio::text, ''), '00:00')::time
+                                AND coalesce(nullif(a.horario_fim::text, ''), '23:59')::time
   ),
   ultima AS (
     SELECT c.id AS conversa_id, c.tenant_id, c.client_name, c.status, c.created_at, c.assigned_to,
@@ -452,9 +470,9 @@ AS $$
 DECLARE v_tenant UUID;
 BEGIN
   SELECT tenant_id INTO v_tenant FROM public.automacoes_relatorios WHERE id = p_relatorio;
-  INSERT INTO public.relatorios_envios_logs (tenant_id, relatorio_id, tipo, numero_destino, nome_destinatario, status, erro, response_json)
+  INSERT INTO public.relatorios_envios_logs (tenant_id, configuracao_id, tipo, numero_destino, nome_destinatario, status, erro, response_json, enviado_em)
   VALUES (v_tenant, p_relatorio, CASE WHEN p_teste THEN 'teste' ELSE 'resumo_diario_atendimento' END,
-          p_numero, p_nome, CASE WHEN p_ok THEN 'enviado' ELSE 'erro' END, left(p_erro, 500), p_resposta);
+          p_numero, p_nome, CASE WHEN p_ok THEN 'enviado' ELSE 'erro' END, left(p_erro, 500), p_resposta, now());
   IF NOT p_teste THEN
     UPDATE public.automacoes_relatorios SET ultimo_envio_em = now() WHERE id = p_relatorio;
   END IF;
