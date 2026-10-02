@@ -32,6 +32,7 @@ import { SimpleContactDialog } from "@/components/clientes/SimpleContactDialog";
 import { AbaArquivos } from "@/components/arquivos/AbaArquivos";
 import { PedirAcessoDialog } from "@/components/arquivos/PedirAcessoDialog";
 import { FaixaTriagem } from "@/components/triagem/FaixaTriagem";
+import { FaixaPreVenda } from "@/components/prevenda/FaixaPreVenda";
 import { VincularClienteModal } from "@/components/triagem/VincularClienteModal";
 import { Customer } from "@/lib/store";
 import { cn, getBrazilianPhoneVariations } from "@/lib/utils";
@@ -1859,6 +1860,17 @@ export default function ChatPage() {
             telefone={conv.clientPhone}
             nomeCliente={conv.clientName}
             onAtualizado={() => {
+              navigate("/");
+            }}
+          />
+        )}
+
+        {/* Faixa de pré-venda com botões Ganhar / Perder direto na conversa */}
+        {!conv.customerId && conv.funil === "pre_venda" && (
+          <FaixaPreVenda
+            conversaId={conv.id}
+            onAtualizado={() => {
+              // Recarregar dados ou navegar para atendimento
               navigate("/");
             }}
           />

@@ -279,7 +279,7 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
 
   const onSubmit = async (values: CustomerFormValues) => {
     try {
-      if (initialData) {
+      if (initialData?.id) {
         // Atualização
         const { error } = await supabase
           .from("clientes")
@@ -305,7 +305,7 @@ export function CustomerForm({ initialData, onSuccess }: CustomerFormProps) {
             service_level: values.serviceLevel,
             plan: values.plan,
             monthly_value: values.monthlyValue,
-            origem: values.origin,
+            origin: values.origin,
             financial_status: values.financialStatus,
             observations: values.observations,
             drive_folder_url: values.driveFolderUrl,

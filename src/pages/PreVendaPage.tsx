@@ -540,21 +540,53 @@ export default function PreVendaPage() {
                             <span className="text-[10px] text-muted-foreground/50 italic">Sem responsável</span>
                           )}
 
-                          {op.conversa_id && (
+                          <div className="flex items-center gap-1">
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
-                              className="h-6 px-1.5 text-[11px] gap-1 text-primary hover:text-primary hover:bg-primary/10"
+                              title="Marcar como Perdido"
+                              className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(`/chat/${op.conversa_id}`);
+                                setOpParaPerda(op);
+                                setModalPerdaOpen(true);
                               }}
                             >
-                              <MessageSquare className="h-3 w-3" />
-                              Conversa
+                              <XCircle className="h-3.5 w-3.5" />
                             </Button>
-                          )}
+
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              title="Marcar como Ganho 🎉"
+                              className="h-6 w-6 p-0 text-amber-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpParaGanho(op);
+                                setModalGanhoOpen(true);
+                              }}
+                            >
+                              <Trophy className="h-3.5 w-3.5" />
+                            </Button>
+
+                            {op.conversa_id && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-1.5 text-[11px] gap-1 text-primary hover:text-primary hover:bg-primary/10 ml-0.5"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/chat/${op.conversa_id}`);
+                                }}
+                              >
+                                <MessageSquare className="h-3 w-3" />
+                                Conversa
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
