@@ -430,8 +430,8 @@ export default function SettingsPage() {
     setQrCodeImage(null);
 
     // Garantir que as funções usem os dados atuais da tela
-    let apiUrl = evolutionUrl.trim();
-    if (!apiUrl.startsWith("http")) apiUrl = "https://" + apiUrl;
+    // Mesma limpeza do botão "Salvar": grava só https://host, mesmo que tenham colado o endereço do painel
+    const apiUrl = normalizeEvolutionUrl(evolutionUrl);
     
     updateEvolutionConfig({
       url: apiUrl,

@@ -156,16 +156,44 @@ END $$;
 -- ─────────────────────────────────────────────────────────────
 
 -- Configuração da Evolution do escritório
+-- Deixa só "https://host" da URL salva. Cobre o que as pessoas colam por engano:
+-- endereço do painel com "#:~:text=evolutionapi...", caminho, barra no final, sem https.
+CREATE OR REPLACE FUNCTION public.evolution_url_limpa(p_url text)
+RETURNS text
+LANGUAGE sql IMMUTABLE
+AS $$
+  SELECT CASE
+    WHEN u = '' THEN NULL
+    WHEN u LIKE '%#:~:text=%'
+      THEN 'https://' || regexp_replace(split_part(split_part(u, '#:~:text=', 2), '&', 1), '^https?://|/.*$', '', 'g')
+    ELSE substring(CASE WHEN u ~* '^https?://' THEN u ELSE 'https://' || u END from '^(https?://[^/?#]+)')
+  END
+  FROM (SELECT trim(coalesce(p_url, '')) AS u) t
+$$;
+
 CREATE OR REPLACE FUNCTION public.evolution_config(p_tenant UUID)
 RETURNS jsonb
 LANGUAGE sql STABLE
 AS $$
   SELECT jsonb_build_object(
-    'url', rtrim(evolution_url, '/'),
+    'url', public.evolution_url_limpa(evolution_url),
     'apikey', evolution_api_key,
-    'instance', instance_name
+    'instance', nullif(trim(instance_name), '')
   )
   FROM public.company_settings WHERE tenant_id = p_tenant
+$$;
+
+-- O escritório tem WhatsApp configurado? Sem isso as automações pulam o escritório
+-- em vez de tentar enviar e dar erro.
+CREATE OR REPLACE FUNCTION public.evolution_pronta(p_tenant UUID)
+RETURNS boolean
+LANGUAGE sql STABLE
+AS $$
+  SELECT coalesce((
+    SELECT public.evolution_url_limpa(evolution_url) IS NOT NULL
+       AND coalesce(evolution_api_key, '') <> ''
+       AND coalesce(trim(instance_name), '') <> ''
+    FROM public.company_settings WHERE tenant_id = p_tenant), false)
 $$;
 
 -- Número no formato que a Evolution espera (55 + DDD + número)
@@ -343,6 +371,7 @@ AS $$
   JOIN ultima u ON u.tenant_id = cfg.tenant_id
   LEFT JOIN public.usuarios us ON us.id = u.assigned_to
   WHERE u.sender = 'client'
+    AND public.evolution_pronta(cfg.tenant_id)
     AND u.ultima_em < now() - make_interval(hours => cfg.limite_horas_sem_resposta)
     AND NOT EXISTS (
       SELECT 1 FROM public.alertas_envios e
@@ -450,6 +479,7 @@ AS $$
     p_teste_tenant IS NOT NULL
   FROM public.automacoes_relatorios r
   WHERE r.tipo = 'resumo_diario_atendimento'
+    AND public.evolution_pronta(r.tenant_id)
     AND (
       (p_teste_tenant IS NOT NULL AND r.tenant_id = p_teste_tenant)
       OR (p_teste_tenant IS NULL AND r.ativo
@@ -625,4 +655,5 @@ AS $$
          'Pré-venda de hoje: ' || ops.n || ' contato(s) para fazer' || chr(10) || chr(10) || ops.lista,
          public.evolution_config(ops.tenant_id)
   FROM ops
+  WHERE public.evolution_pronta(ops.tenant_id)
 $$;
