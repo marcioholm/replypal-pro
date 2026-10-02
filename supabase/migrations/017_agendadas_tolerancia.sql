@@ -8,6 +8,10 @@
 --
 -- Idempotente: pode rodar mais de uma vez.
 -- ════════════════════════════════════════════════════════════════════════════
+-- Garante as colunas que a função usa (o banco de produção pode ter sido criado sem alguma)
+ALTER TABLE public.mensagens_agendadas ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+ALTER TABLE public.mensagens_agendadas ADD COLUMN IF NOT EXISTS error_message TEXT;
+
 DROP FUNCTION IF EXISTS public.reservar_mensagens_agendadas(integer);
 DROP FUNCTION IF EXISTS public.reservar_mensagens_agendadas(integer, integer);
 
