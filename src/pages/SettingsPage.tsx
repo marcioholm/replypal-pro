@@ -71,14 +71,8 @@ export default function SettingsPage() {
       if (inst) setInstanceName(inst);
     }
   }, [tenant]);
-  const [waStatus, setWaStatus] = useState<WhatsAppStatus>(
-    localStorage.getItem("wa_connected") === "true" ? "connected" : "idle"
-  );
-  const [waConnection, setWaConnection] = useState<WhatsAppConnection | null>(
-    localStorage.getItem("wa_connected") === "true"
-      ? { instanceName: localStorage.getItem("evolution_instance") || instanceName }
-      : null
-  );
+  const [waStatus, setWaStatus] = useState<WhatsAppStatus>("idle");
+  const [waConnection, setWaConnection] = useState<WhatsAppConnection | null>(null);
   const [qrCodeImage, setQrCodeImage] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [showQr, setShowQr] = useState(false);
@@ -226,7 +220,6 @@ export default function SettingsPage() {
     localStorage.setItem("evolution_url", apiUrl);
     localStorage.setItem("evolution_key", key);
     localStorage.setItem("evolution_instance", instance);
-    localStorage.setItem("wa_connected", "true");
 
     // Salvar no banco para todos terem acesso
     if (user?.tenantId) {
@@ -247,7 +240,7 @@ export default function SettingsPage() {
     }
 
     setWaStatus("loading");
-    toast.info("Verificando...");
+    toast.info("Salvando e verificando conexão...");
 
     try {
       const statusRes = await fetch(`${apiUrl}/instance/connectionState/${encodeURIComponent(instance)}`, {
@@ -257,40 +250,36 @@ export default function SettingsPage() {
       if (statusRes.ok) {
         const statusData = await statusRes.json();
         
-        if (statusData.state === "open") {
+        if (statusData.state === "open" || statusData.instance?.state === "open") {
           setWaStatus("connected");
           setWaConnection({
             instanceName: instance,
-            phoneNumber: statusData.phoneNumber || "+55...",
-            pushName: statusData.pushName,
+            phoneNumber: statusData.phoneNumber || statusData.instance?.phoneNumber || "+55...",
+            pushName: statusData.pushName || statusData.instance?.pushName,
           });
-          toast.success("WhatsApp conectado!");
+          localStorage.setItem("wa_connected", "true");
+          toast.success("WhatsApp conectado e configurações salvas!");
+
+          // Configurar webhook na Evolution API para receber eventos
+          const webhookUrl = `${window.location.origin}/api/evolution-webhook`;
+          setWebhook(webhookUrl).then((whRes) => {
+            if (whRes.success) {
+              console.log("[Settings] Webhook configurado:", webhookUrl);
+            }
+          });
           return;
         }
       }
 
-      setWaStatus("connected");
-      setWaConnection({
-        instanceName,
-        phoneNumber: "Conectado",
-        pushName: "",
-      });
-      toast.success("WhatsApp conectado! Use o painel da Evolution para gerenciar.");
-
-      // Configurar webhook na Evolution API para receber eventos
-      const webhookUrl = `${window.location.origin}/api/evolution-webhook`;
-      setWebhook(webhookUrl).then((whRes) => {
-        if (whRes.success) {
-          console.log("[Settings] Webhook configurado:", webhookUrl);
-        } else {
-          console.warn("[Settings] Webhook não configurado automaticamente:", whRes.error);
-        }
-      });
-    } catch (err: any) {
-      console.error("[Settings] Erro ao conectar com Evolution:", err);
+      // Se a instância não está conectada ao aparelho ainda
       setWaStatus("idle");
       localStorage.removeItem("wa_connected");
-      toast.error("Configurações salvas, mas a Evolution API não respondeu (verifique se o servidor está ativo).");
+      toast.success("Configurações salvas! Gere o QR Code para conectar seu aparelho.");
+    } catch (err: any) {
+      console.warn("[Settings] Erro ao verificar instância:", err);
+      setWaStatus("idle");
+      localStorage.removeItem("wa_connected");
+      toast.success("Configurações salvas! Verifique a Evolution API e gere o QR Code quando estiver pronto.");
     }
   };
 
