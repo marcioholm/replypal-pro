@@ -13,5 +13,16 @@
       "source": "/((?!api).*)",
       "destination": "/"
     }
-  ]
+  ],
+  "functions": {
+    "api/proxy-webhook.ts": {
+      "maxDuration": 30
+    },
+    "api/google.ts": {
+      "maxDuration": 30
+    },
+    "api/evolution-webhook.ts": {
+      "maxDuration": 30
+    }
+  }
 }

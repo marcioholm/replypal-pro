@@ -20,8 +20,8 @@ pode ser enviado, para quem, e quais dados existem são as funções do banco.
 
 ## 1. Antes de importar
 
-1. Rode a migration `supabase/migrations/015_automacoes_n8n.sql` no SQL Editor do Supabase
-   (depois da 010–014). Ela é idempotente: pode rodar de novo sem problema.
+1. Rode no SQL Editor do Supabase, nesta ordem: `015_automacoes_n8n.sql`, `016_google_drive.sql`
+   e `017_agendadas_tolerancia.sql` (depois da 010–014). São idempotentes: podem rodar de novo.
 2. Confirme que o bucket `documentos` ficou **privado** (Storage › documentos › não público).
 
 ## 2. Credenciais no n8n (criar uma vez)
@@ -30,7 +30,7 @@ pode ser enviado, para quem, e quais dados existem são as funções do banco.
 |------------|-------------|---------|
 | `Conta+ · Supabase (Postgres)` | Postgres | Supabase › Project Settings › Database › Connection pooling (Session, porta 5432). Host `aws-0-…pooler.supabase.com`, usuário `postgres.<ref>`, senha do banco, SSL **require** |
 | `Conta+ · OpenAI` | Header Auth | Name `Authorization`, Value `Bearer sk-…` |
-| `Conta+ · API interna` | Header Auth | Name `x-conta-key`, Value = o mesmo texto de `CONTA_INTERNAL_KEY` na Vercel (usada pelo fluxo 03) |
+| `Conta+ · API interna` | Header Auth | Name `x-conta-key`, Value = o mesmo texto de `CONTA_INTERNAL_KEY` na Vercel. É a senha entre o Conta+ e o n8n: **todos os webhooks** exigem essa chave, e o fluxo 03 a usa para pedir links ao Conta+ |
 | `Conta+ · Supabase service` | Custom Auth | `{"headers":{"apikey":"<service_role>","Authorization":"Bearer <service_role>"}}` |
 
 Ao importar, se o n8n mostrar a credencial em vermelho, abra o nó e selecione a credencial
@@ -55,7 +55,7 @@ com o mesmo nome. Ela só precisa ser escolhida uma vez por fluxo.
 | `VITE_N8N_BASE_URL` | `https://<seu-n8n>` (sem barra). O app monta as URLs dos webhooks 01, 02, 06 e 07 a partir dela |
 | `N8N_DOCUMENTOS_WEBHOOK` | `https://<seu-n8n>/webhook/conta/documentos` (fluxo 03). Sem ela, o bot de documentos fica desligado |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Usadas por `/api/documento-url` para gerar links assinados |
-| `CONTA_INTERNAL_KEY` | Texto aleatório longo. O fluxo 03 usa para pedir ao Conta+ o link do arquivo (Drive ou Storage) |
+| `CONTA_INTERNAL_KEY` | Texto aleatório longo (24+). Sem ela o Conta+ não consegue chamar o n8n. Tem que ser igual à credencial `Conta+ · API interna` |
 | `N8N_ALLOWED_HOSTS` | Opcional: outros hosts do n8n aceitos pelo `/api/proxy-webhook` |
 
 Depois de mudar variáveis `VITE_*`, faça um novo deploy (elas entram no build).
@@ -89,5 +89,12 @@ Depois de mudar variáveis `VITE_*`, faça um novo deploy (elas entram no build)
   de "um clique" da equipe. Detalhes em `docs/google-drive.md`.
 - Com o Drive conectado, o upload pelo app vai direto para o Drive e o fluxo 02 só é usado
   para o certificado digital e para escritórios sem Drive.
+- **Segurança dos webhooks:** nenhum webhook aceita chamada sem a chave interna. O navegador
+  nunca fala com o n8n: tudo passa por `/api/proxy-webhook`, que confere o usuário, força o
+  escritório dele no envio e acrescenta a chave. Se trocar a chave, troque na Vercel e na
+  credencial do n8n ao mesmo tempo.
+- **Agendadas atrasadas:** se o n8n ficar fora do ar, mensagens com mais de 2 h de atraso não
+  são enviadas ao voltar; viram "erro" em Agendamentos para a equipe decidir se reenvia.
+  Para mudar a tolerância, troque `reservar_mensagens_agendadas(20)` por `(20, <horas>)` no fluxo 04.
 - Para alterar os fluxos, edite `gerar_fluxos.py` e rode `python3 n8n/gerar_fluxos.py`.
   Os JSONs são gerados a partir dele.

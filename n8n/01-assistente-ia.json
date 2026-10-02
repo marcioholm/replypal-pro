@@ -20,6 +20,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "replypal/ia-pro",
+        "authentication": "headerAuth",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -31,6 +32,12 @@
         0,
         0
       ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "contaApiInterna",
+          "name": "Conta+ · API interna"
+        }
+      },
       "webhookId": "9b6fc66b-f14a-5700-a7e4-ba71cae2c652"
     },
     {

@@ -1,34 +1,13 @@
 import type { User, Customer } from "./store";
-import { N8N } from "./n8n";
+import { N8N, chamarN8n } from "./n8n";
 
-async function sendWebhook(url: string, payload: Record<string, unknown>) {
-  if (!url) {
-    console.warn("Webhook URL not configured for this event.");
-    return;
-  }
-
+async function sendWebhook(url: string, usuarioId: string | undefined, payload: Record<string, unknown>) {
   try {
-    // Usar Proxy interno para evitar CORS em todos os webhooks do sistema
-    const response = await fetch("/api/proxy-webhook", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        targetUrl: url,
-        ...payload,
-        source: "conta-mais",
-        timestamp: new Date().toISOString(),
-      }),
-    });
-    
-    if (!response.ok) {
-      console.error(`Webhook Proxy Error (${response.status})`);
-    }
-    
-    return response.ok;
+    const res = await chamarN8n(url, usuarioId, { ...payload, source: "conta-mais", timestamp: new Date().toISOString() });
+    if (!res.ok) console.error(`Webhook n8n (${res.status}):`, res.data?.error);
+    return res.ok;
   } catch (error) {
-    console.error("Error sending webhook via proxy:", error);
+    console.error("Erro ao chamar o n8n:", error);
     return false;
   }
 }
@@ -46,7 +25,7 @@ export const webhooks = {
         body: JSON.stringify({ cliente_id: customer.id, usuario_id: creator.id }),
       }).catch(() => undefined);
     }
-    return sendWebhook(N8N.eventos, {
+    return sendWebhook(N8N.eventos, creator?.id, {
       event: "cliente_criado",
       tenant_id: customer.tenantId,
       cliente_id: customer.id,

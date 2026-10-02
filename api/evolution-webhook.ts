@@ -978,7 +978,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           try {
             await fetch(n8nDocWebhook, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              // O webhook do n8n só aceita chamadas com a chave interna
+              headers: { 'Content-Type': 'application/json', 'x-conta-key': process.env.CONTA_INTERNAL_KEY || '' },
               body: JSON.stringify({
                 tenant_id: tenantId,
                 conversa_id: conv.id,

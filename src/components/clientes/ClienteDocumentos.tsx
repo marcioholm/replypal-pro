@@ -440,6 +440,7 @@ function DocumentItem({ tipo, label, category, month, year, status, clienteId, c
         },
         body: JSON.stringify({
            targetUrl: webhookUrl,
+           usuario_id: authUser?.id,
            ...payload
         })
       }).catch(err => {

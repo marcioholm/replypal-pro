@@ -83,7 +83,7 @@ export default function ScheduledMessagesPage() {
     try {
       const { error } = await supabase
         .from('mensagens_agendadas')
-        .update({ status: 'agendada', error_message: null })
+        .update({ status: 'agendada', error_message: null, tentativas: 0, processando_em: null, scheduled_at: new Date().toISOString() })
         .eq('id', msg.id);
       
       if (error) throw error;

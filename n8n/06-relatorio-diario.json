@@ -40,6 +40,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "replypal/relatorio-atendimento/teste",
+        "authentication": "headerAuth",
         "responseMode": "onReceived",
         "options": {}
       },
@@ -51,6 +52,12 @@
         0,
         220
       ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "contaApiInterna",
+          "name": "Conta+ · API interna"
+        }
+      },
       "webhookId": "0ada3ed7-28b0-512e-9e45-814f09450f32"
     },
     {

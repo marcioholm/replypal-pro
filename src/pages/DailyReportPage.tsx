@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { N8N } from "@/lib/n8n";
+import { N8N, chamarN8n } from "@/lib/n8n";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -252,10 +252,7 @@ export default function DailyReportPage() {
     setTesting(true);
     try {
       // Aviso: O teste usa a configuração salva no banco de dados.
-      const res = await fetch(N8N_RELATORIO_TESTE_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+      const res = await chamarN8n(N8N_RELATORIO_TESTE_WEBHOOK_URL, user?.id, { 
           tenant_id: user?.tenantId, 
           modo: "teste",
           // Enviamos os números atuais para o n8n poder usar se ele suportar override no teste
@@ -264,12 +261,11 @@ export default function DailyReportPage() {
             if ((num.length === 10 || num.length === 11) && !num.startsWith("55")) num = "55" + num;
             return { ...n, numero: num };
           })
-        })
       });
-      if (res.ok) toast.success("Teste disparado!");
-      else throw new Error();
-    } catch {
-      toast.error("Falha ao disparar teste.");
+      if (res.ok) toast.success("Teste disparado para os números salvos. Se você alterou a lista, salve antes de testar.");
+      else throw new Error(res.data?.error || "");
+    } catch (e) {
+      toast.error((e instanceof Error && e.message) || "Falha ao disparar teste.");
     } finally {
       setTesting(false);
     }

@@ -99,12 +99,15 @@ class Fluxo:
 # ── blocos de nós ────────────────────────────────────────────
 
 def webhook(f, nome, path, pos, responder_no=True):
+    # Todo webhook exige a chave interna (cabeçalho x-conta-key). Quem chama é sempre o
+    # servidor do Conta+ (/api/proxy-webhook ou /api/evolution-webhook), nunca o navegador.
     return f.add(nome, "n8n-nodes-base.webhook", 2, {
         "httpMethod": "POST",
         "path": path,
+        "authentication": "headerAuth",
         "responseMode": "responseNode" if responder_no else "onReceived",
         "options": {},
-    }, pos, extra={"webhookId": str(uuid.uuid5(uuid.NAMESPACE_URL, path))})
+    }, pos, cred=CRED_API, extra={"webhookId": str(uuid.uuid5(uuid.NAMESPACE_URL, path))})
 
 
 def agenda(f, nome, pos, minutos=None, cron=None):

@@ -20,6 +20,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "conta/documentos",
+        "authentication": "headerAuth",
         "responseMode": "onReceived",
         "options": {}
       },
@@ -31,6 +32,12 @@
         0,
         0
       ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "contaApiInterna",
+          "name": "Conta+ · API interna"
+        }
+      },
       "webhookId": "27bafb98-2268-5c8d-bd5b-3f5f2ab1d36e"
     },
     {

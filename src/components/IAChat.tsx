@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { N8N } from "@/lib/n8n";
+import { N8N, chamarN8n } from "@/lib/n8n";
 import { useLocation } from "react-router-dom";
 import { Sparkles, Send, X, Loader2, Bot, User as UserIcon, ThumbsUp, ThumbsDown, BookOpen, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -118,15 +118,11 @@ export function IAChatPanel() {
     console.log("Payload IA enviado:", payload);
 
     try {
-      const response = await fetch(N8N.ia, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const response = await chamarN8n<Record<string, unknown>>(N8N.ia, user?.id, payload);
 
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      
-      const data = await response.json();
+      if (!response.ok) throw new Error(response.data?.error || `HTTP error! status: ${response.status}`);
+
+      const data = response.data as any;
       console.log("Resposta IA recebida:", data);
 
       // Suporte para resposta direta ou dentro de array (padrão n8n)
