@@ -61,6 +61,42 @@ export function OportunidadeDrawer({
   const [proximoContatoEm, setProximoContatoEm] = useState("");
   const [observacoes, setObservacoes] = useState("");
 
+  const [usuarios, setUsuarios] = useState<any[]>([]);
+
+  // Máscara formatadora de CNPJ: XX.XXX.XXX/XXXX-XX
+  const formatCNPJ = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 14);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+    if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+    if (digits.length <= 12) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`;
+  };
+
+  useEffect(() => {
+    if (!open || !user?.tenantId) return;
+
+    // Buscar lista atualizada de usuários da empresa para a seleção de responsável
+    const fetchUsers = async () => {
+      const { data } = await supabase
+        .from("usuarios")
+        .select("id, nome, email, role, avatar")
+        .eq("tenant_id", user.tenantId);
+      if (data && data.length > 0) {
+        setUsuarios(data);
+        store.setUsers(data.map((d) => ({
+          id: d.id,
+          name: d.nome,
+          email: d.email,
+          role: d.role as any,
+          tenantId: user.tenantId,
+          avatar: d.avatar,
+        })));
+      }
+    };
+    fetchUsers();
+  }, [open, user?.tenantId]);
+
   useEffect(() => {
     if (!open || !oportunidadeId) return;
 
@@ -79,7 +115,7 @@ export function OportunidadeDrawer({
         setNomeContato(data.nome_contato || "");
         setTelefone(data.telefone || "");
         setEmpresaNome(data.empresa_nome || "");
-        setCnpj(data.cnpj || "");
+        setCnpj(data.cnpj ? formatCNPJ(data.cnpj) : "");
         setRegime(data.regime_pretendido || "");
         setServicos(data.servicos || []);
         setColaboradores(data.colaboradores || "");
@@ -210,8 +246,9 @@ export function OportunidadeDrawer({
                 <Label className="text-xs font-bold text-muted-foreground">CNPJ</Label>
                 <Input
                   value={cnpj}
-                  onChange={(e) => setCnpj(e.target.value)}
+                  onChange={(e) => setCnpj(formatCNPJ(e.target.value))}
                   placeholder="00.000.000/0000-00"
+                  maxLength={18}
                   className="h-9 text-xs rounded-xl font-mono"
                 />
               </div>
@@ -285,9 +322,9 @@ export function OportunidadeDrawer({
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {store.users.map((u) => (
+                    {(usuarios.length > 0 ? usuarios : store.users).map((u) => (
                       <SelectItem key={u.id} value={u.id} className="text-xs">
-                        {u.name}
+                        {u.nome || u.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

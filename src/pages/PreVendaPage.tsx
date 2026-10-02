@@ -152,7 +152,29 @@ export default function PreVendaPage() {
 
   useEffect(() => {
     fetchOportunidades();
-  }, [fetchOportunidades]);
+
+    // Carregar usuários do escritório para mapear responsáveis nos cards
+    if (user?.tenantId) {
+      supabase
+        .from("usuarios")
+        .select("id, nome, email, role, avatar")
+        .eq("tenant_id", user.tenantId)
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            store.setUsers(
+              data.map((d) => ({
+                id: d.id,
+                name: d.nome,
+                email: d.email,
+                role: d.role as any,
+                tenantId: user.tenantId,
+                avatar: d.avatar,
+              }))
+            );
+          }
+        });
+    }
+  }, [fetchOportunidades, user?.tenantId]);
 
   // Realtime subscription para oportunidades
   useEffect(() => {
@@ -502,6 +524,20 @@ export default function PreVendaPage() {
                             </span>
                           ) : (
                             <span className="text-muted-foreground/60 text-[10px]">Sem data</span>
+                          )}
+                        </div>
+
+                        {/* Responsável e Ações */}
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/40 text-[11px]">
+                          {responsavel ? (
+                            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground truncate max-w-[130px]" title={`Responsável: ${responsavel.name}`}>
+                              <span className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold">
+                                {responsavel.name.charAt(0).toUpperCase()}
+                              </span>
+                              <span className="truncate">{responsavel.name}</span>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground/50 italic">Sem responsável</span>
                           )}
 
                           {op.conversa_id && (
