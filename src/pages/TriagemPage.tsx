@@ -83,7 +83,7 @@ export default function TriagemPage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.tenantId, store]);
+  }, [user?.tenantId]);
 
   useEffect(() => {
     fetchTriagem();
