@@ -178,10 +178,11 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    if (evolutionUrl && evolutionKey && instanceName && waStatus === "idle") {
+    // Só verifica conexão na montagem se já tiver dados salvos no banco/localStorage
+    if (tenant?.evolutionUrl && tenant?.evolutionKey && tenant?.evolutionInstance) {
       checkConnection();
     }
-  }, [evolutionUrl, evolutionKey, instanceName]);
+  }, [tenant?.evolutionUrl, tenant?.evolutionKey, tenant?.evolutionInstance]);
 
   const startPolling = () => {
     if (pollingRef.current) clearInterval(pollingRef.current);
@@ -285,20 +286,11 @@ export default function SettingsPage() {
           console.warn("[Settings] Webhook não configurado automaticamente:", whRes.error);
         }
       });
-    } catch (err) {
-      // Se der erro, mas tiver credenciais, assume como conectado
-      if (evolutionUrl && evolutionKey) {
-        setWaStatus("connected");
-        setWaConnection({
-          instanceName,
-          phoneNumber: "Conectado",
-          pushName: "",
-        });
-        toast.success("Configuração salva. WhatsApp conectado!");
-      } else {
-        setWaStatus("idle");
-        toast.error("Erro de conexão.");
-      }
+    } catch (err: any) {
+      console.error("[Settings] Erro ao conectar com Evolution:", err);
+      setWaStatus("idle");
+      localStorage.removeItem("wa_connected");
+      toast.error("Configurações salvas, mas a Evolution API não respondeu (verifique se o servidor está ativo).");
     }
   };
 
