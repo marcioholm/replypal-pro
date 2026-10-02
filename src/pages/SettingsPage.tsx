@@ -12,7 +12,7 @@ import ReciboGenerator from "@/components/settings/ReciboGenerator";
 import { getNotificationConfig, setNotificationConfig } from "@/hooks/useNotifications";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { fetchQRCode, logoutInstance, updateEvolutionConfig, syncEvolutionGroups, setWebhook } from "@/lib/evolution";
+import { fetchQRCode, logoutInstance, updateEvolutionConfig, syncEvolutionGroups, setWebhook, resetarIntegracaoEvolution } from "@/lib/evolution";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AlertsPage from "./AlertsPage";
@@ -58,13 +58,13 @@ export default function SettingsPage() {
 
   const [evolutionUrl, setEvolutionUrl] = useState(tenant?.evolutionUrl || localStorage.getItem("evolution_url") || "");
   const [evolutionKey, setEvolutionKey] = useState(tenant?.evolutionKey || localStorage.getItem("evolution_key") || "");
-  const [instanceName, setInstanceName] = useState(tenant?.evolutionInstance || localStorage.getItem("evolution_instance") || import.meta.env.VITE_INSTANCE_NAME || "SASAKI");
+  const [instanceName, setInstanceName] = useState(tenant?.evolutionInstance || localStorage.getItem("evolution_instance") || "");
 
   useEffect(() => {
     if (tenant) {
       const url = tenant.evolutionUrl || localStorage.getItem("evolution_url") || "";
       const key = tenant.evolutionKey || localStorage.getItem("evolution_key") || "";
-      const inst = tenant.evolutionInstance || localStorage.getItem("evolution_instance") || import.meta.env.VITE_INSTANCE_NAME || "SASAKI";
+      const inst = tenant.evolutionInstance || localStorage.getItem("evolution_instance") || "";
       if (url) setEvolutionUrl(url);
       if (key) setEvolutionKey(key);
       if (inst) setInstanceName(inst);
@@ -313,6 +313,33 @@ export default function SettingsPage() {
     if (pollingRef.current) clearInterval(pollingRef.current);
     if (countdownRef.current) clearInterval(countdownRef.current);
     toast.success("WhatsApp desconectado (reset local).");
+  };
+
+  // Apaga a integração do escritório (banco + navegador). Útil ao trocar de servidor
+  // da Evolution ou quando a instalação antiga não existe mais.
+  const handleResetIntegracao = async () => {
+    if (user?.role !== "admin") {
+      toast.error("Apenas administradores podem resetar a integração.");
+      return;
+    }
+    if (!user?.tenantId) return;
+    const ok = window.confirm(
+      "Resetar a integração do WhatsApp?\n\n" +
+      "A URL, a chave e a instância da Evolution serão apagadas para todo o escritório. " +
+      "O envio e as automações param até você conectar de novo.\n\n" +
+      "As conversas e os clientes não são apagados."
+    );
+    if (!ok) return;
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    const res = await resetarIntegracaoEvolution(user.tenantId);
+    if (!res.success) {
+      toast.error("Não foi possível resetar: " + res.error);
+      return;
+    }
+    toast.success("Integração resetada. Informe os dados da nova Evolution.");
+    // Recarrega para o login reler company_settings (agora vazio) e não sobrar nada em memória.
+    setTimeout(() => window.location.reload(), 800);
   };
 
   const handleSaveCompany = () => {
@@ -1049,6 +1076,13 @@ export default function SettingsPage() {
                       <ExternalLink className="w-4 h-4 mr-2" />
                       Painel Evolution
                     </Button>
+
+                    {user?.role === "admin" && (
+                      <Button variant="ghost" className="h-12 rounded-2xl text-muted-foreground hover:text-destructive" onClick={handleResetIntegracao}>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Resetar integração
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1125,15 +1159,9 @@ export default function SettingsPage() {
                           <XCircle className="w-4 h-4 mr-2" />
                           Desconectar
                         </Button>
-                        <Button variant="ghost" size="sm" className="rounded-xl text-muted-foreground" onClick={() => {
-                          localStorage.removeItem("evolution_url");
-                          localStorage.removeItem("evolution_key");
-                          localStorage.removeItem("evolution_instance");
-                          localStorage.removeItem("wa_connection_cache");
-                          window.location.reload();
-                        }}>
+                        <Button variant="ghost" size="sm" className="rounded-xl text-muted-foreground hover:text-destructive" onClick={handleResetIntegracao}>
                           <RefreshCw className="w-4 h-4 mr-2" />
-                          Resetar Configurações Locais
+                          Resetar integração
                         </Button>
                       </>
                     )}

@@ -24,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const evolutionUrl = (cfg?.evolution_url || process.env.EVOLUTION_URL || "").replace(/\/+$/, "");
     const apiKey = cfg?.evolution_api_key || process.env.EVOLUTION_API_KEY || "";
-    const instance = cfg?.instance_name || process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI";
+    const instance = cfg?.instance_name || process.env.INSTANCE_NAME || "";
 
     if (!evolutionUrl || !apiKey) {
       return res.status(400).json({ error: 'Evolution API nao configurada' });

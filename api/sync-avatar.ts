@@ -6,6 +6,27 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL ||
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Configuração da Evolution do escritório (company_settings). As variáveis de ambiente
+// ficam só como reserva: assim trocar/resetar a integração na tela vale também aqui.
+async function evoDoTenant(tenantId?: string | null): Promise<{ url: string; key: string; instance: string }> {
+  let cfg: any = null;
+  if (tenantId) {
+    try {
+      const { data } = await supabase
+        .from('company_settings')
+        .select('evolution_url, evolution_api_key, instance_name')
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+      cfg = data;
+    } catch { /* segue com as variáveis de ambiente */ }
+  }
+  return {
+    url: (cfg?.evolution_url || process.env.EVOLUTION_URL || '').replace(/\/+$/, ''),
+    key: cfg?.evolution_api_key || process.env.EVOLUTION_API_KEY || '',
+    instance: cfg?.instance_name || process.env.INSTANCE_NAME || '',
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
@@ -24,9 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const phone = conv.client_phone;
     const tId = conv.tenant_id;
-    const evoUrl = (process.env.EVOLUTION_URL || "").replace(/\/$/, "");
-    const evoKey = process.env.EVOLUTION_API_KEY || "";
-    const instanceName = process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI";
+    const { url: evoUrl, key: evoKey, instance: instanceName } = await evoDoTenant(tId);
 
     console.log(`[SyncAvatar] Buscando avatar para conversationId=${conversationId}, phone=${phone}, tenantId=${tId}`);
 

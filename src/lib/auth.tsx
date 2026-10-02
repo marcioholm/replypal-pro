@@ -116,9 +116,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 });
 
                 // Sincronizar localStorage com o DB para consistência
-                if (sData?.evolution_url) localStorage.setItem("evolution_url", sData.evolution_url);
-                if (sData?.evolution_api_key) localStorage.setItem("evolution_key", sData.evolution_api_key);
-                if (sData?.instance_name) localStorage.setItem("evolution_instance", sData.instance_name);
+                if (sData?.evolution_url) localStorage.setItem("evolution_url", sData.evolution_url); else localStorage.removeItem("evolution_url");
+                if (sData?.evolution_api_key) localStorage.setItem("evolution_key", sData.evolution_api_key); else localStorage.removeItem("evolution_key");
+                if (sData?.instance_name) localStorage.setItem("evolution_instance", sData.instance_name); else localStorage.removeItem("evolution_instance");
 
                 setCurrentTenantId(tData.id);
               }
@@ -229,9 +229,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
         // Sincronizar localStorage com o DB para consistência
-        if (sData?.evolution_url) localStorage.setItem("evolution_url", sData.evolution_url);
-        if (sData?.evolution_api_key) localStorage.setItem("evolution_key", sData.evolution_api_key);
-        if (sData?.instance_name) localStorage.setItem("evolution_instance", sData.instance_name);
+        if (sData?.evolution_url) localStorage.setItem("evolution_url", sData.evolution_url); else localStorage.removeItem("evolution_url");
+        if (sData?.evolution_api_key) localStorage.setItem("evolution_key", sData.evolution_api_key); else localStorage.removeItem("evolution_key");
+        if (sData?.instance_name) localStorage.setItem("evolution_instance", sData.instance_name); else localStorage.removeItem("evolution_instance");
 
         setCurrentTenantId(foundTenant.id);
       }

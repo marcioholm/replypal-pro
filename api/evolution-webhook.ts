@@ -27,9 +27,10 @@ async function storeProfilePic(url: string, phone: string): Promise<string | nul
 }
 
 async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, mediaPath: string, fileName: string, mimeType: string, fullMessage: any, tenantId?: string): Promise<{ url: string, error?: string }> {
-  const evoUrl = (process.env.EVOLUTION_URL || process.env.VITE_EVOLUTION_URL || evolutionUrl || "").replace(/\/$/, "");
-  const evoKey = process.env.EVOLUTION_API_KEY || process.env.VITE_EVOLUTION_API_KEY || apikey || "";
-  const instance = fullMessage?.instance || process.env.INSTANCE_NAME || "SASAKI";
+  // Quem chama já resolveu a Evolution do escritório; ambiente fica só de reserva.
+  const evoUrl = (evolutionUrl || process.env.EVOLUTION_URL || "").replace(/\/$/, "");
+  const evoKey = apikey || process.env.EVOLUTION_API_KEY || "";
+  const instance = fullMessage?.instance || process.env.INSTANCE_NAME || "";
   let diagError = "";
 
   try {
@@ -153,10 +154,6 @@ async function downloadAndUploadMedia(evolutionUrl: string, apikey: string, medi
 
 // Backfill de avatares — busca fotos da tabela contacts e Evolution API
 async function handleBackfillAvatars(req: VercelRequest, res: VercelResponse) {
-  const evoUrl = (process.env.EVOLUTION_URL || "").replace(/\/$/, "");
-  const evoKey = process.env.EVOLUTION_API_KEY || "";
-  const instanceName = process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI";
-
   // Aceitar tenantId da query, ou tentar buscar pela instância
   let tId: string | null = req.query?.tenantId as string || null;
   if (!tId) {
@@ -169,6 +166,7 @@ async function handleBackfillAvatars(req: VercelRequest, res: VercelResponse) {
   if (!tId) {
     return res.status(400).json({ error: 'Nenhum tenant encontrado. Passe ?tenantId=... na query.' });
   }
+  const { url: evoUrl, key: evoKey, instance: instanceName } = await evoDoTenant(tId);
 
   try {
     const { data: conversas } = await supabase
@@ -403,6 +401,27 @@ function getBrazilianPhoneVariations(phone: string): string[] {
   return Array.from(variations);
 }
 
+// Configuração da Evolution do escritório (company_settings). As variáveis de ambiente
+// ficam só como reserva: assim trocar/resetar a integração na tela vale também aqui.
+async function evoDoTenant(tenantId?: string | null): Promise<{ url: string; key: string; instance: string }> {
+  let cfg: any = null;
+  if (tenantId) {
+    try {
+      const { data } = await supabase
+        .from('company_settings')
+        .select('evolution_url, evolution_api_key, instance_name')
+        .eq('tenant_id', tenantId)
+        .maybeSingle();
+      cfg = data;
+    } catch { /* segue com as variáveis de ambiente */ }
+  }
+  return {
+    url: (cfg?.evolution_url || process.env.EVOLUTION_URL || '').replace(/\/+$/, ''),
+    key: cfg?.evolution_api_key || process.env.EVOLUTION_API_KEY || '',
+    instance: cfg?.instance_name || process.env.INSTANCE_NAME || '',
+  };
+}
+
 async function findTenantByInstance(name: string, supabase: any): Promise<string | null> {
   // 1. Tentar evolution_instance (coluna pode ou não existir)
   try {
@@ -450,8 +469,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log(`[TIMING] Webhook recebido: ${event} às ${new Date().toISOString()}`);
 
   try {
-    const evoUrl = (process.env.EVOLUTION_URL || "").replace(/\/$/, "");
-    const evoKey = process.env.EVOLUTION_API_KEY || "";
+    // Evolution do escritório dono desta instância (uma consulta); ambiente como reserva.
+    let evoUrl = (process.env.EVOLUTION_URL || "").replace(/\/$/, "");
+    let evoKey = process.env.EVOLUTION_API_KEY || "";
+    if (instPayload) {
+      try {
+        const { data: cs } = await supabase
+          .from('company_settings')
+          .select('evolution_url, evolution_api_key')
+          .eq('instance_name', instPayload)
+          .maybeSingle();
+        if (cs?.evolution_url) evoUrl = String(cs.evolution_url).replace(/\/+$/, "");
+        if (cs?.evolution_api_key) evoKey = cs.evolution_api_key;
+      } catch { /* segue com as variáveis de ambiente */ }
+    }
 
     // Normalizar o evento para suportar diferentes versões da Evolution API
     const normalizedEvent = event.toLowerCase().replace(/_/g, '.');
@@ -567,7 +598,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           // 2. Se não, tentar Evolution API
           if (!fetchedPic && evoUrl && evoKey) {
-            const resp = await fetch(`${evoUrl}/chat/fetchProfilePictureUrl/${encodeURIComponent(instName || process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI")}`, {
+            const resp = await fetch(`${evoUrl}/chat/fetchProfilePictureUrl/${encodeURIComponent(instName || process.env.INSTANCE_NAME || "")}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
               body: JSON.stringify({ number: rawPhone })
@@ -691,7 +722,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (contactMatch?.foto_perfil && contactMatch.foto_perfil !== 'null') {
               newPic = contactMatch.foto_perfil;
             } else if (evoUrl && evoKey) {
-              const resp = await fetch(`${evoUrl}/chat/fetchProfilePictureUrl/${encodeURIComponent(instName || process.env.INSTANCE_NAME || process.env.VITE_INSTANCE_NAME || "SASAKI")}`, {
+              const resp = await fetch(`${evoUrl}/chat/fetchProfilePictureUrl/${encodeURIComponent(instName || process.env.INSTANCE_NAME || "")}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
                 body: JSON.stringify({ number: rawPhone })

@@ -12,10 +12,33 @@ export function updateEvolutionConfig(config: { url?: string; key?: string; inst
   if (config.instance) DYNAMIC_CONFIG.instance = config.instance;
 }
 
+const CHAVES_LOCAIS = ["evolution_url", "evolution_key", "evolution_instance", "wa_connected", "wa_connection_cache"];
+
+/** Esquece a Evolution neste navegador (memória + localStorage). */
+export function limparEvolutionLocal() {
+  DYNAMIC_CONFIG = { url: "", key: "", instance: "" };
+  CHAVES_LOCAIS.forEach((k) => localStorage.removeItem(k));
+}
+
+/**
+ * Reseta a integração do escritório inteiro: apaga URL, chave e instância em
+ * company_settings e limpa este navegador. Não desconecta o WhatsApp na Evolution.
+ */
+export async function resetarIntegracaoEvolution(tenantId: string) {
+  const { error } = await supabase
+    .from("company_settings")
+    .update({ evolution_url: null, evolution_api_key: null, instance_name: null, updated_at: new Date().toISOString() })
+    .eq("tenant_id", tenantId);
+  if (error) return { success: false, error: error.message };
+  limparEvolutionLocal();
+  return { success: true };
+}
+
+// Sem valor padrão: cada escritório usa só o que está salvo em Configurações.
 const EVO_CONFIG = {
-  getUrl: () => DYNAMIC_CONFIG.url || localStorage.getItem("evolution_url") || import.meta.env.VITE_EVOLUTION_URL || "",
+  getUrl: () => DYNAMIC_CONFIG.url || localStorage.getItem("evolution_url") || "",
   getKey: () => DYNAMIC_CONFIG.key || localStorage.getItem("evolution_key") || "",
-  getInstance: () => (DYNAMIC_CONFIG.instance || localStorage.getItem("evolution_instance") || import.meta.env.VITE_INSTANCE_NAME || "SASAKI").trim(),
+  getInstance: () => (DYNAMIC_CONFIG.instance || localStorage.getItem("evolution_instance") || "").trim(),
 };
 
 
@@ -415,29 +438,26 @@ export async function setWebhook(webhookUrl: string) {
 
   const apiUrl = getApiUrl();
 
+  // Só os eventos que /api/evolution-webhook trata. Tudo na mesma URL (byEvents: false):
+  // com byEvents ligado a Evolution acrescenta o nome do evento no caminho e a Vercel devolve 404.
   const events = [
-    "messages.upsert",
-    "messages.update",
-    "messages.delete",
-    "messages.reaction",
-    "contacts.upsert",
-    "presence.update",
+    "MESSAGES_UPSERT",
+    "MESSAGES_UPDATE",
+    "MESSAGES_SET",
+    "CONTACTS_UPSERT",
+    "CONTACTS_UPDATE",
+    "CONTACTS_SET",
+    "PRESENCE_UPDATE",
   ];
 
-  const webhookPayload = {
-    webhook: {
-      url: webhookUrl,
-      webhookByEvents: true,
-      webhookBase64: true,
-      events,
-    },
-  };
-
   try {
+    // Evolution v2
     const res = await fetch(`${apiUrl}/webhook/set/${instance}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": key },
-      body: JSON.stringify(webhookPayload),
+      body: JSON.stringify({
+        webhook: { enabled: true, url: webhookUrl, byEvents: false, base64: true, events },
+      }),
     });
 
     if (res.ok) {
@@ -445,21 +465,17 @@ export async function setWebhook(webhookUrl: string) {
       return { success: true };
     }
 
-    // Fallback: tentar formato v2 sem webhookByEvents
+    // Evolution v1
     const fallbackRes = await fetch(`${apiUrl}/webhook/set/${instance}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "apikey": key },
       body: JSON.stringify({
-        webhook: {
-          url: webhookUrl,
-          webhookBase64: true,
-          events,
-        },
+        enabled: true, url: webhookUrl, webhook_by_events: false, webhook_base64: true, events,
       }),
     });
 
     if (fallbackRes.ok) {
-      console.log("[Evolution] Webhook configurado (v2 fallback):", webhookUrl);
+      console.log("[Evolution] Webhook configurado (formato v1):", webhookUrl);
       return { success: true };
     }
 
