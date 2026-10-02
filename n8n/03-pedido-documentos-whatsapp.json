@@ -35,7 +35,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ⚙️ CONFIGURAÇÃO — preencha uma vez\nreturn [{ json: {\n  ...$json,\n  config: {\n    SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',   // sem barra no final\n    EVOLUTION_V1: false,                                // true se a sua Evolution for v1.x\n    MODELO_IA: 'gpt-4.1-mini',\n  }\n}}];"
+        "jsCode": "// ⚙️ CONFIGURAÇÃO — preencha uma vez\nreturn [{ json: {\n  ...$json,\n  config: {\n    SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',   // sem barra no final\n    APP_URL: 'https://SEU-APP.vercel.app',              // endereço do Conta+, sem barra no final\n    EVOLUTION_V1: false,                                // true se a sua Evolution for v1.x\n    MODELO_IA: 'gpt-4.1-mini',\n  }\n}}];"
       },
       "id": "51886bb1-daae-54ad-a17b-99a35055aeeb",
       "name": "Config",
@@ -191,7 +191,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT public.confirmar_pedido_documento($1::uuid) AS r,\n       p.id AS pedido_id, p.tipo, d.nome_arquivo, d.url, d.storage_path,\n       coalesce(cfg.rotulo, p.tipo) AS rotulo\nFROM public.pedidos_documento p\nLEFT JOIN public.documentos d ON d.id = p.documento_id\nLEFT JOIN public.documento_tipos_config cfg ON cfg.tenant_id = p.tenant_id AND cfg.tipo = p.tipo\nWHERE p.id = $1::uuid",
+        "query": "SELECT public.confirmar_pedido_documento($1::uuid) AS r,\n       p.id AS pedido_id, p.tipo, p.documento_id, d.nome_arquivo,\n       coalesce(cfg.rotulo, p.tipo) AS rotulo\nFROM public.pedidos_documento p\nLEFT JOIN public.documentos d ON d.id = p.documento_id\nLEFT JOIN public.documento_tipos_config cfg ON cfg.tenant_id = p.tenant_id AND cfg.tipo = p.tipo\nWHERE p.id = $1::uuid",
         "options": {
           "queryReplacement": "={{ [ $json.pedido.id ] }}"
         }
@@ -296,13 +296,10 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $('Config').item.json.config.SUPABASE_URL + '/storage/v1/object/sign/documentos/' + String($json.storage_path || '').split('/').map(encodeURIComponent).join('/') }}",
+        "method": "GET",
+        "url": "={{ $('Config').item.json.config.APP_URL + '/api/documento-url?id=' + $json.documento_id }}",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpCustomAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\"expiresIn\": 600}",
+        "genericAuthType": "httpHeaderAuth",
         "options": {
           "timeout": 20000,
           "response": {
@@ -313,8 +310,8 @@
           }
         }
       },
-      "id": "ddab3312-3882-5935-95e0-44dfea28dc38",
-      "name": "Assinar link do arquivo",
+      "id": "8a8dda5c-752d-56ca-b119-ca2f0b756dd6",
+      "name": "Pedir link do arquivo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -322,15 +319,15 @@
         -480
       ],
       "credentials": {
-        "httpCustomAuth": {
-          "id": "contaSupaService",
-          "name": "Conta+ · Supabase service"
+        "httpHeaderAuth": {
+          "id": "contaApiInterna",
+          "name": "Conta+ · API interna"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "function corpoTexto(numero, texto, v1) {\n  return v1 ? { number: numero, textMessage: { text: texto } } : { number: numero, text: texto };\n}\nfunction corpoMidia(numero, url, tipo, nome, legenda, v1) {\n  const m = { mediatype: tipo || 'document', media: url, fileName: nome || 'arquivo', caption: legenda || '' };\n  return v1 ? { number: numero, mediaMessage: m } : { number: numero, ...m };\n}\nfunction endpoint(evo, caminho) {\n  return `${String(evo.url || '').replace(/\\/$/, '')}/message/${caminho}/${encodeURIComponent(evo.instance || '')}`;\n}\n\nconst base = $('Decidir caminho').item.json;\nconst c = $('Confirmar pedido').item.json;\nconst assinado = $json.signedURL ? base.config.SUPABASE_URL + '/storage/v1' + $json.signedURL : null;\nconst url = c.storage_path ? assinado : c.url;\nconst legenda = `Segue o ${c.rotulo}.`;\nreturn [{ json: {\n  ...base, pedido_id: c.pedido_id, enviar_arquivo: true, legenda, nome_arquivo: c.nome_arquivo,\n  url_arquivo: url,\n  req: url ? {\n    url: endpoint(base.evolution, 'sendMedia'),\n    headers: { apikey: base.evolution.apikey },\n    body: corpoMidia(base.numero, url, 'document', c.nome_arquivo, legenda, base.config.EVOLUTION_V1),\n  } : null,\n}}];"
+        "jsCode": "function corpoTexto(numero, texto, v1) {\n  return v1 ? { number: numero, textMessage: { text: texto } } : { number: numero, text: texto };\n}\nfunction corpoMidia(numero, url, tipo, nome, legenda, v1) {\n  const m = { mediatype: tipo || 'document', media: url, fileName: nome || 'arquivo', caption: legenda || '' };\n  return v1 ? { number: numero, mediaMessage: m } : { number: numero, ...m };\n}\nfunction endpoint(evo, caminho) {\n  return `${String(evo.url || '').replace(/\\/$/, '')}/message/${caminho}/${encodeURIComponent(evo.instance || '')}`;\n}\n\nconst base = $('Decidir caminho').item.json;\nconst c = $('Confirmar pedido').item.json;\nconst url = $json.url || null;   // sem link (arquivo apagado, Drive desconectado): avisa a equipe\nconst legenda = `Segue o ${c.rotulo}.`;\nreturn [{ json: {\n  ...base, pedido_id: c.pedido_id, enviar_arquivo: true, legenda, nome_arquivo: c.nome_arquivo,\n  url_arquivo: url,\n  req: url ? {\n    url: endpoint(base.evolution, 'sendMedia'),\n    headers: { apikey: base.evolution.apikey },\n    body: corpoMidia(base.numero, url, 'document', c.nome_arquivo, legenda, base.config.EVOLUTION_V1),\n  } : null,\n}}];"
       },
       "id": "cfc70558-e8f9-5446-8c94-bdd97eaedb0c",
       "name": "Montar envio do arquivo",
@@ -338,6 +335,39 @@
       "typeVersion": 2,
       "position": [
         1760,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "5d1f4bcc-65a0-5a04-918f-d3413cbb2018",
+              "leftValue": "={{ !!$json.url_arquivo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5d1f4bcc-65a0-5a04-918f-d3413cbb2018",
+      "name": "Tem link?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1870,
         -480
       ]
     },
@@ -438,6 +468,30 @@
         2420,
         -300
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE public.pedidos_documento\n   SET status = 'aguardando_envio', motivo = 'Envio automático falhou', updated_at = now()\n WHERE id = $1::uuid AND status = 'aguardando_cliente'\nRETURNING id",
+        "options": {
+          "queryReplacement": "={{ [ $('Montar envio do arquivo').item.json.pedido_id ] }}"
+        }
+      },
+      "id": "8ed57e01-073e-54b8-962a-daaf05150733",
+      "name": "Deixar para a equipe",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2420,
+        -140
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "contaPostgres",
+          "name": "Conta+ · Supabase (Postgres)"
+        }
+      },
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -799,7 +853,7 @@
       "main": [
         [
           {
-            "node": "Assinar link do arquivo",
+            "node": "Pedir link do arquivo",
             "type": "main",
             "index": 0
           }
@@ -820,7 +874,7 @@
         ]
       ]
     },
-    "Assinar link do arquivo": {
+    "Pedir link do arquivo": {
       "main": [
         [
           {
@@ -835,7 +889,25 @@
       "main": [
         [
           {
+            "node": "Tem link?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem link?": {
+      "main": [
+        [
+          {
             "node": "Enviar arquivo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Deixar para a equipe",
             "type": "main",
             "index": 0
           }
@@ -862,6 +934,17 @@
             "index": 0
           }
         ],
+        [
+          {
+            "node": "Deixar para a equipe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deixar para a equipe": {
+      "main": [
         [
           {
             "node": "Texto: falha no envio",

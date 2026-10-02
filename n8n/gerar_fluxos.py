@@ -12,6 +12,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 CRED_PG = {"postgres": {"id": "contaPostgres", "name": "Conta+ · Supabase (Postgres)"}}
 CRED_OPENAI = {"httpHeaderAuth": {"id": "contaOpenAI", "name": "Conta+ · OpenAI"}}
 CRED_SUPA = {"httpCustomAuth": {"id": "contaSupaService", "name": "Conta+ · Supabase service"}}
+CRED_API = {"httpHeaderAuth": {"id": "contaApiInterna", "name": "Conta+ · API interna"}}
 
 MODELO_IA = "gpt-4.1-mini"
 
@@ -22,6 +23,7 @@ return [{ json: {
   ...$json,
   config: {
     SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',   // sem barra no final
+    APP_URL: 'https://SEU-APP.vercel.app',              // endereço do Conta+, sem barra no final
     EVOLUTION_V1: false,                                // true se a sua Evolution for v1.x
     MODELO_IA: '%s',
   }
@@ -420,7 +422,7 @@ return [{ json: {
     # confirmar
     conf = sql(f, "Confirmar pedido", """
 SELECT public.confirmar_pedido_documento($1::uuid) AS r,
-       p.id AS pedido_id, p.tipo, d.nome_arquivo, d.url, d.storage_path,
+       p.id AS pedido_id, p.tipo, p.documento_id, d.nome_arquivo,
        coalesce(cfg.rotulo, p.tipo) AS rotulo
 FROM public.pedidos_documento p
 LEFT JOIN public.documentos d ON d.id = p.documento_id
@@ -428,21 +430,19 @@ LEFT JOIN public.documento_tipos_config cfg ON cfg.tenant_id = p.tenant_id AND c
 WHERE p.id = $1::uuid
 """, "[ $json.pedido.id ]", [1100, -300])
     acao = rotas(f, "Ação", "$json.r.acao", ["enviar_agora", "avisar_equipe", "aguardar_aprovacao"], [1320, -300])
-    assinar = f.add("Assinar link do arquivo", "n8n-nodes-base.httpRequest", 4.2, {
-        "method": "POST",
-        "url": "={{ $('Config').item.json.config.SUPABASE_URL + '/storage/v1/object/sign/documentos/' + String($json.storage_path || '').split('/').map(encodeURIComponent).join('/') }}",
+    # O Conta+ devolve um link de 5 minutos, venha o arquivo do Google Drive do
+    # escritório ou do cofre (Storage). O fluxo não precisa saber onde ele está.
+    assinar = f.add("Pedir link do arquivo", "n8n-nodes-base.httpRequest", 4.2, {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.config.APP_URL + '/api/documento-url?id=' + $json.documento_id }}",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpCustomAuth",
-        "sendBody": True,
-        "specifyBody": "json",
-        "jsonBody": "{\"expiresIn\": 600}",
+        "genericAuthType": "httpHeaderAuth",
         "options": {"timeout": 20000, "response": {"response": {"fullResponse": False, "neverError": True}}},
-    }, [1540, -480], cred=CRED_SUPA)
+    }, [1540, -480], cred=CRED_API)
     montar_midia = code(f, "Montar envio do arquivo", EVOLUTION_HELPERS + r"""
 const base = $('Decidir caminho').item.json;
 const c = $('Confirmar pedido').item.json;
-const assinado = $json.signedURL ? base.config.SUPABASE_URL + '/storage/v1' + $json.signedURL : null;
-const url = c.storage_path ? assinado : c.url;
+const url = $json.url || null;   // sem link (arquivo apagado, Drive desconectado): avisa a equipe
 const legenda = `Segue o ${c.rotulo}.`;
 return [{ json: {
   ...base, pedido_id: c.pedido_id, enviar_arquivo: true, legenda, nome_arquivo: c.nome_arquivo,
@@ -454,6 +454,7 @@ return [{ json: {
   } : null,
 }}];
 """, [1760, -480])
+    tem_link = se(f, "Tem link?", "!!$json.url_arquivo", [1870, -480])
     enviar_midia = http_dinamico(f, "Enviar arquivo", [1980, -480])
     marcar = sql(f, "Marcar enviado", """
 SELECT public.marcar_pedido_enviado($1::uuid, NULL) AS pedido,
@@ -470,6 +471,13 @@ SELECT public.marcar_pedido_enviado($1::uuid, NULL) AS pedido,
 const b = $('Montar envio do arquivo').item.json;
 return [{ json: { ...b, resposta: 'Não consegui enviar o arquivo agora. Um atendente já vai te ajudar.' } }];
 """, [2420, -300])
+    # Não saiu sozinho: o pedido vai para a fila de "um clique" da equipe em vez de expirar.
+    para_equipe = sql(f, "Deixar para a equipe", """
+UPDATE public.pedidos_documento
+   SET status = 'aguardando_envio', motivo = 'Envio automático falhou', updated_at = now()
+ WHERE id = $1::uuid AND status = 'aguardando_cliente'
+RETURNING id
+""", "[ $('Montar envio do arquivo').item.json.pedido_id ]", [2420, -140], sempre=True)
     txt_equipe = code(f, "Texto: equipe envia", r"""
 return [{ json: { ...$('Decidir caminho').item.json, resposta: 'Pedido recebido! A equipe envia em instantes.' } }];
 """, [1540, -300])
@@ -565,8 +573,9 @@ SELECT public.registrar_mensagem_automatica($1::uuid, $2, 'Conta+ (automático)'
     f.liga(sw, conf, 0); f.liga(sw, canc, 1); f.liga(sw, esc, 2); f.liga(sw, clas, 3)
     f.liga(conf, acao)
     f.liga(acao, assinar, 0); f.liga(acao, txt_equipe, 1); f.liga(acao, txt_aprov, 2)
-    f.liga(assinar, montar_midia); f.liga(montar_midia, enviar_midia); f.liga(enviar_midia, enviou)
-    f.liga(enviou, marcar, 0); f.liga(enviou, falha_envio, 1)
+    f.liga(assinar, montar_midia); f.liga(montar_midia, tem_link); f.liga(tem_link, enviar_midia, 0)
+    f.liga(tem_link, para_equipe, 1); f.liga(enviar_midia, enviou)
+    f.liga(enviou, marcar, 0); f.liga(enviou, para_equipe, 1); f.liga(para_equipe, falha_envio)
     f.liga(canc, txt_canc)
     f.liga(esc, montar_txt)
     f.liga(clas, ler); f.liga(ler, eh); f.liga(eh, resolver, 0); f.liga(resolver, montar_txt)

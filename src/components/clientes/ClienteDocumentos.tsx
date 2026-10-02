@@ -405,6 +405,28 @@ function DocumentItem({ tipo, label, category, month, year, status, clienteId, c
         vigente: true,
       };
 
+      // 1º: Google Drive do escritório. O servidor responde "fallback" quando o Drive não
+      // está conectado ou quando o documento não vai para o Drive (certificado digital):
+      // aí segue o caminho antigo (n8n + cofre do sistema).
+      const noDrive = await fetch("/api/google?action=upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, usuario_id: authUser?.id }),
+      }).then(async (r) => ({ status: r.status, data: await r.json().catch(() => ({})) }))
+        .catch(() => ({ status: 0, data: {} as Record<string, unknown> }));
+
+      if (noDrive.data?.success) {
+        toast.success(`${label} guardado no Google Drive do escritório.`);
+        setSelectedFile(null);
+        if (onUploadSuccess) onUploadSuccess();
+        return;
+      }
+      // Drive conectado mas recusou (sem espaço, acesso revogado...): mostra o motivo em vez
+      // de gravar em outro lugar sem avisar. 404/500 de configuração também seguem para o n8n.
+      if (!noDrive.data?.fallback && noDrive.status === 502) {
+        throw new Error(String(noDrive.data?.error || "O Google Drive recusou o arquivo."));
+      }
+
       if (!webhookUrl) {
         throw new Error("A URL de envio de documentos (Webhook) não foi configurada no sistema.");
       }

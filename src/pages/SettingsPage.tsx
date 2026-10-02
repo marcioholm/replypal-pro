@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import AlertsPage from "./AlertsPage";
 import DailyReportPage from "./DailyReportPage";
 import DocumentosAutomaticosSettings from "@/components/settings/DocumentosAutomaticosSettings";
+import GoogleDriveCard from "@/components/settings/GoogleDriveCard";
 
 type WhatsAppStatus = "idle" | "loading" | "qrcode" | "connected";
 
@@ -522,7 +523,8 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-5 px-8 pb-8 pt-5 max-w-4xl mx-auto">
-      <Tabs defaultValue="empresa" className="space-y-4">
+      {/* Voltando do Google (/settings?drive=...), abre direto na aba do Drive */}
+      <Tabs defaultValue={new URLSearchParams(window.location.search).has("drive") ? "documentos-auto" : "empresa"} className="space-y-4">
         <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
           <TabsTrigger value="perfil" className="flex items-center gap-2 text-xs py-2 px-4">
             <UserIcon className="w-3.5 h-3.5" />
@@ -559,14 +561,15 @@ export default function SettingsPage() {
           {user?.role === "admin" && (
             <TabsTrigger value="documentos-auto" className="flex items-center gap-2 text-xs py-2 px-4">
               <FileText className="w-3.5 h-3.5 text-primary" />
-              Documentos automáticos
+              Documentos e Drive
             </TabsTrigger>
           )}
         </TabsList>
 
         {/* Documentos automáticos */}
         {user?.role === "admin" && (
-          <TabsContent value="documentos-auto">
+          <TabsContent value="documentos-auto" className="space-y-4">
+            <GoogleDriveCard />
             <DocumentosAutomaticosSettings />
           </TabsContent>
         )}
