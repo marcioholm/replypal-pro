@@ -27,7 +27,7 @@ export function limparEvolutionLocal() {
 export async function resetarIntegracaoEvolution(tenantId: string) {
   const { error } = await supabase
     .from("company_settings")
-    .update({ evolution_url: null, evolution_api_key: null, instance_name: null, updated_at: new Date().toISOString() })
+    .update({ evolution_url: null, evolution_api_key: null, instance_name: null })
     .eq("tenant_id", tenantId);
   if (error) return { success: false, error: error.message };
   limparEvolutionLocal();

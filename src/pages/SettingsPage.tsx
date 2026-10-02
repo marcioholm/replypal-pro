@@ -223,13 +223,18 @@ export default function SettingsPage() {
 
     // Salvar no banco para todos terem acesso
     if (user?.tenantId) {
-      await supabase.from("company_settings").upsert({
+      const { error: saveErr } = await supabase.from("company_settings").upsert({
         tenant_id: user.tenantId,
         evolution_url: apiUrl,
         evolution_api_key: key,
-        instance_name: instance,
-        updated_at: new Date().toISOString()
+        instance_name: instance
       }, { onConflict: 'tenant_id' });
+
+      if (saveErr) {
+        console.error("[Settings] Erro ao salvar company_settings:", saveErr);
+        toast.error("Erro ao salvar dados no banco: " + saveErr.message);
+        return;
+      }
       
       // Atualizar memória do robô localmente também
       updateEvolutionConfig({
@@ -446,8 +451,7 @@ export default function SettingsPage() {
           tenant_id: user.tenantId,
           evolution_url: apiUrl,
           evolution_api_key: evolutionKey.trim(),
-          instance_name: instanceName.trim(),
-          updated_at: new Date().toISOString()
+          instance_name: instanceName.trim()
         }, { onConflict: 'tenant_id' });
       } catch (err) {
         console.error("Erro ao persistir configurações:", err);
